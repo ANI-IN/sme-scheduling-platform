@@ -82,6 +82,7 @@ create table public.domain (
   test_discord_channel_id text check (test_discord_channel_id ~ '^\d{17,20}$'),
   test_email text,
   test_clock_at timestamptz,
+  paused_from text,                 -- status before Paused; a domain paused from Test stays in test mode
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   updated_by uuid,
@@ -791,7 +792,7 @@ declare
   v_after jsonb;
   v_row jsonb;
   v_ignore text[] := array['updated_at', 'updated_by', 'version', 'verified_at', 'last_response_at',
-                           'email_bounced_at', 'discord_failed_at', 'test_clock_at'];
+                           'email_bounced_at', 'discord_failed_at', 'test_clock_at', 'paused_from'];
   v_action text;
   k text;
   v_changed boolean := false;
@@ -1228,6 +1229,23 @@ begin
   end loop;
 end;
 $$;
+
+-- Remember where a Paused domain came from, so pausing a Test domain never routes to real people.
+create or replace function private.domain_before_write()
+returns trigger
+language plpgsql set search_path = ''
+as $$
+begin
+  if new.status = 'Paused' then
+    new.paused_from := case when tg_op = 'UPDATE' and old.status <> 'Paused' then old.status else coalesce(new.paused_from, 'Live') end;
+  else
+    new.paused_from := null;
+  end if;
+  return new;
+end;
+$$;
+create trigger domain_before_write before insert or update of status on public.domain
+  for each row execute function private.domain_before_write();
 
 create trigger instructor_before_write before insert or update on public.instructor
   for each row execute function private.instructor_before_write();

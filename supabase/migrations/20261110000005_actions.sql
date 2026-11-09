@@ -325,46 +325,82 @@ $$;
 -- -------------------------------------------------------------------------------------
 -- Class changes (PRD 9.9)
 -- -------------------------------------------------------------------------------------
--- Move one class to a new start/end and recalculate (used by change time and shift).
-create or replace function private.apply_class_time(p_class uuid, p_start timestamptz, p_end timestamptz, p_now timestamptz)
-returns jsonb language plpgsql security definer set search_path = ''
+-- Move one class (no recalculation yet). Returns true when the confirmed instructor would clash
+-- at the new time. Used by change time and by shift (which moves all classes of a week first).
+create or replace function private.move_class(p_class uuid, p_start timestamptz, p_end timestamptz)
+returns boolean language plpgsql security definer set search_path = ''
 as $$
 declare
   c public.class_session;
   w public.module_week;
-  b public.booking;
-  r public.request;
-  v_res jsonb := '{}';
+  v_booking uuid;
 begin
   select * into c from public.class_session where id = p_class for update;
   if p_end <= p_start then raise exception 'The class must end after it starts.' using errcode = '22023'; end if;
-  if c.starts_at = p_start and c.ends_at = p_end then return jsonb_build_object('unchanged', true); end if;
+  if c.starts_at = p_start and c.ends_at = p_end then return false; end if;
   update public.class_session set starts_at = p_start, ends_at = p_end where id = p_class;
-  update public.module_week set time_version = time_version + 1 where id = c.module_week_id returning * into w;
+  select * into w from public.module_week where id = c.module_week_id;
   perform private.log_event('Team actions', 'Class time changed', 'class_session', p_class,
     jsonb_build_object('starts_at', c.starts_at, 'ends_at', c.ends_at, 'shown', private.fmt_pt_range(c.starts_at, c.ends_at)),
     jsonb_build_object('starts_at', p_start, 'ends_at', p_end, 'shown', private.fmt_pt_range(p_start, p_end)), null,
     w.domain_id, w.module_id, w.id, p_class);
+  select b.id into v_booking from public.booking b where b.module_week_id = w.id and b.status = 'Active';
+  if v_booking is not null then
+    begin
+      update public.booking_slot set time_range = tstzrange(p_start, p_end, '[)') where booking_id = v_booking and class_id = p_class;
+    exception when exclusion_violation then
+      return true;
+    end;
+  end if;
+  return false;
+end;
+$$;
 
+-- After a week's classes moved: one time-version bump and one round of follow-up (PRD 9.9).
+create or replace function private.week_times_changed(p_mw uuid, p_now timestamptz, p_clash boolean)
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+declare
+  w public.module_week;
+  b public.booking;
+  r public.request;
+  v_win record;
+  v_urgent boolean;
+  v_send timestamptz;
+  v_deadline timestamptz;
+begin
+  update public.module_week set time_version = time_version + 1 where id = p_mw returning * into w;
   select * into b from public.booking where module_week_id = w.id and status = 'Active';
   if b.id is not null then
-    begin
-      update public.booking_slot set time_range = tstzrange(p_start, p_end, '[)') where booking_id = b.id and class_id = p_class;
-    exception when exclusion_violation then
-      v_res := private.release_booking_flow(b.id, 'TimeClash', p_now, true);
+    if p_clash then
+      perform private.release_booking_flow(b.id, 'TimeClash', p_now, true);
       return jsonb_build_object('released', true, 'reason', 'clash');
-    end;
-    -- The time-change request (M5) goes out from the engine; run that step now.
-    perform private.step_time_changes(w.domain_id, p_now);
+    end if;
+    -- The time-change request (M5) is created by the engine step; run it now unless instructor
+    -- messages are paused (then the next allowed hourly run creates it).
+    if private.instructor_messages_allowed(w.domain_id) and not w.paused then
+      perform private.step_time_changes(w.domain_id, p_now);
+    end if;
     return jsonb_build_object('time_change_request', true);
   end if;
 
   select * into r from public.request
    where module_week_id = w.id and kind = 'Outreach' and status in ('Queued', 'Sent', 'Reminded') for update;
   if r.id is not null then
-    update public.request set time_version = w.time_version where id = r.id;
+    -- Recalculate the response window for the new times (the class may now be much closer).
+    v_win := private.window_hours(w.id, p_now);
+    v_urgent := v_win.band = 'Short';
+    v_send := private.instructor_send_time(w.domain_id, p_now, v_urgent);
+    v_deadline := least(greatest(r.sent_at, p_now) + make_interval(hours => v_win.move_h), w.first_class_at);
+    v_deadline := least(private.instructor_send_time(w.domain_id, v_deadline, v_urgent), w.first_class_at);
+    update public.request
+       set time_version = w.time_version,
+           deadline_at = least(deadline_at, v_deadline),
+           reminder_at = least(reminder_at, private.instructor_send_time(w.domain_id, v_send + make_interval(hours => v_win.reminder_h), v_urgent), v_deadline)
+     where id = r.id
+    returning * into r;
     perform private.queue_instructor_message('M5', r.instructor_id, w.id, r.id, p_now,
-      private.buttons(r.id, array['Yes', 'No']), jsonb_build_object('deadline', private.fmt_pt(r.deadline_at)));
+      private.buttons(r.id, array['Yes', 'No']), jsonb_build_object('deadline', private.fmt_pt(r.deadline_at)), v_urgent);
     return jsonb_build_object('updated_request', true);
   end if;
   return jsonb_build_object('ok', true);
@@ -383,8 +419,13 @@ begin
     raise exception 'This changed — reload. Someone else saved this class after you opened it.' using errcode = '40001';
   end if;
   if c.status <> 'Planned' then raise exception 'Only planned classes can be moved.'; end if;
-  v := private.apply_class_time(p_class_id, private.pt_to_utc(p_date, p_start),
-         private.pt_to_utc(p_date + case when p_end <= p_start then 1 else 0 end, p_end), private.mw_now(c.module_week_id));
+  if (c.starts_at, c.ends_at) = (private.pt_to_utc(p_date, p_start),
+                                 private.pt_to_utc(p_date + case when p_end <= p_start then 1 else 0 end, p_end)) then
+    return jsonb_build_object('unchanged', true);
+  end if;
+  v := private.week_times_changed(c.module_week_id, private.mw_now(c.module_week_id),
+         private.move_class(p_class_id, private.pt_to_utc(p_date, p_start),
+                            private.pt_to_utc(p_date + case when p_end <= p_start then 1 else 0 end, p_end)));
   perform private.queue_deliver('time change');
   return v;
 end;
@@ -422,23 +463,44 @@ declare
   c record;
   n int := 0;
   v_now timestamptz;
+  v_msg text;
+  v_clash boolean;
 begin
   perform private.require_team();
   if p_weeks = 0 or abs(p_weeks) > 26 then raise exception 'Shift by 1 to 26 weeks.'; end if;
   select * into w0 from public.module_week where id = p_module_week_id;
   v_now := private.domain_now(w0.domain_id);
+  -- Refuse (in plain words) a shift that would land on a week the same module already has.
+  select m.name || ' already has a week starting ' || to_char(t.week_start_date, 'Mon FMDD, YYYY')
+    into v_msg
+    from public.module_week mw
+    join public.module_week t on t.module_id = mw.module_id and t.cohort = mw.cohort
+                             and t.week_start_date = mw.week_start_date + 7 * p_weeks
+    join public.module m on m.id = mw.module_id
+   where mw.domain_id = w0.domain_id and mw.cohort = w0.cohort and mw.status not in ('Completed', 'Cancelled')
+     and (mw.id = w0.id or (p_include_later and mw.week_start_date > w0.week_start_date))
+     and not (t.id = w0.id or (p_include_later and t.week_start_date > w0.week_start_date and t.status not in ('Completed', 'Cancelled')))
+   limit 1;
+  if v_msg is not null then
+    raise exception 'Can''t shift: %. Move or cancel that week first, or shift all later weeks too.', v_msg;
+  end if;
   for w in select mw.* from public.module_week mw
             where mw.domain_id = w0.domain_id and mw.cohort = w0.cohort and mw.status not in ('Completed', 'Cancelled')
               and (mw.id = w0.id or (p_include_later and mw.week_start_date > w0.week_start_date))
             order by case when p_weeks > 0 then mw.week_start_date end desc, case when p_weeks < 0 then mw.week_start_date end asc loop
     update public.module_week set week_start_date = week_start_date + 7 * p_weeks where id = w.id;
-    for c in select * from public.class_session where module_week_id = w.id and status = 'Planned' loop
+    v_clash := false;
+    -- Move every class of the week first (latest first when moving forward), then recalculate once,
+    -- so the instructor gets one message with the final times.
+    for c in select * from public.class_session where module_week_id = w.id and status = 'Planned'
+              order by case when p_weeks > 0 then starts_at end desc, case when p_weeks < 0 then starts_at end asc loop
       -- keep the same Pacific wall-clock time across daylight saving changes
-      perform private.apply_class_time(c.id,
+      v_clash := private.move_class(c.id,
         private.pt_to_utc((c.starts_at at time zone 'America/Los_Angeles')::date + 7 * p_weeks, (c.starts_at at time zone 'America/Los_Angeles')::time),
-        private.pt_to_utc((c.ends_at at time zone 'America/Los_Angeles')::date + 7 * p_weeks, (c.ends_at at time zone 'America/Los_Angeles')::time),
-        v_now);
+        private.pt_to_utc((c.ends_at at time zone 'America/Los_Angeles')::date + 7 * p_weeks, (c.ends_at at time zone 'America/Los_Angeles')::time))
+        or v_clash;
     end loop;
+    perform private.week_times_changed(w.id, v_now, v_clash);
     n := n + 1;
   end loop;
   perform private.log_event('Team actions', 'Shifted ' || n || ' module week(s) by ' || p_weeks || ' week(s)', 'module_week',
@@ -733,6 +795,7 @@ begin
    where id = h.id;
   if p_resolves then
     perform private.resolve_attention('help:' || h.id, 'Resolved with a reply');
+    perform private.clear_help_risk(h.module_week_id);
   else
     update public.attention_item set status = 'Acknowledged', ack_until = now() + interval '24 hours'
      where dedupe_key = 'help:' || h.id and status <> 'Done';
@@ -755,6 +818,7 @@ begin
   update public.help_request set status = p_status, resolved_at = now(), resolution_note = p_note
    where id = p_help_id returning * into h;
   perform private.resolve_attention('help:' || p_help_id, p_status || ': ' || p_note);
+  perform private.clear_help_risk(h.module_week_id);
   perform private.log_event('Help requests', p_status, 'help_request', p_help_id, null, null, p_note, h.domain_id, null, h.module_week_id);
 end;
 $$;
@@ -784,6 +848,7 @@ begin
   update public.help_request set status = 'ConvertedToCancellation', resolved_at = now(), resolution_note = 'Converted to cancellation'
    where id = h.id;
   perform private.resolve_attention('help:' || h.id, 'Converted to cancellation');
+  perform private.clear_help_risk(h.module_week_id);
   perform private.log_event('Help requests', 'Converted to cancellation', 'help_request', h.id, null, null, null,
     h.domain_id, null, h.module_week_id);
   v := private.release_booking_flow(v_b, 'InstructorCancelled', private.mw_now(h.module_week_id));
@@ -849,7 +914,7 @@ as $$
 begin
   perform private.require_team();
   update public.domain set status = p_status,
-         test_clock_at = case when p_status = 'Test' then test_clock_at end
+         test_clock_at = case when p_status = 'Test' or (p_status = 'Paused' and status = 'Test') then test_clock_at end
    where id = p_domain_id;
 end;
 $$;
@@ -1016,8 +1081,7 @@ begin
     'help_set_status(uuid, text, text)', 'help_reassign(uuid, uuid)', 'help_convert_to_cancellation(uuid)',
     'set_setting(uuid, text, jsonb)', 'reset_setting(uuid, text)', 'effective_settings(uuid)', 'set_kill_switch(boolean)',
     'set_domain_status(uuid, text)', 'set_test_clock(uuid, timestamptz)', 'advance_test_clock(uuid, int)',
-    'jump_test_clock(uuid, uuid, int)', 'run_check_now(uuid)', 'send_test_alert(uuid)', 'undo_history_event(bigint)',
-    'engine_tick(uuid, timestamptz)']
+    'jump_test_clock(uuid, uuid, int)', 'run_check_now(uuid)', 'send_test_alert(uuid)', 'undo_history_event(bigint)']
   loop
     execute format('grant execute on function public.%s to authenticated, service_role', f);
   end loop;

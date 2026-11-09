@@ -213,10 +213,17 @@ declare
   v_test boolean;
 begin
   select * into w from public.module_week where id = p_mw for update;
-  if w.status in ('Cancelled', 'Completed') or w.paused or w.first_class_at is null or w.first_class_at <= p_now then
+  if w.status in ('Cancelled', 'Completed') then
     return null;
   end if;
-  if not private.instructor_messages_allowed(w.domain_id) then
+  if w.paused or w.first_class_at is null or w.first_class_at <= p_now
+     or not private.instructor_messages_allowed(w.domain_id) then
+    -- Can't ask right now (paused, kill switch, class started): never leave the week "Asking" with
+    -- nobody asked — set it back to Ready so the next allowed run picks it up.
+    if w.status = 'Asking' and not exists (select 1 from public.request r where r.module_week_id = p_mw
+                                            and r.kind = 'Outreach' and r.status in ('Queued', 'Sent', 'Reminded')) then
+      update public.module_week set status = 'Ready' where id = p_mw;
+    end if;
     return null;
   end if;
   select r.id into v_req from public.request r
@@ -236,7 +243,7 @@ begin
       v_skips := v_skips || l.full_name || ' — ' || l.reason || '; ';
     end if;
   end loop;
-  v_test := coalesce((select d.status = 'Test' from public.domain d where d.id = w.domain_id), false);
+  v_test := private.is_test_domain(w.domain_id);
 
   if not v_found then
     if w.status <> 'NeedsInstructor' then
@@ -331,7 +338,7 @@ declare
   v_clash text;
 begin
   select * into w from public.module_week where id = p_mw for update;
-  v_test := coalesce((select d.status = 'Test' from public.domain d where d.id = w.domain_id), false);
+  v_test := private.is_test_domain(w.domain_id);
   if w.status in ('Cancelled', 'Completed') then
     return jsonb_build_object('ok', false, 'reason', 'week_closed', 'message', 'This class is no longer scheduled.');
   end if;
@@ -476,12 +483,13 @@ begin
     b.instructor_id, w.id, null, p_now, '[]', '{}', false, 'release:' || b.id);
 
   v_urgent := private.days_until(w.id, p_now) < private.setting_int(w.domain_id, 'short_notice_days');
+  -- Without a restart the week is paused, so the hourly check doesn't restart it either.
   update public.module_week
-     set status = 'Ready', at_risk = true, at_risk_reason = v_reason
+     set status = 'Ready', at_risk = true, at_risk_reason = v_reason, paused = paused or not p_restart
    where id = w.id;
   perform private.raise_attention(w.domain_id, 'ClassAtRisk', case when v_urgent then 'Urgent' else 'Normal' end,
     'At risk: ' || private.mw_label(w.id) || ' — ' || v_reason,
-    case when p_restart then 'Outreach has restarted automatically.' else 'Outreach was not restarted.' end || coalesce(' ' || p_note, ''),
+    case when p_restart then 'Outreach has restarted automatically.' else 'Outreach is paused for this week — resume it in the class drawer when ready.' end || coalesce(' ' || p_note, ''),
     'atrisk:' || w.id, private.recipients_for_week(w.id, true), p_now,
     private.mw_refs(w.id, jsonb_build_object('instructor_id', b.instructor_id)), true, 'T5');
   perform private.log_event('Bookings', 'Booking released: ' || v_name, 'booking', b.id,
@@ -497,6 +505,16 @@ $$;
 -- -------------------------------------------------------------------------------------
 -- Need Help (PRD §10)
 -- -------------------------------------------------------------------------------------
+-- Clear "At risk (help pending)" once no help request is open for the week.
+create or replace function private.clear_help_risk(p_mw uuid)
+returns void language sql security definer set search_path = ''
+as $$
+  update public.module_week w set at_risk = false, at_risk_reason = null
+   where w.id = p_mw and w.at_risk and w.at_risk_reason = 'Help pending'
+     and not exists (select 1 from public.help_request h where h.module_week_id = p_mw and h.merged_into is null
+                      and h.status in ('Open', 'InProgress', 'WaitingOnInstructor'));
+$$;
+
 create or replace function private.help_category_label(p text)
 returns text language sql immutable set search_path = ''
 as $$
@@ -591,7 +609,7 @@ begin
   values (w.domain_id, p_mw, coalesce(p_booking, (select b.id from public.booking b where b.module_week_id = p_mw and b.status = 'Active')),
     p_instructor, p_member, p_source, v_cats, left(p_details, 1000), coalesce(p_urgency, 'NoRush'), coalesce(p_reply, 'Either'),
     v_routed, v_sev, p_now, p_now + make_interval(hours => v_h),
-    coalesce((select d.status = 'Test' from public.domain d where d.id = w.domain_id), false))
+    private.is_test_domain(w.domain_id))
   returning * into h;
 
   v_helper := (select t.name from public.team_member t where t.id = v_routed[1]);
@@ -1185,15 +1203,13 @@ begin
   if cardinality(v_due) = 0 then return 0; end if;
 
   for o in select distinct x from public.module_week mw, unnest(private.owners_or_leads(mw.module_id)) x where mw.id = any (v_due) loop
-    v_text := 'Your module weeks in the next ' || v_days || ' days:';
+    v_text := 'Coming up in the next ' || v_days || ' days — please check these module weeks:';
     for w in select mw.* from public.module_week mw
-              where mw.domain_id = p_domain and mw.status not in ('Cancelled', 'Completed')
-                and mw.first_class_at > p_now and mw.first_class_at <= p_now + make_interval(days => v_days)
-                and o = any (private.owners_or_leads(mw.module_id))
+              where mw.id = any (v_due) and o = any (private.owners_or_leads(mw.module_id))
               order by mw.first_class_at loop
       insert into public.request (module_week_id, team_member_id, kind, status, sent_at, is_test)
       values (w.id, o, 'OwnerCheckIn', 'Sent', p_now,
-              coalesce((select d.status = 'Test' from public.domain d where d.id = p_domain), false))
+              private.is_test_domain(p_domain))
       on conflict (module_week_id, team_member_id) where kind = 'OwnerCheckIn' do nothing
       returning id into v_req;
       if v_req is null then
@@ -1213,7 +1229,7 @@ begin
     end loop;
     perform private.queue_team_message('T11', p_domain, 'person', o, '{}',
       'Owner check-in: your next ' || v_days || ' days', v_text,
-      'T11:' || o || ':' || to_char(p_now at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), p_now, true);
+      'T11:' || o || ':' || md5(array_to_string(array(select x::text from unnest(v_due) x order by 1), ',')), p_now, true);
     n := n + 1;
   end loop;
   update public.module_week set owner_checkin_sent_at = p_now where id = any (v_due);
@@ -1461,6 +1477,9 @@ declare
   v_queued int;
 begin
   perform private.require_team();
+  if p_now is not null and not private.is_service() then
+    raise exception 'Only the automation can run the engine at a chosen time. Use the test clock instead.' using errcode = '42501';
+  end if;
   select * into d from public.domain where id = p_domain_id;
   if d.id is null then raise exception 'Unknown domain'; end if;
   v_now := coalesce(p_now, private.domain_now(p_domain_id));
@@ -1495,7 +1514,7 @@ begin
     'instructor_messages', case when v_instr then 'on' else 'paused' end);
   perform private.log_event('System', 'Hourly check: ' || d.name, 'domain', d.id, null, v,
     d.name || ': ' || (v ->> 'outreach_started') || ' outreach started, ' || v_queued || ' messages queued',
-    d.id, null, null, null, null, null, d.status = 'Test');
+    d.id, null, null, null, null, null, private.is_test_domain(d.id));
   return v;
 end;
 $$;
@@ -1513,17 +1532,31 @@ declare
   v_count int;
   n int := 0;
   v_test text;
+  v_updates text;
 begin
   if (p_now at time zone 'Asia/Kolkata')::time < v_time
      or (select s.last_digest_date from public.system_state s where s.id = 1) >= v_date then
     return 0;
   end if;
-  select string_agg(d.name, ', ') into v_test from public.domain d where d.status = 'Test';
+  select string_agg(d.name, ', ') into v_test from public.domain d where private.is_test_domain(d.id);
   for t in select * from public.team_member where active and receives_digest loop
     select count(*) into v_count from public.attention_item a
      where a.status <> 'Done' and (a.assigned_to = t.id or (a.assigned_to is null and t.id = any (a.recipients)));
-    continue when v_count = 0;
+    -- T3 for the owner's modules: declines and no-replies of the last day (immediate only under 10 days).
+    select string_agg('• ' || h.action || ' — ' || private.mw_label(h.module_week_id), E'
+' order by h.id) into v_updates
+      from public.history_event h join public.module_week w on w.id = h.module_week_id
+     where (h.action like '% said no' or h.action like 'No reply from %')
+       and coalesce(h.sim_at, h.at) > p_now - interval '1 day' and coalesce(h.sim_at, h.at) <= p_now
+       and t.id = any (private.owners_or_leads(w.module_id));
+    continue when v_count = 0 and v_updates is null;
     v_text := 'Good morning ' || private.first_name(t.name) || ' — you have ' || v_count || ' open item' || case when v_count = 1 then '' else 's' end || '.';
+    if v_updates is not null then
+      v_text := v_text || E'
+
+Outreach updates (asking the next instructor automatically):
+' || v_updates;
+    end if;
     if v_test is not null then v_text := v_text || E'\nℹ️ In TEST MODE: ' || v_test; end if;
     if not (select s.outreach_enabled from public.system_state s where s.id = 1) then
       v_text := v_text || E'\n⛔ The kill switch is ON — no instructor messages are being sent.';
@@ -1607,7 +1640,7 @@ begin
     || ' (' || coalesce(s.last_hourly_status, 'n/a') || ')'
     || E'\nMessages sent (24h): ' || v_sent || ' · failed: ' || v_failed
     || E'\nOpen items: ' || v_open || ' (' || v_urgent || ' urgent)'
-    || coalesce(E'\nIn TEST MODE: ' || (select string_agg(d.name, ', ') from public.domain d where d.status = 'Test'), '')
+    || coalesce(E'\nIn TEST MODE: ' || (select string_agg(d.name, ', ') from public.domain d where private.is_test_domain(d.id)), '')
     || case when not s.outreach_enabled then E'\n⛔ Kill switch is ON since ' || coalesce(private.fmt_ist(s.kill_switch_changed_at), '?')
             || ' — no instructor messages are going out. Turn it off in Settings → System when ready.' else '' end;
   perform private.queue_team_message('T15', null, 'admin', null, '{}', 'Daily heartbeat', v_text,
@@ -1770,7 +1803,8 @@ begin
     'Typed reply from ' || i.full_name || coalesce(' — ' || private.mw_label(v_mw), ''),
     coalesce('Summary: ' || p_summary || E'\n', '') || left(coalesce(p_body, ''), 500)
       || E'\nNothing was changed automatically. Read it and decide.',
-    'typed:' || v_msg, coalesce(private.domain_role_ids(v_dom, 'Ops'), '{}'), v_now,
+    'typed:' || v_msg, coalesce(nullif(private.domain_role_ids(v_dom, 'Ops'), '{}'),
+      (select coalesce(array_agg(t.id), '{}') from public.team_member t where t.label = 'Ops' and t.active)), v_now,
     coalesce(private.mw_refs(v_mw, jsonb_build_object('instructor_id', i.id, 'request_id', q.id, 'message_id', v_msg)),
              jsonb_build_object('instructor_id', i.id, 'message_id', v_msg)));
   perform private.log_event('Instructor responses', 'Typed reply from ' || i.full_name, 'message', v_msg, null, null,

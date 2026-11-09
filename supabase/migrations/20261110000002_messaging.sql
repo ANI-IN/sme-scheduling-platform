@@ -47,12 +47,20 @@ $$;
 -- -------------------------------------------------------------------------------------
 -- Clock: real time, or the domain's test clock (PRD TST-2)
 -- -------------------------------------------------------------------------------------
+-- Test mode = status Test, or Paused after being in Test (TST-1, BR-13).
+create or replace function private.is_test_domain(p_domain uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select coalesce((select d.status = 'Test' or (d.status = 'Paused' and d.paused_from = 'Test')
+                     from public.domain d where d.id = p_domain), false);
+$$;
+
 create or replace function private.domain_now(p_domain uuid)
 returns timestamptz language sql stable security definer set search_path = ''
 as $$
   -- app.test_now is a session-only override used by the database tests and the mock runner.
   select coalesce(nullif(current_setting('app.test_now', true), '')::timestamptz,
-                  (select d.test_clock_at from public.domain d where d.id = p_domain and d.status = 'Test'), now());
+                  (select d.test_clock_at from public.domain d where d.id = p_domain and private.is_test_domain(d.id)), now());
 $$;
 
 -- Days (fractional) from p_now until the first class of the module week.
@@ -361,7 +369,7 @@ begin
     select r.time_version into v_tv from public.request r where r.id = p_request;
   end if;
   select * into d from public.domain where id = v_domain;
-  v_test := coalesce(d.status = 'Test', false);
+  v_test := private.is_test_domain(d.id);
   v_channels := private.setting_text(v_domain, 'instructor_channels');
   v_r := private.render_instructor(p_template, p_mw, p_instructor, p_extra);
   if v_test then
@@ -453,7 +461,7 @@ declare
   v_text text;
 begin
   select * into d from public.domain where id = p_domain;
-  v_test := coalesce(d.status = 'Test', false);
+  v_test := private.is_test_domain(d.id);
   if v_test then v_prefix := '[TEST] '; end if;
   if p_quiet then
     v_send := private.team_send_time(p_domain, p_now);
@@ -528,7 +536,7 @@ declare
   a public.attention_item;
   v_new boolean := false;
   v_upgraded boolean := false;
-  v_test boolean := coalesce((select d.status = 'Test' from public.domain d where d.id = p_domain), false);
+  v_test boolean := private.is_test_domain(p_domain);
 begin
   if p_dedupe is not null then
     select * into a from public.attention_item where dedupe_key = p_dedupe and status <> 'Done' for update;

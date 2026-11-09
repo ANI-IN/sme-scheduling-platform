@@ -41,7 +41,7 @@ export const useDomain = () => useContext(Ctx);
 /** "Now" for the selected domain: its test clock in test mode, otherwise real time. */
 export function useDomainNow(): DateTime {
   const { domain } = useDomain();
-  return domain?.status === 'Test' && domain.test_clock_at
+  return (domain?.status === 'Test' || domain?.paused_from === 'Test') && domain?.test_clock_at
     ? DateTime.fromISO(domain.test_clock_at)
     : DateTime.now();
 }

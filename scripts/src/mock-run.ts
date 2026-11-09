@@ -26,9 +26,22 @@ type Msg = {
 
 const c = new pg.Client({ connectionString: url });
 const line = (s = '') => console.log(s);
-const text = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+const text = (html: string) =>
+  html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&');
 const pt = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+  new Date(iso).toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
 
 async function one<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T> {
   const r = await c.query(sql, params);
@@ -40,21 +53,36 @@ async function deliver(label: string) {
   const { rows } = await c.query<Msg>('select * from public.claim_outbound_messages(100)');
   line(`\n── ${label} — ${rows.length} message(s) sent`);
   for (const m of rows) {
-    const to = m.channel === 'Email' ? m.to_address : m.discord_dm_user_id ? `DM ${m.discord_dm_user_id}` : `#${m.discord_channel_id}`;
-    line(`  ✉ ${m.template_id.padEnd(4)} ${m.channel.padEnd(7)} → ${m.recipient_label ?? '?'} (${to})`);
+    const to =
+      m.channel === 'Email'
+        ? m.to_address
+        : m.discord_dm_user_id
+          ? `DM ${m.discord_dm_user_id}`
+          : `#${m.discord_channel_id}`;
+    line(
+      `  ✉ ${m.template_id.padEnd(4)} ${m.channel.padEnd(7)} → ${m.recipient_label ?? '?'} (${to})`,
+    );
     if (m.channel === 'Discord' || m.template_id.startsWith('T') || m.template_id === 'R1') {
       const body = (m.body_text ?? '').split('\n').filter(Boolean).slice(0, 4).join(' ⏎ ');
       line(`      ${body.slice(0, 220)}`);
     }
     if (m.buttons?.length) line(`      buttons: ${m.buttons.map((b) => `[${b.label}]`).join(' ')}`);
-    await c.query('select public.report_message_result($1, true, $2)', [m.id, `mock-${m.id.slice(0, 8)}`]);
+    await c.query('select public.report_message_result($1, true, $2)', [
+      m.id,
+      `mock-${m.id.slice(0, 8)}`,
+    ]);
   }
 }
 
 async function tick(domain: string, at: string, label: string) {
   await c.query(`select set_config('app.test_now', $1, true)`, [at]);
-  const r = await one<{ v: Record<string, unknown> }>('select public.engine_tick($1, $2) as v', [domain, at]);
-  line(`\n▶ ${label}  (${pt(at)})  engine: ${JSON.stringify(Object.fromEntries(Object.entries(r.v).filter(([k, v]) => typeof v === 'number' && v > 0)))}`);
+  const r = await one<{ v: Record<string, unknown> }>('select public.engine_tick($1, $2) as v', [
+    domain,
+    at,
+  ]);
+  line(
+    `\n▶ ${label}  (${pt(at)})  engine: ${JSON.stringify(Object.fromEntries(Object.entries(r.v).filter(([k, v]) => typeof v === 'number' && v > 0)))}`,
+  );
   await deliver(label);
 }
 
@@ -68,18 +96,35 @@ async function token(mw: string, instructor: string, answer: string): Promise<st
 }
 
 /** What n8n WF2 does: GET renders the page (records nothing), POST records the answer. */
-async function click(mw: string, instructor: string, name: string, answer: string, form: Record<string, string> = {}) {
+async function click(
+  mw: string,
+  instructor: string,
+  name: string,
+  answer: string,
+  form: Record<string, string> = {},
+) {
   const t = await token(mw, instructor, answer);
-  const page = (await one<{ html: string }>('select public.response_page($1)::text as html', [t])).html;
+  const page = (await one<{ html: string }>('select public.response_page($1)::text as html', [t]))
+    .html;
   const h1 = text(page.match(/<h1>(.*?)<\/h1>/)?.[1] ?? '');
   line(`\n👆 ${name} opens the "${answer}" link → page: “${h1}” (nothing recorded yet)`);
-  const res = (await one<{ html: string }>('select public.submit_response_page($1, $2)::text as html', [t, JSON.stringify({ t, ...form })])).html;
+  const res = (
+    await one<{ html: string }>('select public.submit_response_page($1, $2)::text as html', [
+      t,
+      JSON.stringify({ t, ...form }),
+    ])
+  ).html;
   const msg = text(res.match(/<p>(.*?)<\/p>/)?.[1] ?? '');
   line(`   …presses the button → “${text(res.match(/<h1>(.*?)<\/h1>/)?.[1] ?? '')}” ${msg}`);
 }
 
 async function status(mw: string) {
-  const r = await one<{ status: string; at_risk: boolean; asking: string | null; booked: string | null }>(
+  const r = await one<{
+    status: string;
+    at_risk: boolean;
+    asking: string | null;
+    booked: string | null;
+  }>(
     `select w.status, w.at_risk,
             (select i.full_name from public.request q join public.instructor i on i.id = q.instructor_id
               where q.module_week_id = w.id and q.kind = 'Outreach' and q.status in ('Sent','Reminded')) as asking,
@@ -88,7 +133,9 @@ async function status(mw: string) {
        from public.module_week w where w.id = $1`,
     [mw],
   );
-  line(`   ⇒ module week: ${r.status}${r.at_risk ? ' (AT RISK)' : ''}${r.asking ? ` · asking ${r.asking}` : ''}${r.booked ? ` · booked ${r.booked}` : ''}`);
+  line(
+    `   ⇒ module week: ${r.status}${r.at_risk ? ' (AT RISK)' : ''}${r.asking ? ` · asking ${r.asking}` : ''}${r.booked ? ` · booked ${r.booked}` : ''}`,
+  );
 }
 
 async function setup(prefix: string, status: 'Test' | 'Live') {
@@ -105,10 +152,22 @@ async function setup(prefix: string, status: 'Test' | 'Live') {
     `insert into public.team_member (name, email, discord_user_id, label) values ($1, $2, '200000000000000002', 'Ops') returning id`,
     [`${prefix} Ops`, `${prefix.toLowerCase()}.ops@example.com`],
   );
-  await c.query(`insert into public.domain_team (domain_id, team_member_id, role) values ($1, $2, 'Ops'), ($1, $3, 'Lead')`, [dom.id, ops.id, owner.id]);
-  const mod = await one<{ id: string }>(`insert into public.module (domain_id, name) values ($1, 'Concurrency') returning id`, [dom.id]);
-  await c.query(`insert into public.module_owner (module_id, team_member_id) values ($1, $2)`, [mod.id, owner.id]);
-  await c.query(`insert into public.module_resource (module_id, title, url) values ($1, 'Concurrency module', 'https://example.com/concurrency')`, [mod.id]);
+  await c.query(
+    `insert into public.domain_team (domain_id, team_member_id, role) values ($1, $2, 'Ops'), ($1, $3, 'Lead')`,
+    [dom.id, ops.id, owner.id],
+  );
+  const mod = await one<{ id: string }>(
+    `insert into public.module (domain_id, name) values ($1, 'Concurrency') returning id`,
+    [dom.id],
+  );
+  await c.query(`insert into public.module_owner (module_id, team_member_id) values ($1, $2)`, [
+    mod.id,
+    owner.id,
+  ]);
+  await c.query(
+    `insert into public.module_resource (module_id, title, url) values ($1, 'Concurrency module', 'https://example.com/concurrency')`,
+    [mod.id],
+  );
   await c.query(
     `insert into public.class_pattern_item (module_id, class_type, title_template, weekday_offset, start_time_pt, duration_minutes, sort_order)
      values ($1, 'Live class', '{module} — Live class', 0, '09:00', 240, 1), ($1, 'Assignment review', '{module} — Assignment review', 4, '18:00', 120, 2)`,
@@ -119,24 +178,42 @@ async function setup(prefix: string, status: 'Test' | 'Live') {
     const i = await one<{ id: string }>(
       `insert into public.instructor (full_name, primary_email, discord_user_id, discord_channel_id, verified_at, is_test)
        values ($1, $2, $3, $4, now(), $5) returning id`,
-      [`${prefix} ${name}`, `${prefix.toLowerCase()}.${n}@example.org`, `30000000000000000${n}`, `40000000000000000${n}`, false],
+      [
+        `${prefix} ${name}`,
+        `${prefix.toLowerCase()}.${n}@example.org`,
+        `30000000000000000${n}`,
+        `40000000000000000${n}`,
+        false,
+      ],
     );
     ids.push(i.id);
-    await c.query(`insert into public.module_ranking (module_id, instructor_id, rank) values ($1, $2, $3)`, [mod.id, i.id, n + 1]);
+    await c.query(
+      `insert into public.module_ranking (module_id, instructor_id, rank) values ($1, $2, $3)`,
+      [mod.id, i.id, n + 1],
+    );
   }
   const weeks = await one<{ v: { module_week_ids: string[] } }>(
     `select public.create_module_weeks($1, (select jsonb_agg(jsonb_build_object('module_id', $2::uuid, 'week_start_date', w ->> 'week_start_date', 'classes', w -> 'classes'))
                                               from jsonb_array_elements(public.generate_classes($1, $2, array['2027-01-31']::date[])) w)) as v`,
     [dom.id, mod.id],
   );
-  return { dom: dom.id, mw: weeks.v.module_week_ids[0]!, i: ids, names: ['Felix', 'Robin', 'Shelly'] };
+  return {
+    dom: dom.id,
+    mw: weeks.v.module_week_ids[0]!,
+    i: ids,
+    names: ['Felix', 'Robin', 'Shelly'],
+  };
 }
 
 async function timeline() {
-  line('═════ Mock run: Concurrency module week, live class Sun Jan 31 2027 9:00 AM PST (PRD Appendix B) ═════');
+  line(
+    '═════ Mock run: Concurrency module week, live class Sun Jan 31 2027 9:00 AM PST (PRD Appendix B) ═════',
+  );
   await c.query('begin');
   // Hold anything already waiting in the local outbox so only this run's messages are shown.
-  await c.query(`update public.message set status = 'Cancelled' where status in ('Pending', 'Scheduled', 'Sending')`);
+  await c.query(
+    `update public.message set status = 'Cancelled' where status in ('Pending', 'Scheduled', 'Sending')`,
+  );
   const s = await setup('Mock', 'Live');
   const [, robin, shelly] = s.i as [string, string, string];
 
@@ -154,10 +231,19 @@ async function timeline() {
   await click(s.mw, shelly, 'Shelly', 'Yes');
   await deliver('After the Yes (second tap shows "Already recorded")');
   await status(s.mw);
-  await tick(s.dom, '2027-01-06T18:00:00Z', 'Checklist nudge (3 days after confirmation; goes in the ops digest)');
+  await tick(
+    s.dom,
+    '2027-01-06T18:00:00Z',
+    'Checklist nudge (3 days after confirmation; goes in the ops digest)',
+  );
   await tick(s.dom, '2027-01-17T18:00:00Z', 'Owner check-in (14 days)');
   await tick(s.dom, '2027-01-21T18:00:00Z', 'Instructor check-in (10 days)');
-  await click(s.mw, shelly, 'Shelly', 'NeedHelp', { cat_zoom: '1', details: 'No Zoom link yet', urgency: 'Within24h', reply_channel: 'Either' });
+  await click(s.mw, shelly, 'Shelly', 'NeedHelp', {
+    cat_zoom: '1',
+    details: 'No Zoom link yet',
+    urgency: 'Within24h',
+    reply_channel: 'Either',
+  });
   await deliver('After the help request');
   await tick(s.dom, '2027-01-21T22:30:00Z', 'Half-time help reminder (target 8h)');
   await tick(s.dom, '2027-01-22T02:30:00Z', 'Help target passed with no reply → escalation');
@@ -165,10 +251,17 @@ async function timeline() {
   await click(s.mw, shelly, 'Shelly', 'CantMakeIt');
   await deliver('After "Can\'t make it" 2 days before');
   await status(s.mw);
-  const items = await c.query(`select severity, type, title from public.attention_item where domain_id = $1 and status <> 'Done' order by severity desc, created_at`, [s.dom]);
+  const items = await c.query(
+    `select severity, type, title from public.attention_item where domain_id = $1 and status <> 'Done' order by severity desc, created_at`,
+    [s.dom],
+  );
   line('\n── Needs Attention now:');
-  for (const a of items.rows) line(`  ${a.severity === 'Urgent' ? '🚨' : '•'} [${a.type}] ${a.title}`);
-  const hist = await one<{ n: string }>(`select count(*) as n from public.history_event where domain_id = $1 or module_week_id = $2`, [s.dom, s.mw]);
+  for (const a of items.rows)
+    line(`  ${a.severity === 'Urgent' ? '🚨' : '•'} [${a.type}] ${a.title}`);
+  const hist = await one<{ n: string }>(
+    `select count(*) as n from public.history_event where domain_id = $1 or module_week_id = $2`,
+    [s.dom, s.mw],
+  );
   line(`\nHistory entries recorded for this run: ${hist.n}`);
   await c.query('rollback');
   line('\n(Rolled back — the database is unchanged.)');
@@ -184,10 +277,18 @@ async function race() {
   const a = new pg.Client({ connectionString: url });
   const b = new pg.Client({ connectionString: url });
   await Promise.all([a.connect(), b.connect()]);
-  const press = (cl: pg.Client) => cl.query(`select set_config('app.test_now', '2027-01-01T18:00:00Z', false); `).then(() => cl.query('select public.record_response($1) ->> $2 as r', [t, 'result']));
+  const press = (cl: pg.Client) =>
+    cl
+      .query(`select set_config('app.test_now', '2027-01-01T18:00:00Z', false); `)
+      .then(() => cl.query('select public.record_response($1) ->> $2 as r', [t, 'result']));
   const [ra, rb] = await Promise.all([press(a), press(b)]);
-  const n = await one<{ n: string }>(`select count(*) as n from public.booking where module_week_id = $1`, [s.mw]);
-  line(`  connection A → ${ra.rows[0].r}, connection B → ${rb.rows[0].r}; bookings created: ${n.n}`);
+  const n = await one<{ n: string }>(
+    `select count(*) as n from public.booking where module_week_id = $1`,
+    [s.mw],
+  );
+  line(
+    `  connection A → ${ra.rows[0].r}, connection B → ${rb.rows[0].r}; bookings created: ${n.n}`,
+  );
   line(Number(n.n) === 1 ? '  ✓ exactly one booking' : '  ✗ UNEXPECTED');
   await Promise.all([a.end(), b.end()]);
   // Clean up the race data (History keeps its entries — it is append-only by design).

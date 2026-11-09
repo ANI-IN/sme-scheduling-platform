@@ -37,6 +37,8 @@ export default function NeedsAttention() {
   const [drawer, setDrawer] = useState<string | null>(null);
   const [help, setHelp] = useState<string | null>(null);
   const [doneFor, setDoneFor] = useState<AttentionItem | null>(null);
+  const [replyFor, setReplyFor] = useState<AttentionItem | null>(null);
+  const [replyText, setReplyText] = useState('');
   const [note, setNote] = useState('');
 
   const items = useQuery({
@@ -277,6 +279,15 @@ export default function NeedsAttention() {
                           Release & find replacement
                         </Button>
                       )}
+                    {a.instructor_id && !a.help_request_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => (setReplyText(''), setReplyFor(a))}
+                      >
+                        Reply
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => (setNote(''), setDoneFor(a))}>
                       Mark done
                     </Button>
@@ -302,6 +313,28 @@ export default function NeedsAttention() {
             )}
           >
             Mark done
+          </Button>
+        </div>
+      </Modal>
+      <Modal
+        open={!!replyFor}
+        onOpenChange={(o) => !o && setReplyFor(null)}
+        title={`Reply to ${replyFor?.instructor_id ? names.get(replyFor.instructor_id) : ''}`}
+        description="Sent in their Discord channel and by email. Nothing about the booking changes."
+      >
+        <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} />
+        <div className="mt-3 flex justify-end">
+          <Button
+            disabled={!replyText.trim()}
+            onClick={() => (
+              void run(
+                () => rpc('reply_to_instructor', { p_item_id: replyFor!.id, p_text: replyText }),
+                'Reply sent',
+              ),
+              setReplyFor(null)
+            )}
+          >
+            Send reply
           </Button>
         </div>
       </Modal>

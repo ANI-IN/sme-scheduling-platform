@@ -5,3 +5,5 @@ n8n
 docs
 package-lock.json
 app/src/lib/database.types.ts
+.claude
+.npmrc.windows-example

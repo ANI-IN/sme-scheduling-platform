@@ -110,7 +110,8 @@ export function Layout() {
           ))}
         </nav>
       </header>
-      {domain?.status === 'Test' && (
+      {(domain?.status === 'Test' ||
+        (domain?.status === 'Paused' && domain.paused_from === 'Test')) && (
         <div className="bg-amber-400 px-4 py-1.5 text-center text-sm font-semibold text-amber-950">
           TEST MODE — {domain.name} messages go to the test Discord channel and test email only. No
           real instructor is contacted.

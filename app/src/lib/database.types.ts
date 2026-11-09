@@ -253,14 +253,14 @@ isOneToOne: false
                   ]
                 },"domain": {
                   Row: {
-                    "alert_discord_channel_id": string | null,"created_at": string,"id": string,"name": string,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                    "alert_discord_channel_id": string | null,"created_at": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"id"?: string,"name": string,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"id"?: string,"name"?: string,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -982,6 +982,9 @@ isOneToOne: false
 "release_booking":
 { Args: { "p_module_week_id": string,"p_reason"?: string,"p_restart"?: boolean }; Returns: Json
                            },
+"reply_to_instructor":
+{ Args: { "p_item_id": string,"p_text": string }; Returns: Json
+                           },
 "report_message_result":
 { Args: { "p_error"?: string,"p_external_id"?: string,"p_message_id": string,"p_ok": boolean,"p_permanent"?: boolean }; Returns: Json
                            },
@@ -992,6 +995,9 @@ isOneToOne: false
 { Args: { "p_domain_id": string,"p_key": string }; Returns: undefined
                            },
 "response_page":
+{ Args: { "p_token": string }; Returns: unknown
+                           },
+"response_page_text":
 { Args: { "p_token": string }; Returns: string
                            },
 "run_check_now":
@@ -1043,6 +1049,9 @@ isOneToOne: false
 { Args: { "p_categories": (string)[],"p_details": string,"p_reply_channel": string,"p_token": string,"p_urgency": string }; Returns: Json
                            },
 "submit_response_page":
+{ Args: { "p_form"?: Json,"p_token": string }; Returns: unknown
+                           },
+"submit_response_page_text":
 { Args: { "p_form"?: Json,"p_token": string }; Returns: string
                            },
 "undo_history_event":
