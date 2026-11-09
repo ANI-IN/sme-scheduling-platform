@@ -121,7 +121,7 @@
             },
             {
               "name": "Accept",
-              "value": "text/plain"
+              "value": "text/html"
             }
           ]
         },
@@ -198,7 +198,7 @@
             },
             {
               "name": "Accept",
-              "value": "text/plain"
+              "value": "text/html"
             }
           ]
         },

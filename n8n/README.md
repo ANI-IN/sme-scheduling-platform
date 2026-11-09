@@ -190,3 +190,19 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
 - **Optional AI summary.** WF1 has a note showing where an OpenAI node could add a one-line `p_summary` to typed replies.
   AI never decides anything.
 - **Timezones.** WF3's workflow timezone is set to Asia/Kolkata, so 09:00 means 09:00 IST regardless of the server timezone.
+- **Why `Accept: text/html`.** `response_page` and `submit_response_page` return the Postgres domain type `"text/html"`,
+  so Supabase (PostgREST) answers with raw HTML when asked with `Accept: text/html`. WF2 passes it straight through.
+  These two functions can only be called with the secret key — the app's publishable key gets "permission denied".
+
+## 10. Checking everything without credentials (mock mode)
+
+From the repository root, with the local database running (`npm run db:start`):
+
+```bash
+npm run mock -- --race
+```
+
+This runs the real engine through a full module-week timeline (readiness → outreach → reminder → move on → decline →
+Yes → check-ins → Need help → Can't make it), prints every message n8n would send on each channel, simulates the
+confirm-page GET/POST exactly as WF2 does, and finally presses the same "Yes" link from two database connections at
+once to show that only one booking is created. The timeline runs inside a transaction that is rolled back.
