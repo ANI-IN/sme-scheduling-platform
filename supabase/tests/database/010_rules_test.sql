@@ -120,10 +120,10 @@ select is((select ends_at - starts_at from public.class_session c join public.mo
   interval '4 hours', 'duration is 4 hours across the DST week');
 
 -- ---------------------------------------------------------------- history append-only
-insert into public.holiday (date, name) values ('2027-12-25', 'Christmas');
+insert into public.holiday (date, name) values ('2031-12-25', 'Christmas');
 select ok(exists(select 1 from public.history_event where entity_table = 'holiday' and action = 'holiday added'
                   and after ->> 'name' = 'Christmas'), 'setup changes are logged with after values');
-update public.holiday set name = 'Christmas Day' where date = '2027-12-25';
+update public.holiday set name = 'Christmas Day' where date = '2031-12-25';
 select ok(exists(select 1 from public.history_event where entity_table = 'holiday' and action = 'holiday changed'
                   and before ->> 'name' = 'Christmas' and after ->> 'name' = 'Christmas Day'),
   'edits are logged with before → after');
@@ -132,7 +132,7 @@ select throws_ok($$ update public.history_event set note = 'tampered' $$, '42501
 select throws_ok($$ delete from public.history_event $$, '42501', null, 'history cannot be deleted');
 
 -- ---------------------------------------------------------------- optimistic locking
-select throws_ok($$ update public.holiday set name = 'X', version = 1 where date = '2027-12-25' $$,
+select throws_ok($$ update public.holiday set name = 'X', version = 1 where date = '2031-12-25' $$,
   '40001', null, 'a save based on an old version is rejected ("This changed — reload")');
 
 -- ---------------------------------------------------------------- settings validation
@@ -150,12 +150,12 @@ select throws_ok($$ select count(*) from public.instructor $$, '42501', null, 'a
 select tests.as_postgres();
 select tests.login_as('intruder@gmail.com');
 select is((select count(*)::int from public.instructor), 0, 'a non-company account sees no data');
-select throws_ok($$ insert into public.holiday (date, name) values ('2028-01-01', 'x') $$, '42501', null,
+select throws_ok($$ insert into public.holiday (date, name) values ('2031-01-01', 'x') $$, '42501', null,
   'a non-company account cannot write');
 select tests.as_postgres();
 select tests.login_as('ops.person@example.com');
 select ok((select count(*)::int from public.instructor) >= 2, 'a company account can read');
-select lives_ok($$ insert into public.holiday (date, name) values ('2028-01-01', 'New Year') $$, 'a company account can edit setup data');
+select lives_ok($$ insert into public.holiday (date, name) values ('2031-01-01', 'New Year') $$, 'a company account can edit setup data');
 select throws_ok($$ update public.history_event set note = 'x' $$, '42501', null, 'a company account cannot edit history');
 select throws_ok($$ insert into public.booking (module_week_id, instructor_id, confirmed_via) values ((select mw_b from wk), (select other from fx), 'Manual') $$,
   '42501', null, 'bookings cannot be written directly through the API (only through database functions)');

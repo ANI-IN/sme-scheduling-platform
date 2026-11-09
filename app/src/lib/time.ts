@@ -26,7 +26,10 @@ export function ptParts(iso: string): { date: string; time: string } {
 /** History and system times: the viewer's local time zone, labelled. */
 export function fmtLocal(iso: string | null | undefined): string {
   if (!iso) return '—';
-  return DateTime.fromISO(iso).toLocal().toFormat('ccc LLL d, h:mm a ZZZZ');
+  const d = DateTime.fromISO(iso).toLocal();
+  // Browsers label India time as "GMT+5:30"; the team knows it as IST.
+  const zone = d.offset === 330 ? 'IST' : d.offsetNameShort;
+  return `${d.toFormat('ccc LLL d, h:mm a')} ${zone}`;
 }
 
 /** "3h", "2d" since a time. */

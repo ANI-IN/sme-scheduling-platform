@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { useDomains, type Domain } from './data';
 
@@ -36,3 +37,11 @@ export function DomainProvider({ children }: { children: ReactNode }) {
 }
 
 export const useDomain = () => useContext(Ctx);
+
+/** "Now" for the selected domain: its test clock in test mode, otherwise real time. */
+export function useDomainNow(): DateTime {
+  const { domain } = useDomain();
+  return domain?.status === 'Test' && domain.test_clock_at
+    ? DateTime.fromISO(domain.test_clock_at)
+    : DateTime.now();
+}

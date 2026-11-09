@@ -8,3 +8,4 @@ supabase/.temp
 .DS_Store
 coverage/
 *.log
+.claude/
