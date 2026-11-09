@@ -123,6 +123,88 @@ begin
   return v;
 end $$;
 
+-- A ready-to-run scenario: domain + module (owner, pattern, resource) + N verified instructors ranked
+-- in order + one module week starting p_week (Sunday). Returns ids as jsonb:
+-- {domain, module, mw, owner, ops, lead, i1, i2, …}
+create or replace function tests.scenario(p_domain_name text, p_status text default 'Live', p_week date default '2027-01-31',
+  p_n int default 3, p_module_name text default 'Concurrency')
+returns jsonb language plpgsql as $$
+declare
+  v_dom uuid; v_mod uuid; v_mw uuid; v jsonb; i int; v_ids uuid[] := '{}'; v_i uuid;
+begin
+  perform tests.company();
+  v_dom := tests.make_domain(p_domain_name, p_status);
+  v_mod := tests.make_module(v_dom, p_module_name || ' ' || p_domain_name);
+  for i in 1 .. p_n loop
+    v_i := tests.make_instructor(p_domain_name || ' Instr' || i);
+    v_ids := v_ids || v_i;
+  end loop;
+  perform tests.rank(v_mod, variadic v_ids);
+  v_mw := tests.make_week(v_mod, p_week);
+  v := jsonb_build_object('domain', v_dom, 'module', v_mod, 'mw', v_mw,
+    'owner', (select team_member_id from public.module_owner where module_id = v_mod limit 1),
+    'ops', (select team_member_id from public.domain_team where domain_id = v_dom and role = 'Ops' limit 1),
+    'lead', (select team_member_id from public.domain_team where domain_id = v_dom and role = 'Lead' limit 1));
+  for i in 1 .. p_n loop
+    v := v || jsonb_build_object('i' || i, v_ids[i]);
+  end loop;
+  return v;
+end $$;
+
+-- Run the hourly check at p_at and keep that as "now" for app actions that follow in the test.
+create or replace function tests.tick(p_domain uuid, p_at timestamptz)
+returns jsonb language plpgsql as $$
+begin
+  perform set_config('app.test_now', p_at::text, true);
+  return public.engine_tick(p_domain, p_at);
+end $$;
+
+create or replace function tests.at(p_at timestamptz)
+returns void language sql as $$ select set_config('app.test_now', p_at::text, true); $$;
+
+-- Token of the latest request (any kind) for this instructor/module week offering p_answer.
+create or replace function tests.token(p_mw uuid, p_instructor uuid, p_answer text)
+returns text language sql as $$
+  select l.token from public.response_link l join public.request r on r.id = l.request_id
+   where r.module_week_id = p_mw and r.instructor_id = p_instructor and l.answer = p_answer
+   order by r.created_at desc limit 1;
+$$;
+
+create or replace function tests.click(p_mw uuid, p_instructor uuid, p_answer text)
+returns text language sql as $$
+  select public.record_response(tests.token(p_mw, p_instructor, p_answer)) ->> 'result';
+$$;
+
+create or replace function tests.asking(p_mw uuid)
+returns text language sql as $$
+  select i.full_name from public.request r join public.instructor i on i.id = r.instructor_id
+   where r.module_week_id = p_mw and r.kind = 'Outreach' and r.status in ('Queued', 'Sent', 'Reminded');
+$$;
+
+create or replace function tests.msgs(p_mw uuid, p_template text)
+returns int language sql as $$
+  select count(*)::int from public.message where module_week_id = p_mw and template_id = p_template;
+$$;
+
+create or replace function tests.dmsgs(p_domain uuid, p_template text)
+returns int language sql as $$
+  select count(*)::int from public.message where domain_id = p_domain and template_id = p_template;
+$$;
+
+create or replace function tests.open_items(p_domain uuid, p_type text)
+returns int language sql as $$
+  select count(*)::int from public.attention_item where domain_id = p_domain and type = p_type and status <> 'Done';
+$$;
+
+create or replace function tests.mw_status(p_mw uuid)
+returns text language sql as $$ select status from public.module_week where id = p_mw; $$;
+
+create or replace function tests.booked(p_mw uuid)
+returns text language sql as $$
+  select i.full_name from public.booking b join public.instructor i on i.id = b.instructor_id
+   where b.module_week_id = p_mw and b.status = 'Active';
+$$;
+
 grant usage on schema tests to authenticated, anon;
 grant execute on all functions in schema tests to authenticated, anon;
 
