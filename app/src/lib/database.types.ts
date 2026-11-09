@@ -985,6 +985,9 @@ isOneToOne: false
 "report_message_result":
 { Args: { "p_error"?: string,"p_external_id"?: string,"p_message_id": string,"p_ok": boolean,"p_permanent"?: boolean }; Returns: Json
                            },
+"resend_message":
+{ Args: { "p_message_id": string }; Returns: Json
+                           },
 "reset_setting":
 { Args: { "p_domain_id": string,"p_key": string }; Returns: undefined
                            },

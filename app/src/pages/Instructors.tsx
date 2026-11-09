@@ -614,14 +614,12 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
             try {
               if (r.to < r.from) throw new Error('"To" must be on or after "From".');
               check(
-                await supabase
-                  .from('instructor_unavailability')
-                  .insert({
-                    instructor_id: instructor.id,
-                    from_date: r.from,
-                    to_date: r.to,
-                    reason: r.reason || null,
-                  }),
+                await supabase.from('instructor_unavailability').insert({
+                  instructor_id: instructor.id,
+                  from_date: r.from,
+                  to_date: r.to,
+                  reason: r.reason || null,
+                }),
               );
               setR({ from: '', to: '', reason: '' });
               await qc.invalidateQueries();

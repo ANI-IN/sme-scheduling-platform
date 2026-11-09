@@ -664,14 +664,12 @@ function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run }) {
           onClick={() =>
             run(async () =>
               check(
-                await supabase
-                  .from('class_pattern_item')
-                  .insert({
-                    module_id: m.id,
-                    ...n,
-                    title_template: '{module} — {class_type}',
-                    sort_order: items.length + 1,
-                  }),
+                await supabase.from('class_pattern_item').insert({
+                  module_id: m.id,
+                  ...n,
+                  title_template: '{module} — {class_type}',
+                  sort_order: items.length + 1,
+                }),
               ),
             )
           }
@@ -944,14 +942,12 @@ function Resources({ module: m, run }: { module: ModuleRow; run: Run }) {
           onClick={() =>
             run(async () => {
               check(
-                await supabase
-                  .from('module_resource')
-                  .insert({
-                    module_id: m.id,
-                    title: r.title.trim(),
-                    url: r.url.trim(),
-                    sort_order: items.length + 1,
-                  }),
+                await supabase.from('module_resource').insert({
+                  module_id: m.id,
+                  title: r.title.trim(),
+                  url: r.url.trim(),
+                  sort_order: items.length + 1,
+                }),
               );
               setR({ title: '', url: '' });
             })
@@ -980,15 +976,13 @@ function WhoIsNext({ moduleId }: { moduleId: string }) {
     enabled: upcoming.length > 0,
     queryFn: async () =>
       Promise.all(
-        upcoming
-          .slice(0, 12)
-          .map(async (w) => ({
-            w,
-            p: (await rpc('preview_next', { p_module_week_id: w.id })) as {
-              asking?: { name: string } | null;
-              next?: string | null;
-            },
-          })),
+        upcoming.slice(0, 12).map(async (w) => ({
+          w,
+          p: (await rpc('preview_next', { p_module_week_id: w.id })) as {
+            asking?: { name: string } | null;
+            next?: string | null;
+          },
+        })),
       ),
   });
   return (

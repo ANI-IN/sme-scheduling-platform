@@ -131,7 +131,7 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
 
 1. **Confirm-page URL (WF2)** — must be saved in the database as `app_config.response_base_url`.
    Every instructor button link and the form on every confirm page is built from it.
-   - In the app: **Settings → System → Response page URL** → `https://<your-n8n>/webhook/respond` → Save, **or**
+   - In the app: **Settings → System → Response page URL (n8n WF2)** → `https://<your-n8n>/webhook/respond` → Save, **or**
    - In the Supabase SQL editor:
      ```sql
      update public.app_config set response_base_url = 'https://<your-n8n>/webhook/respond' where id = 1;
@@ -141,7 +141,9 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
    - `VITE_N8N_POKE_KEY` = the Poke secret value
    - Redeploy the app after changing them.
    - The same URL and secret go in each workflow's **Config** node (step 4).
-3. Also set the admin Discord channel id in the app (**Settings → System**) so WF5 alerts have somewhere to go.
+3. Also set **Settings → System → Admin alert channel ID** in the app so failure alerts and the daily heartbeat have somewhere to go.
+4. The app must send the poke as a normal (CORS) `fetch` with the `x-poke-key` header. Browsers silently drop custom
+   headers in `no-cors` mode, and n8n then rejects the poke (403). WF4 still delivers within 5 minutes, but not instantly.
 
 Note: the poke key is visible to anyone who can load the app in a browser. That is acceptable because a poke carries no
 data and can only make n8n process work that is already in the database. To limit who can call it from a browser,
@@ -150,9 +152,9 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
 ## 8. Test it
 
 1. Put a domain in **Test** mode in the app (it needs the test Discord channel and test email set).
-2. In the app press **Send test message** (Settings) — within seconds a message should appear in the test Discord channel
-   and/or test inbox. Check WF4's **Executions** list if not.
-3. Press **Run check now** — WF4 runs the engine and sends anything due. In Test mode all instructor messages go to the
+2. In the app press **Settings → Send test alert** (team alert) and **Instructors → (a test instructor) → Send test message**.
+   Within seconds a message should appear in Discord and/or the inbox. If not, check WF4's **Executions** list.
+3. Press **Settings → Run check now** — WF4 runs the engine and sends anything due. In Test mode all instructor messages go to the
    test channel and test email, prefixed `[TEST → would go to <name>]`.
 4. Click a button in a test message: the confirm page opens (nothing is recorded yet). Press the button on the page:
    the answer is recorded and follow-up messages arrive within seconds.

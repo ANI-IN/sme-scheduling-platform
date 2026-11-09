@@ -46,8 +46,8 @@ export async function poke(): Promise<void> {
   try {
     await fetch(env.pokeUrl, {
       method: 'POST',
+      // Normal CORS request: 'no-cors' would silently drop the x-poke-key header.
       headers: env.pokeKey ? { 'x-poke-key': env.pokeKey } : undefined,
-      mode: 'no-cors',
     });
   } catch {
     // n8n's 5-minute safety run delivers anyway.
