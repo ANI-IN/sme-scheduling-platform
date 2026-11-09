@@ -1,0 +1,27 @@
+{
+  "name": "sme-scheduling-platform",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "app",
+    "scripts"
+  ],
+  "scripts": {
+    "db:start": "node node_modules/supabase/dist/supabase.js start",
+    "db:stop": "node node_modules/supabase/dist/supabase.js stop",
+    "db:reset": "node node_modules/supabase/dist/supabase.js db reset",
+    "db:test": "node node_modules/supabase/dist/supabase.js test db",
+    "lint": "npm run lint -w app",
+    "typecheck": "npm run typecheck -w app && npm run typecheck -w scripts",
+    "test": "npm run test -w app",
+    "build": "npm run build -w app",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "mock": "npm run mock -w scripts",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "supabase": "^3.1.0"
+  }
+}
