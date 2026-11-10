@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
-import { useInstructors, useSystem, type Instructor } from '@/lib/data';
+import { useDomains, useInstructors, useSystem, type Instructor } from '@/lib/data';
 import { ago, fmtLocal, fmtPT } from '@/lib/time';
 import { isDiscordId, isEmail, parseChannelLink } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
@@ -61,43 +61,60 @@ export function useInstructorContext() {
         upcoming.set(x.instructor_id, [...(upcoming.get(x.instructor_id) ?? []), label]);
       }
       const ranked = new Map<string, string[]>();
+      const domains = new Map<string, Set<string>>();
       for (const x of rankings) {
         if (!x.module || x.module.status === 'Archived') continue;
         const place = x.rank === 1 ? 'Primary' : `Backup ${x.rank - 1}`;
         const label = `${x.module.name} (${x.module.domain?.name}): ${place}`;
         ranked.set(x.instructor_id, [...(ranked.get(x.instructor_id) ?? []), label]);
+        if (x.module.domain?.name)
+          domains.set(
+            x.instructor_id,
+            new Set([...(domains.get(x.instructor_id) ?? []), x.module.domain.name]),
+          );
       }
-      return { upcoming, ranked };
+      return { upcoming, ranked, domains };
     },
   });
 }
 
-const FILTERS: { value: string; label: string; test: (i: InstructorRow) => boolean }[] = [
-  { value: 'active', label: 'In use', test: (i) => i.status === 'Active' },
-  {
-    value: 'unchecked',
-    label: 'Contact details not checked',
-    test: (i) => i.status === 'Active' && !i.verified_at && !i.is_test,
-  },
-  {
-    value: 'problems',
-    label: 'Messages failing',
-    test: (i) => !!i.email_bounced_at || !!i.discord_failed_at,
-  },
-  { value: 'test', label: 'Test instructors', test: (i) => i.is_test },
-  { value: 'Inactive', label: 'Not in use', test: (i) => i.status === 'Inactive' },
-  { value: 'Archived', label: 'Archived', test: (i) => i.status === 'Archived' },
-  { value: 'all', label: 'Everyone', test: () => true },
+const STATUS_FILTERS: { value: string; label: string; test: (i: InstructorRow) => boolean }[] = [
+  { value: 'active', label: 'Active', test: (i) => i.status === 'Active' },
+  { value: 'inactive', label: 'Inactive', test: (i) => i.status === 'Inactive' },
+  { value: 'archived', label: 'Archived', test: (i) => i.status === 'Archived' },
+  { value: 'all', label: 'All', test: () => true },
 ];
+const isUnchecked = (i: InstructorRow) => i.status === 'Active' && !i.verified_at && !i.is_test;
+const isFailing = (i: InstructorRow) => !!i.email_bounced_at || !!i.discord_failed_at;
 
 export default function Instructors() {
   const { data, isLoading, error } = useInstructors();
   const ctx = useInstructorContext();
   const [params, setParams] = useSearchParams();
-  const filter = params.get('show') ?? 'active';
+  const show = params.get('show') ?? '';
+  const status = params.get('status') ?? 'active';
+  const teachesIn = params.get('domain') ?? '';
+  const showTest = params.get('test') === '1' || show === 'test';
+  const set = (k: string, v: string) => {
+    const n = new URLSearchParams(params);
+    if (v) n.set(k, v);
+    else n.delete(k);
+    setParams(n, { replace: true });
+  };
+  const domains = useDomains();
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<InstructorRow | 'new' | null>(null);
-  const test = FILTERS.find((f) => f.value === filter)?.test ?? FILTERS[0]!.test;
+  const statusTest =
+    STATUS_FILTERS.find((f) => f.value === status)?.test ?? STATUS_FILTERS[0]!.test;
+  const test = (i: InstructorRow) =>
+    statusTest(i) &&
+    (showTest || !i.is_test) &&
+    (show !== 'unchecked' || isUnchecked(i)) &&
+    (show !== 'problems' || isFailing(i)) &&
+    (!teachesIn ||
+      (teachesIn === 'none'
+        ? !(ctx.data?.ranked.get(i.id) ?? []).length
+        : !!ctx.data?.domains.get(i.id)?.has(teachesIn)));
 
   const rows = useMemo(
     () =>
@@ -108,9 +125,10 @@ export default function Instructors() {
             .toLowerCase()
             .includes(q.toLowerCase()),
       ),
-    [data, q, test],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, q, status, show, teachesIn, showTest, ctx.data],
   );
-  const unchecked = (data ?? []).filter(FILTERS[1]!.test).length;
+  const unchecked = (data ?? []).filter(isUnchecked).length;
 
   return (
     <div>
@@ -119,14 +137,14 @@ export default function Instructors() {
           <Plus className="h-4 w-4" aria-hidden /> Add instructor
         </Button>
       </PageHeader>
-      {unchecked > 0 && filter !== 'unchecked' && (
+      {unchecked > 0 && show !== 'unchecked' && (
         <div className="mb-4">
           <Notice tone="warning">
             {unchecked} instructor{unchecked === 1 ? ' has' : 's have'} not had their contact
             details checked. They are not asked once a domain is live.{' '}
             <button
               className="font-medium underline underline-offset-2"
-              onClick={() => setParams({ show: 'unchecked' })}
+              onClick={() => set('show', 'unchecked')}
             >
               Show them
             </button>
@@ -141,18 +159,51 @@ export default function Instructors() {
           className="w-64"
           aria-label="Search"
         />
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Status
+          <Select
+            value={status}
+            onChange={(e) => set('status', e.target.value === 'active' ? '' : e.target.value)}
+            className="w-36"
+          >
+            {STATUS_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Teaches in
+          <Select
+            value={teachesIn}
+            onChange={(e) => set('domain', e.target.value)}
+            className="w-48"
+          >
+            <option value="">Any domain</option>
+            {(domains.data ?? []).map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+            <option value="none">Not assigned to any module</option>
+          </Select>
+        </label>
         <Select
-          value={filter}
-          onChange={(e) => setParams({ show: e.target.value })}
-          className="w-64"
-          aria-label="Show"
+          aria-label="Only show"
+          value={show === 'test' ? '' : show}
+          onChange={(e) => set('show', e.target.value)}
+          className="w-60"
         >
-          {FILTERS.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
+          <option value="">Everyone in this list</option>
+          <option value="unchecked">Contact details not checked</option>
+          <option value="problems">Messages failing</option>
         </Select>
+        <Checkbox
+          label="Show test instructors"
+          checked={showTest}
+          onChange={(v) => set('test', v ? '1' : '')}
+        />
         <span className="text-sm text-muted-foreground">{rows.length} shown</span>
       </Toolbar>
       <ErrorText error={error} />
@@ -160,7 +211,11 @@ export default function Instructors() {
         <SkeletonRows />
       ) : rows.length === 0 ? (
         <Empty
-          title={q || filter !== 'active' ? 'No instructors match' : 'No instructors yet'}
+          title={
+            q || show || teachesIn || status !== 'active'
+              ? 'No instructors match'
+              : 'No instructors yet'
+          }
           icon={<UserRound className="h-5 w-5" />}
           action={<Button onClick={() => setEditing('new')}>Add instructor</Button>}
         >
@@ -173,7 +228,7 @@ export default function Instructors() {
               <tr>
                 <th className={th}>Name</th>
                 <th className={th}>Status</th>
-                <th className={`${th} hidden lg:table-cell`}>Teaches</th>
+                <th className={`${th} hidden lg:table-cell`}>Modules</th>
                 <th className={`${th} hidden md:table-cell`}>Upcoming classes</th>
                 <th className={`${th} hidden md:table-cell`}>Last reply</th>
               </tr>
@@ -193,11 +248,14 @@ export default function Instructors() {
                     </td>
                     <td className={`${td} hidden lg:table-cell`}>
                       {ranked.length ? (
-                        <span title={ranked.join('\n')}>
+                        <span
+                          title={ranked.join('\n')}
+                          className="cursor-help underline decoration-dotted underline-offset-2"
+                        >
                           {ranked.length} module{ranked.length === 1 ? '' : 's'}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">Not in any order</span>
+                        <span className="text-muted-foreground">Not assigned to any module</span>
                       )}
                     </td>
                     <td
@@ -292,6 +350,10 @@ export function InstructorDrawer({
     phone: instructor?.phone ?? '',
     notes: instructor?.notes ?? '',
     is_test: instructor?.is_test ?? false,
+    preferred_contact: instructor?.preferred_contact ?? 'Both',
+    monthly_class_limit: instructor?.monthly_class_limit
+      ? String(instructor.monthly_class_limit)
+      : '',
   });
   const [extras, setExtras] = useState<string[]>(
     instructor?.instructor_email.filter((e) => !e.is_primary).map((e) => e.email) ?? [],
@@ -316,6 +378,15 @@ export function InstructorDrawer({
   extras.forEach((e, idx) => {
     if (!isEmail(e)) errors[`extra${idx}`] = 'Enter a valid email address.';
   });
+  if (
+    f.monthly_class_limit &&
+    !(
+      Number.isInteger(Number(f.monthly_class_limit)) &&
+      Number(f.monthly_class_limit) >= 1 &&
+      Number(f.monthly_class_limit) <= 100
+    )
+  )
+    errors.monthly_class_limit = 'Enter a number from 1 to 100, or leave it empty.';
   const v = useFormErrors(errors);
   const emails = [f.primary_email, ...extras].map((e) => e.trim().toLowerCase()).filter(Boolean);
   const dup = all.find(
@@ -323,7 +394,9 @@ export function InstructorDrawer({
       o.id !== instructor?.id &&
       (o.instructor_email.some((e) => emails.includes(e.email.toLowerCase())) ||
         emails.includes(o.primary_email.toLowerCase()) ||
-        (!!f.discord_user_id && o.discord_user_id === f.discord_user_id.trim())),
+        (!!f.discord_user_id &&
+          o.discord_user_id === f.discord_user_id.trim() &&
+          !(f.is_test && o.is_test))),
   );
   const channel = parseChannelLink(f.discord_channel_link);
   const contactChanged =
@@ -348,6 +421,8 @@ export function InstructorDrawer({
         phone: f.phone.trim() || null,
         notes: f.notes.trim() || null,
         is_test: f.is_test,
+        preferred_contact: f.preferred_contact,
+        monthly_class_limit: f.monthly_class_limit ? Number(f.monthly_class_limit) : null,
       };
       let id = instructor?.id;
       if (instructor) {
@@ -508,6 +583,31 @@ export function InstructorDrawer({
           </div>
           <Field label="Phone" hint="Only for the team, for example to call in an emergency.">
             <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          </Field>
+          <Field label="Preferred contact" hint="How this instructor likes to get messages.">
+            <Select
+              value={f.preferred_contact}
+              onChange={(e) => setF({ ...f, preferred_contact: e.target.value })}
+            >
+              <option value="Both">Discord and email</option>
+              <option value="Discord">Discord</option>
+              <option value="Email">Email</option>
+            </Select>
+          </Field>
+          <Field
+            label="Classes a month (optional)"
+            hint="Their preferred most. We warn before asking them for more, but you can still ask."
+            error={v.show('monthly_class_limit')}
+          >
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={f.monthly_class_limit}
+              onBlur={v.touch('monthly_class_limit')}
+              onChange={(e) => setF({ ...f, monthly_class_limit: e.target.value })}
+              className="w-28"
+            />
           </Field>
           <Field label="Notes">
             <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />

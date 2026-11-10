@@ -546,10 +546,7 @@ export function Tabs({
 }) {
   return (
     <T.Root value={value} onValueChange={onValueChange}>
-      <T.List
-        className="mb-4 flex gap-1 overflow-x-auto border-b border-border"
-        aria-label="Sections"
-      >
+      <T.List className="mb-4 flex flex-wrap gap-1 border-b border-border" aria-label="Sections">
         {tabs.map((t) => (
           <T.Trigger
             key={t.value}

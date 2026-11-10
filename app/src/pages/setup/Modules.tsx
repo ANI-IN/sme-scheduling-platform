@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, ChevronRight, Plus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useSettingsMap, useTeam } from '@/lib/data';
 import {
@@ -32,12 +34,13 @@ export function useModuleWarnings(domainId: string | undefined) {
   const byId = new Map((instructors.data ?? []).map((i) => [i.id, i]));
   return (m: ModuleRow): string[] => {
     const ranked = [...m.module_ranking]
+      .filter((r) => !r.cohort_id)
       .sort((a, b) => a.rank - b.rank)
       .map((r) => byId.get(r.instructor_id));
     const active = ranked.filter((i) => i?.status === 'Active').length;
     const w: string[] = [];
-    if (m.class_pattern_item.length === 0) w.push('No class times');
-    if (active < minActive) w.push(`${active} of ${minActive} instructors needed`);
+    if (!m.class_pattern_item.some((p) => !p.cohort_id)) w.push('No class times');
+    if (active < minActive) w.push(`Needs ${minActive} instructors, has ${active}`);
     if (ranked[0] && ranked[0].status !== 'Active') w.push('Primary instructor not active');
     if (m.module_owner.length === 0) w.push('No owner');
     if (m.module_resource.length === 0) w.push('No materials');
@@ -52,6 +55,15 @@ export default function Modules() {
   const team = useTeam();
   const navigate = useNavigate();
   const warnings = useModuleWarnings(domain?.id);
+  const overview = useQuery({
+    queryKey: ['module', 'overview', domain?.id],
+    enabled: !!domain,
+    queryFn: async () =>
+      (await rpc('module_overview', { p_domain_id: domain!.id })) as unknown as Record<
+        string,
+        { owners: string; operations: string; operations_is_default: boolean; needed: number }
+      >,
+  });
   const owners = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   const status = new Map((instructors.data ?? []).map((i) => [i.id, i]));
 
@@ -116,6 +128,7 @@ export default function Modules() {
                 <th className={th}>Module</th>
                 <th className={th}>Status</th>
                 <th className={th}>Owners</th>
+                <th className={`${th} hidden lg:table-cell`}>Operations team</th>
                 <th className={th}>Instructors</th>
                 <th className={th}>Needs attention</th>
               </tr>
@@ -124,7 +137,7 @@ export default function Modules() {
               {modules.data!.map((m) => {
                 const w = warnings(m);
                 const active = m.module_ranking.filter(
-                  (r) => status.get(r.instructor_id)?.status === 'Active',
+                  (r) => !r.cohort_id && status.get(r.instructor_id)?.status === 'Active',
                 ).length;
                 return (
                   <tr
@@ -133,7 +146,16 @@ export default function Modules() {
                     onClick={() => navigate(`/setup/modules/${m.id}`)}
                   >
                     <td className={`${td} tabular-nums`}>{m.rotation_order}</td>
-                    <td className={`${td} font-medium`}>{m.name}</td>
+                    <td className={td}>
+                      <Link
+                        to={`/setup/modules/${m.id}`}
+                        className="inline-flex items-center gap-1 font-medium text-link hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {m.name}
+                        <ChevronRight className="h-4 w-4" aria-hidden />
+                      </Link>
+                    </td>
                     <td className={td}>
                       <Badge tone={MODULE_STATUS[m.status]?.tone}>
                         {MODULE_STATUS[m.status]?.label ?? m.status}
@@ -143,6 +165,15 @@ export default function Modules() {
                       {m.module_owner.map((o) => owners.get(o.team_member_id)).join(', ') || (
                         <span className="text-muted-foreground">None yet</span>
                       )}
+                    </td>
+                    <td className={`${td} hidden lg:table-cell`}>
+                      {overview.data?.[m.id]?.operations || (
+                        <span className="text-muted-foreground">None yet</span>
+                      )}
+                      {overview.data?.[m.id]?.operations_is_default &&
+                        overview.data?.[m.id]?.operations && (
+                          <div className="text-xs text-muted-foreground">Domain default</div>
+                        )}
                     </td>
                     <td className={`${td} tabular-nums`}>{active}</td>
                     <td className={td}>

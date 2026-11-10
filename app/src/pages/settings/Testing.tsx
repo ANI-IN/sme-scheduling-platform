@@ -2,7 +2,15 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
-import { Clock, FastForward, Play, RotateCcw } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  FastForward,
+  Play,
+  PlayCircle,
+  RotateCcw,
+  XCircle,
+} from 'lucide-react';
 import { poke, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useSettingsMap, useWeeks, type Domain } from '@/lib/data';
@@ -11,9 +19,11 @@ import { isDiscordId, isEmail } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { isTesting, statusLabel, statusTone } from '@/components/AppShell';
+import { DiscordIdPicture } from '@/components/DiscordIdPicture';
 import {
   Badge,
   Button,
+  DateInput,
   Empty,
   ErrorText,
   Field,
@@ -107,17 +117,14 @@ function TestingBody({ domain }: { domain: Domain }) {
         actions={<Badge tone={statusTone[domain.status]}>{statusLabel[domain.status]}</Badge>}
       >
         <div className="flex flex-wrap items-start gap-3">
-          <Field
-            label="Testing Discord channel ID"
-            hint="Right click the channel in Discord, then Copy Channel ID."
-            error={v.show('chan')}
-          >
+          <Field label="Testing Discord channel ID" hint="17 to 20 digits." error={v.show('chan')}>
             <Input
               value={targets.chan}
               onBlur={v.touch('chan')}
               onChange={(e) => setTargets({ ...targets, chan: e.target.value })}
               className="w-60"
             />
+            <DiscordIdPicture kind="channel" />
           </Field>
           <Field label="Testing email" error={v.show('mail')}>
             <Input
@@ -181,11 +188,21 @@ function TestingBody({ domain }: { domain: Domain }) {
             </strong>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            <Field label="Set the date and time (Pacific)">
+            <Field label="Date">
+              <DateInput
+                value={clock.slice(0, 10)}
+                onChange={(d) => setClock(`${d}T${clock.slice(11, 16) || '09:00'}`)}
+                className="w-56"
+              />
+            </Field>
+            <Field label="Time (Pacific)">
               <Input
-                type="datetime-local"
-                value={clock}
-                onChange={(e) => setClock(e.target.value)}
+                type="time"
+                value={clock.slice(11, 16)}
+                onChange={(e) =>
+                  setClock(`${clock.slice(0, 10) || DateTime.now().toISODate()}T${e.target.value}`)
+                }
+                className="w-32"
               />
             </Field>
             <Button
@@ -313,6 +330,8 @@ function TestingBody({ domain }: { domain: Domain }) {
       )}
       <ErrorText error={err} />
 
+      {testing && <PracticeClass domain={domain} />}
+
       {testing && (
         <Section
           tone="danger"
@@ -346,5 +365,76 @@ function TestingBody({ domain }: { domain: Domain }) {
         </Section>
       )}
     </>
+  );
+}
+
+type PracticeResult = {
+  passed: boolean;
+  steps: { step: string; passed: boolean; detail: string | null }[];
+};
+
+/** Runs a whole class week on the practice clock and checks every stage, then removes it again. */
+function PracticeClass({ domain }: { domain: Domain }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const [result, setResult] = useState<PracticeResult | null>(null);
+  return (
+    <Section
+      title="Run a practice class"
+      description="Creates a practice class week with your test instructors and walks through every stage on the practice clock: asked, reminded, moved on, confirmed, reminders before class, a help request, a time change and a cancellation. Nothing is sent and everything is removed afterwards."
+    >
+      <Button
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          setErr(null);
+          setResult(null);
+          try {
+            setResult((await rpc('run_practice_class', { p_domain_id: domain.id })) as never);
+          } catch (e) {
+            setErr(e);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <PlayCircle className="h-4 w-4" aria-hidden /> Run a practice class
+      </Button>
+      <ErrorText error={err} />
+      {result && (
+        <div className="mt-4">
+          <p
+            className={
+              result.passed ? 'font-medium text-success-strong' : 'font-medium text-danger-strong'
+            }
+          >
+            {result.passed
+              ? 'Every stage worked.'
+              : 'Some stages did not work. See below, fix the setup, and run it again.'}
+          </p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {result.steps.map((s) => (
+              <li key={s.step} className="flex items-start gap-2">
+                {s.passed ? (
+                  <CheckCircle2
+                    className="mt-0.5 h-4 w-4 shrink-0 text-success-strong"
+                    aria-label="Passed"
+                  />
+                ) : (
+                  <XCircle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-danger-strong"
+                    aria-label="Failed"
+                  />
+                )}
+                <span>
+                  {s.step}
+                  {s.detail && <span className="text-muted-foreground"> ({s.detail})</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Section>
   );
 }

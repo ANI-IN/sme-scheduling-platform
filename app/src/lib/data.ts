@@ -121,6 +121,9 @@ export type SettingRow = {
   allowed: string[] | null;
   help: string | null;
   overridden: boolean;
+  /** Where the value comes from: Default, Global, Domain, Cohort, Module or ModuleWeek. */
+  source?: string;
+  reason?: string | null;
 };
 
 export const useSettings = (domainId: string | undefined) =>

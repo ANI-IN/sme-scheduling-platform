@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useModules, useTeam } from '@/lib/data';
+import { useCohorts, useModules, useTeam } from '@/lib/data';
+import { LastChanged } from '@/components/LastChanged';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { PeoplePicker } from '@/components/PeoplePicker';
@@ -32,6 +33,7 @@ export const MODULE_TABS = [
   { value: 'times', label: 'Class times' },
   { value: 'order', label: 'Instructor order' },
   { value: 'owners', label: 'Owners' },
+  { value: 'operations', label: 'Operations team' },
   { value: 'materials', label: 'Materials' },
   { value: 'next', label: 'Who we ask next' },
 ];
@@ -106,7 +108,26 @@ export default function ModuleDetail() {
             title="Class times"
             description="The classes of one class week, in Pacific time. Used when planning classes."
           >
-            <PatternEditor module={m} run={run} />
+            <ForCohort module={m}>
+              {(cohortId, hasOwn) =>
+                cohortId && !hasOwn.times ? (
+                  <>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      This cohort uses the module's class times. Add class times here to give it its
+                      own, for example a weekday cohort.
+                    </p>
+                    <PatternEditor key={cohortId} module={m} run={run} cohortId={cohortId} />
+                  </>
+                ) : (
+                  <PatternEditor
+                    key={cohortId ?? 'module'}
+                    module={m}
+                    run={run}
+                    cohortId={cohortId}
+                  />
+                )
+              }
+            </ForCohort>
           </Section>
         </TabPanel>
         <TabPanel value="order">
@@ -114,11 +135,26 @@ export default function ModuleDetail() {
             title="Instructor order"
             description="Who we ask first. The primary instructor is asked first, then Backup 1, Backup 2 and so on, one at a time."
           >
-            <RankingEditor module={m} />
+            <ForCohort module={m}>
+              {(cohortId, hasOwn) => (
+                <>
+                  {cohortId && !hasOwn.order && (
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      This cohort uses the module's instructor order. Save an order here to give it
+                      its own.
+                    </p>
+                  )}
+                  <RankingEditor key={cohortId ?? 'module'} module={m} cohortId={cohortId} />
+                </>
+              )}
+            </ForCohort>
           </Section>
         </TabPanel>
         <TabPanel value="owners">
           <Owners module={m} run={run} />
+        </TabPanel>
+        <TabPanel value="operations">
+          <OperationsTeam module={m} run={run} />
         </TabPanel>
         <TabPanel value="materials">
           <Section
@@ -233,6 +269,9 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
         >
           Save changes
         </Button>
+        <div className="mt-2">
+          <LastChanged at={m.updated_at} by={m.updated_by} />
+        </div>
       </Section>
       {m.status !== 'Archived' && (
         <Section
@@ -310,5 +349,129 @@ export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
         }
       />
     </Section>
+  );
+}
+
+/** Choose "the whole module" or one cohort for class times and the instructor order. */
+function ForCohort({
+  module: m,
+  children,
+}: {
+  module: ModuleRow;
+  children: (
+    cohortId: string | undefined,
+    hasOwn: { times: boolean; order: boolean },
+  ) => React.ReactNode;
+}) {
+  const cohorts = useCohorts(m.domain_id);
+  const [cohortId, setCohortId] = useState('');
+  const own = (id: string) => ({
+    times: m.class_pattern_item.some((p) => p.cohort_id === id),
+    order: m.module_ranking.some((r) => r.cohort_id === id),
+  });
+  return (
+    <div className="space-y-3">
+      {(cohorts.data ?? []).length > 0 && (
+        <Field label="For" className="max-w-sm">
+          <Select value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
+            <option value="">Every cohort (the module default)</option>
+            {(cohorts.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {own(c.id).times || own(c.id).order ? ' (has its own)' : ''}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+      {children(cohortId || undefined, cohortId ? own(cohortId) : { times: true, order: true })}
+    </div>
+  );
+}
+
+/** Operations team for the module, and for a cohort when it differs. Empty means the domain default. */
+function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
+  const team = useTeam();
+  const cohorts = useCohorts(m.domain_id);
+  const rows = useQuery({
+    queryKey: ['module_operations', m.id],
+    queryFn: async () =>
+      check(await supabase.from('module_operations').select('*').eq('module_id', m.id)),
+  });
+  const defaults = useQuery({
+    queryKey: ['domain_team', m.domain_id, 'Operations'],
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('domain_team')
+          .select('team_member_id')
+          .eq('domain_id', m.domain_id)
+          .eq('role', 'Operations'),
+      ),
+  });
+  const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
+  const picker = (cohortId: string | null) => (
+    <PeoplePicker
+      people={(team.data ?? []).filter((t) => !t.access_removed_at)}
+      selected={(rows.data ?? [])
+        .filter((r) => r.cohort_id === cohortId)
+        .map((r) => r.team_member_id)}
+      addLabel="Add a person"
+      emptyText={
+        cohortId
+          ? 'Same as the module.'
+          : `Uses the domain's default operations team: ${
+              (defaults.data ?? []).map((d) => names.get(d.team_member_id)).join(', ') ||
+              'nobody yet'
+            }.`
+      }
+      onAdd={(id) =>
+        run(
+          async () =>
+            check(
+              await supabase
+                .from('module_operations')
+                .insert({ module_id: m.id, cohort_id: cohortId, team_member_id: id }),
+            ),
+          'Added to the operations team',
+        )
+      }
+      onRemove={(id) =>
+        run(async () => {
+          let q = supabase
+            .from('module_operations')
+            .delete()
+            .eq('module_id', m.id)
+            .eq('team_member_id', id);
+          q = cohortId ? q.eq('cohort_id', cohortId) : q.is('cohort_id', null);
+          check(await q);
+        }, 'Removed from the operations team')
+      }
+    />
+  );
+  return (
+    <div className="space-y-4">
+      <Section
+        title="Operations team for this module"
+        description="They handle class tasks, failed messages and written replies for this module. Leave it empty to use the domain's default operations team."
+      >
+        {picker(null)}
+      </Section>
+      {(cohorts.data ?? []).length > 0 && (
+        <Section
+          title="Different people for a cohort"
+          description="Only when a cohort has its own operations team for this module."
+        >
+          <div className="space-y-4">
+            {(cohorts.data ?? []).map((c) => (
+              <div key={c.id}>
+                <div className="mb-1 text-sm font-medium">{c.name}</div>
+                {picker(c.id)}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+    </div>
   );
 }

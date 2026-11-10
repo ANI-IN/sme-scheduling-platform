@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { DateTime } from 'luxon';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -312,6 +313,12 @@ export function ClassDrawer({
               </Button>
             )}
           </div>
+          <Link
+            to={`/settings/automation?scope=ModuleWeek&id=${week.id}`}
+            className="inline-block text-sm font-medium text-link hover:underline"
+          >
+            Change settings for this class week only
+          </Link>
           {week.status !== 'Cancelled' && (
             <Checkbox
               label="The same instructor teaches every class of this week"

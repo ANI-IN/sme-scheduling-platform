@@ -24,6 +24,7 @@ const Instructors = lazy(() => import('@/pages/Instructors'));
 const Team = lazy(() => import('@/pages/setup/Team'));
 const Domains = lazy(() => import('@/pages/setup/Domains'));
 const Automation = lazy(() => import('@/pages/settings/Automation'));
+const Messages = lazy(() => import('@/pages/settings/Messages'));
 const Testing = lazy(() => import('@/pages/settings/Testing'));
 const Connections = lazy(() => import('@/pages/settings/Connections'));
 const History = lazy(() => import('@/pages/History'));
@@ -76,6 +77,7 @@ function Gate() {
             <Route path="/setup/domains" element={<Domains />} />
             <Route path="/settings" element={<Navigate to="/settings/automation" replace />} />
             <Route path="/settings/automation" element={<Automation />} />
+            <Route path="/settings/messages" element={<Messages />} />
             <Route path="/settings/testing" element={<Testing />} />
             <Route path="/settings/connections" element={<Connections />} />
             <Route path="/activity" element={<History />} />

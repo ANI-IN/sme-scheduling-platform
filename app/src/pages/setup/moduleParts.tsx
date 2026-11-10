@@ -50,16 +50,37 @@ export const dayLabel = (o: number) =>
 
 export type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
-export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run }) {
+export function PatternEditor({
+  module: m,
+  run,
+  cohortId,
+}: {
+  module: ModuleRow;
+  run: Run;
+  /** Class times for one cohort only (otherwise the module's default times). */
+  cohortId?: string;
+}) {
+  const types = useQuery({
+    queryKey: ['class_type', m.domain_id],
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('class_type')
+          .select('name')
+          .eq('domain_id', m.domain_id)
+          .order('sort_order')
+          .order('name'),
+      ),
+  });
   const [n, setN] = useState({
     class_type: 'Live class',
     day_offset: 0,
     start_time_pt: '09:00',
     duration_minutes: 240,
   });
-  const items = [...m.class_pattern_item].sort(
-    (a, b) => a.day_offset - b.day_offset || a.start_time_pt.localeCompare(b.start_time_pt),
-  );
+  const items = [...m.class_pattern_item]
+    .filter((p) => (p.cohort_id ?? undefined) === cohortId)
+    .sort((a, b) => a.day_offset - b.day_offset || a.start_time_pt.localeCompare(b.start_time_pt));
   const time = (t: string) => DateTime.fromFormat(t.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   return (
     <section>
@@ -112,7 +133,7 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Class type">
           <Select value={n.class_type} onChange={(e) => setN({ ...n, class_type: e.target.value })}>
-            {['Live class', 'Assignment review', 'Office hours', 'Other'].map((s) => (
+            {(types.data?.map((t) => t.name) ?? ['Live class', 'Assignment review']).map((s) => (
               <option key={s}>{s}</option>
             ))}
           </Select>
@@ -153,6 +174,7 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
               check(
                 await supabase.from('class_pattern_item').insert({
                   module_id: m.id,
+                  cohort_id: cohortId ?? null,
                   ...n,
                   title_template: '{module}: {class_type}',
                   sort_order: items.length + 1,
@@ -194,8 +216,11 @@ export function RankingEditor({
   module: m,
   initialExtra = [],
   footer,
+  cohortId,
 }: {
   module: ModuleRow;
+  /** The order for one cohort only (otherwise the module's order). */
+  cohortId?: string;
   /** Instructors to add to the end of the order straight away (for example one just created). */
   initialExtra?: string[];
   footer?: React.ReactNode;
@@ -204,8 +229,12 @@ export function RankingEditor({
   const instructors = useInstructors();
   const ctx = useInstructorContext();
   const saved = useMemo(
-    () => [...m.module_ranking].sort((a, b) => a.rank - b.rank).map((r) => r.instructor_id),
-    [m.module_ranking],
+    () =>
+      [...m.module_ranking]
+        .filter((r) => (r.cohort_id ?? undefined) === cohortId)
+        .sort((a, b) => a.rank - b.rank)
+        .map((r) => r.instructor_id),
+    [m.module_ranking, cohortId],
   );
   const [order, setOrder] = useState<string[]>(() => [
     ...saved,
@@ -307,6 +336,7 @@ export function RankingEditor({
                 (await rpc('ranking_impact', {
                   p_module_id: m.id,
                   p_instructor_ids: order,
+                  p_cohort_id: cohortId,
                 })) as never,
               );
             } catch (e) {
@@ -366,6 +396,7 @@ export function RankingEditor({
                       p_module_id: m.id,
                       p_instructor_ids: order,
                       p_expected_ids: saved,
+                      p_cohort_id: cohortId,
                     });
                     toast.success('Instructor order saved');
                     setImpact(null);

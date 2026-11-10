@@ -21,12 +21,14 @@ import {
   UserRound,
   Users,
   X,
+  MessageSquareText,
   OctagonPause,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { DiscordPrompt } from './DiscordPrompt';
 import { usePauseAll } from './PauseAll';
+import { confirmLeave } from '@/lib/unsaved';
 import { useDomain } from '@/lib/domain';
 import { type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
@@ -56,6 +58,7 @@ const groups: { label?: string; items: Item[] }[] = [
     label: 'Settings',
     items: [
       { to: '/settings/automation', label: 'Automation', icon: Cog },
+      { to: '/settings/messages', label: 'Message templates', icon: MessageSquareText },
       { to: '/settings/testing', label: 'Testing', icon: FlaskConical },
       { to: '/settings/connections', label: 'Connections', icon: PlugZap },
     ],
@@ -241,6 +244,9 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () =>
                   <NavLink
                     to={it.to}
                     end={it.end}
+                    onClick={(e) => {
+                      if (!confirmLeave()) e.preventDefault();
+                    }}
                     title={collapsed ? it.label : undefined}
                     className={({ isActive }) =>
                       cn(

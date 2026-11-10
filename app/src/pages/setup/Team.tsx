@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BellRing, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
@@ -37,6 +37,10 @@ const DIGEST_LABEL: Record<string, string> = {
 export default function Team() {
   const { data, isLoading, error } = useTeam();
   const [editing, setEditing] = useState<TeamMember | 'new' | null>(null);
+  const assignments = useQuery({
+    queryKey: ['team_member', 'assignments'],
+    queryFn: async () => (await rpc('team_assignments', {})) as unknown as Record<string, string[]>,
+  });
   return (
     <div>
       <PageHeader
@@ -57,6 +61,7 @@ export default function Team() {
               <tr>
                 <th className={th}>Name</th>
                 <th className={th}>Job title</th>
+                <th className={`${th} hidden lg:table-cell`}>Helps with</th>
                 <th className={th}>Email</th>
                 <th className={th}>Discord</th>
                 <th className={th}>Daily summary</th>
@@ -73,6 +78,13 @@ export default function Team() {
                   </td>
                   <td className={td}>
                     {t.job_title || <span className="text-muted-foreground">Not set</span>}
+                  </td>
+                  <td className={`${td} hidden max-w-xs lg:table-cell`}>
+                    {(assignments.data?.[t.id] ?? []).length ? (
+                      <span className="text-sm">{assignments.data![t.id]!.join(', ')}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Not assigned yet</span>
+                    )}
                   </td>
                   <td className={`${td} text-muted-foreground`}>{t.email}</td>
                   <td className={td}>

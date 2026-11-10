@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Globe2, Plus } from 'lucide-react';
+import { Globe2, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
@@ -13,6 +13,9 @@ import { PeoplePicker } from '@/components/PeoplePicker';
 import { statusLabel, statusTone } from '@/components/AppShell';
 import {
   Badge,
+  Checkbox,
+  DateInput,
+  formatDateValue,
   Button,
   Drawer,
   Empty,
@@ -142,6 +145,8 @@ function CreateDomain({
   const qc = useQueryClient();
   const { setDomainId } = useDomain();
   const [name, setName] = useState('');
+  const [copyFrom, setCopyFrom] = useState('');
+  const domains = useDomains();
   const [err, setErr] = useState<unknown>(null);
   const v = useFormErrors({
     name: !name.trim() ? 'Enter a name, for example Fullstack.' : undefined,
@@ -161,6 +166,22 @@ function CreateDomain({
           onChange={(e) => setName(e.target.value)}
         />
       </Field>
+      {(domains.data ?? []).length > 0 && (
+        <Field
+          label="Copy settings from another domain (optional)"
+          hint="Copies the automation settings, class types and message texts. Modules and people are not copied."
+          className="mt-3"
+        >
+          <Select value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)}>
+            <option value="">Start with the defaults</option>
+            {(domains.data ?? []).map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
       <ErrorText error={err} />
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>
@@ -177,6 +198,11 @@ function CreateDomain({
                   .select()
                   .single(),
               )!;
+              if (copyFrom)
+                await rpc('copy_domain_settings', {
+                  p_from_domain_id: copyFrom,
+                  p_to_domain_id: d.id,
+                });
               setDomainId(d.id);
               toast.success('Domain created');
               await qc.invalidateQueries();
@@ -353,8 +379,8 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
           />
         </Section>
         <Section
-          title="Operations team"
-          description="Handle tasks such as checklists, failed messages and written replies."
+          title="Default operations team"
+          description="Handle class tasks, failed messages and written replies for every module, unless a module has its own operations team."
         >
           <PeoplePicker
             people={team.data ?? []}
@@ -363,8 +389,203 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
             {...role('Operations')}
           />
         </Section>
+        <ClassTypes domainId={domain.id} />
+        <Holidays domainId={domain.id} domainName={domain.name} />
         <ErrorText error={err} />
       </div>
     </Drawer>
+  );
+}
+
+/** The kinds of class this domain teaches (used when adding class times and single classes). */
+function ClassTypes({ domainId }: { domainId: string }) {
+  const qc = useQueryClient();
+  const types = useQuery({
+    queryKey: ['class_type', domainId],
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('class_type')
+          .select('*')
+          .eq('domain_id', domainId)
+          .order('sort_order')
+          .order('name'),
+      ),
+  });
+  const [name, setName] = useState('');
+  const [err, setErr] = useState<unknown>(null);
+  const refresh = () => qc.invalidateQueries({ queryKey: ['class_type'] });
+  return (
+    <Section
+      title="Class types"
+      description="For example Live class, Assignment review or Office hours. A class week can have any number of classes of any type."
+    >
+      <ul className="mb-3 flex flex-wrap gap-2">
+        {(types.data ?? []).map((t) => (
+          <li
+            key={t.id}
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-sm"
+          >
+            {t.name}
+            <button
+              type="button"
+              aria-label={`Remove ${t.name}`}
+              className="text-muted-foreground hover:text-danger-strong"
+              onClick={async () => {
+                setErr(null);
+                try {
+                  check(await supabase.from('class_type').delete().eq('id', t.id));
+                  toast.success('Class type removed');
+                  await refresh();
+                } catch (e) {
+                  setErr(e);
+                }
+              }}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="New class type">
+          <Input value={name} onChange={(e) => setName(e.target.value)} className="w-56" />
+        </Field>
+        <Button
+          variant="secondary"
+          disabled={!name.trim()}
+          onClick={async () => {
+            setErr(null);
+            try {
+              check(
+                await supabase.from('class_type').insert({
+                  domain_id: domainId,
+                  name: name.trim(),
+                  sort_order: (types.data?.length ?? 0) + 1,
+                }),
+              );
+              setName('');
+              toast.success('Class type added');
+              await refresh();
+            } catch (e) {
+              setErr(e);
+            }
+          }}
+        >
+          Add
+        </Button>
+      </div>
+      <ErrorText error={err} />
+    </Section>
+  );
+}
+
+/** Holidays for this domain, plus those that apply to every domain. Shown when planning. */
+function Holidays({ domainId, domainName }: { domainId: string; domainName: string }) {
+  const qc = useQueryClient();
+  const holidays = useQuery({
+    queryKey: ['holiday', domainId],
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('holiday')
+          .select('*')
+          .or(`domain_id.is.null,domain_id.eq.${domainId}`)
+          .order('date'),
+      ),
+  });
+  const [h, setH] = useState({ date: '', name: '', onlyHere: true });
+  const [touched, setTouched] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const errors = {
+    date: !h.date ? 'Choose a date.' : undefined,
+    name: !h.name.trim() ? 'Give the holiday a name.' : undefined,
+  };
+  const refresh = () => qc.invalidateQueries({ queryKey: ['holiday'] });
+  return (
+    <Section
+      title="Holidays"
+      description="Shown when planning classes, so classes on a holiday get a warning."
+    >
+      {(holidays.data ?? []).length === 0 ? (
+        <p className="mb-3 text-sm text-muted-foreground">No holidays yet.</p>
+      ) : (
+        <ul className="mb-4 grid gap-1.5 text-sm sm:grid-cols-2">
+          {(holidays.data ?? []).map((x) => (
+            <li
+              key={x.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-1.5"
+            >
+              <span>
+                <span className="font-medium">{x.name}</span>
+                <span className="text-muted-foreground">, {formatDateValue(x.date)}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {x.domain_id ? `Only ${domainName}` : 'Every domain'}
+                </span>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  setErr(null);
+                  try {
+                    check(await supabase.from('holiday').delete().eq('id', x.id));
+                    toast.success('Holiday removed');
+                    await refresh();
+                  } catch (e) {
+                    setErr(e);
+                  }
+                }}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Date" error={touched ? errors.date : undefined}>
+          <DateInput value={h.date} onChange={(date) => setH({ ...h, date })} className="w-56" />
+        </Field>
+        <Field label="Name" error={touched ? errors.name : undefined}>
+          <Input
+            value={h.name}
+            onChange={(e) => setH({ ...h, name: e.target.value })}
+            className="w-56"
+          />
+        </Field>
+        <Checkbox
+          label={`Only for ${domainName}`}
+          checked={h.onlyHere}
+          onChange={(v) => setH({ ...h, onlyHere: v })}
+        />
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            setTouched(true);
+            if (errors.date || errors.name) return;
+            setErr(null);
+            try {
+              check(
+                await supabase.from('holiday').insert({
+                  date: h.date,
+                  name: h.name.trim(),
+                  domain_id: h.onlyHere ? domainId : null,
+                }),
+              );
+              setH({ date: '', name: '', onlyHere: h.onlyHere });
+              setTouched(false);
+              toast.success('Holiday added');
+              await refresh();
+            } catch (e) {
+              setErr(e);
+            }
+          }}
+        >
+          Add holiday
+        </Button>
+      </div>
+      <ErrorText error={err} />
+    </Section>
   );
 }

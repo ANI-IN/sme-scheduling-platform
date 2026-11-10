@@ -198,6 +198,17 @@ export const SHOTS: Shot[] = [
   { name: 'settings-automation', path: '/settings/automation' },
   { name: 'settings-automation-help', path: '/settings/automation', act: tab(/help/i) },
   { name: 'settings-testing', path: '/settings/testing' },
+  {
+    name: 'settings-testing-practice',
+    path: '/settings/testing',
+    act: steps(click(/run a practice class/i), async (p) => p.waitForTimeout(4000)),
+  },
+  { name: 'settings-messages', path: '/settings/messages' },
+  {
+    name: 'settings-messages-edit',
+    path: '/settings/messages',
+    act: click(/^request to teach/i),
+  },
   { name: 'settings-testing-go-live', path: '/settings/testing', act: click(/^go live$/i) },
   { name: 'settings-connections', path: '/settings/connections' },
   {
