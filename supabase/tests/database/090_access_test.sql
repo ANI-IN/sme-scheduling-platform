@@ -74,7 +74,7 @@ select ok(public.hook_before_user_created(tests.google_user('new.person@example.
 select is((select active from public.team_member where email = 'new.person@example.com'), false, 'and is no longer tagged or reminded');
 
 -- =============================================================== setup
-select ok(not has_function_privilege('authenticated', 'public.configure_environment(text, text)', 'EXECUTE'),
+select ok(not has_function_privilege('authenticated', 'public.configure_environment(text, text, text[], text[])', 'EXECUTE'),
   'only the setup script can change the environment and the allowed domain');
 update public.app_config set company_email_domain = '' where id = 1;
 select is(public.hook_before_user_created(tests.google_user('a@example.com', 'example.com')) -> 'error' ->> 'message',

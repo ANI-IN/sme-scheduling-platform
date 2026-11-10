@@ -128,7 +128,7 @@ const PICS: Pic[] = [
     file: 'class-drawer.png',
     path: '/classes',
     act: async (p) => {
-      await p.locator('tbody tr').first().click();
+      await p.locator('tbody tr').filter({ hasText: 'Confirmed' }).first().click();
       await p.waitForTimeout(800);
     },
     marks: [button(/release instructor/i), button(/^change time$/i)],

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { poke, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
+import { useAuth } from '@/lib/auth';
 import { useSettingsMap, useWeeks, type Domain } from '@/lib/data';
 import { fmtLocal, fmtPT, PT } from '@/lib/time';
 import { isDiscordId, isEmail } from '@/lib/validation';
@@ -331,6 +332,7 @@ function TestingBody({ domain }: { domain: Domain }) {
       <ErrorText error={err} />
 
       {testing && <PracticeClass domain={domain} />}
+      <ResetSandbox />
 
       {testing && (
         <Section
@@ -435,6 +437,51 @@ function PracticeClass({ domain }: { domain: Domain }) {
           </ul>
         </div>
       )}
+    </Section>
+  );
+}
+
+/** Sandbox only: put every domain, module, instructor and class back to the starting data. */
+function ResetSandbox() {
+  const { account } = useAuth();
+  const qc = useQueryClient();
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  if (!account?.environment || account.environment === 'Production') return null;
+  return (
+    <Section
+      tone="danger"
+      title="Reset Sandbox data"
+      description="Removes every domain, module, instructor, class and task in this Sandbox and loads the starting data again: Backend and Fullstack, a weekend and a weekday cohort, and test instructors. Activity history is kept. This is not possible in Production."
+    >
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Type RESET to confirm">
+          <Input value={typed} onChange={(e) => setTyped(e.target.value)} className="w-40" />
+        </Field>
+        <Button
+          variant="destructive"
+          disabled={typed !== 'RESET'}
+          loading={busy}
+          onClick={async () => {
+            setBusy(true);
+            setErr(null);
+            try {
+              await rpc('reset_sandbox_data', { p_confirm: typed });
+              toast.success('Sandbox data is back to the starting point');
+              setTyped('');
+              await qc.invalidateQueries();
+            } catch (e) {
+              setErr(e);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Reset Sandbox data
+        </Button>
+      </div>
+      <ErrorText error={err} />
     </Section>
   );
 }

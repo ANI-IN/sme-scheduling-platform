@@ -1,0 +1,257 @@
+{
+  "name": "[Production] WF5 Error handler",
+  "nodes": [
+    {
+      "id": "45741a39-7300-4001-ba06-cde15ef5f99a",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ],
+      "parameters": {
+        "content": "## WF5 Error handler\nSet as the **Error workflow** of WF1–WF4 (each workflow → Settings → Error workflow).\n\n1. `log_system_error` records the failure in History and queues an admin alert.\n2. Pokes WF4 so the alert is sent now (lower branch, runs after the log).\n3. Fallback: if the database call fails, the error is posted straight to the admin Discord channel (`app_config.admin_discord_channel_id`).\n\n**Edit only the Config node.**",
+        "height": 340,
+        "width": 900,
+        "color": 5
+      }
+    },
+    {
+      "id": "7fad38c2-ec30-4321-ba97-1db2f43bbdd7",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "c818328b-e8aa-4ea6-b669-f28564e045d6",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-PRODUCTION-PROJECT.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://YOUR-N8N/webhook/sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
+      }
+    },
+    {
+      "id": "fedc2e5e-06ca-4cee-94ab-4ed087bd2f1a",
+      "name": "Describe error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const t = $('Error Trigger').first().json;\nconst ex = t.execution || {};\nconst err = ex.error || (t.trigger && t.trigger.error) || {};\nlet message = String(err.message || err.description || 'Unknown error');\nif (err.description && err.description !== err.message) message += ' — ' + err.description;\nif (ex.lastNodeExecuted) message = 'Node \"' + ex.lastNodeExecuted + '\": ' + message;\nreturn [{ json: {\n  p_workflow: (t.workflow && t.workflow.name) || 'Unknown workflow',\n  p_message: message.slice(0, 2000),\n  p_url: ex.url || null,\n} }];"
+      }
+    },
+    {
+      "id": "8f687d4f-ea31-4946-a294-249e4e9885f4",
+      "name": "Log system error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/log_system_error",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Production)"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "17235924-6014-4b05-b85c-a7ad773d7211",
+      "name": "Get admin channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/app_config?select=admin_discord_channel_id",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Production)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7e2ac83b-f3ed-4692-ae31-21bffd435809",
+      "name": "Post to admin channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://discord.com/api/v10/channels/' + $json.admin_discord_channel_id + '/messages' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: ('n8n error in \"' + $('Describe error').first().json.p_workflow + '\" (could not record it in the database): ' + $('Describe error').first().json.p_message + ($('Describe error').first().json.p_url ? '\\n' + $('Describe error').first().json.p_url : '')).slice(0, 2000), allowed_mentions: { parse: [] } }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Discord bot (Production)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "f1937001-6ffa-459e-be60-7e4b307a3ef5",
+      "name": "Poke WF4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.pokeUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-poke-key",
+              "value": "={{ $('Config').first().json.pokeKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Describe error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Describe error": {
+      "main": [
+        [
+          {
+            "node": "Log system error",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Poke WF4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log system error": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get admin channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get admin channel": {
+      "main": [
+        [
+          {
+            "node": "Post to admin channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "meta": {},
+  "tags": [
+    {
+      "name": "Production"
+    }
+  ]
+}

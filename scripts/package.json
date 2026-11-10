@@ -13,7 +13,10 @@
     "check-migrations": "tsx src/check-migrations.ts",
     "check-build": "tsx src/check-build.ts",
     "configure": "tsx src/configure.ts",
-    "help-shots": "tsx src/help-screenshots.ts"
+    "configure:sandbox": "tsx --env-file=../.env.sandbox src/configure.ts",
+    "configure:production": "tsx --env-file=../.env.production src/configure.ts",
+    "help-shots": "tsx src/help-screenshots.ts",
+    "n8n-export": "tsx src/n8n-export.ts"
   },
   "dependencies": {
     "pg": "^8.23.1"

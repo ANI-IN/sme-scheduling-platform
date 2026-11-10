@@ -45,7 +45,7 @@ function Gate() {
     return (
       <div className="p-8 text-sm">
         The app is not configured yet: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (see
-        docs/SETUP.md).
+        docs/SETUP_GUIDE.md).
       </div>
     );
   }

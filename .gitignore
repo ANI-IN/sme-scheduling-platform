@@ -10,8 +10,10 @@ coverage/
 *.log
 .claude/
 
-# Local-only: Windows path workaround (see docs/SETUP.md "Local development")
+# Local-only: Windows path workaround (see docs/SETUP_GUIDE.md "Local development")
 .npmrc
 
 # Local data snapshot taken before loading screenshot demo data (scripts/src/demo-data.ts)
 .ui-demo-snapshot.sql
+.env.sandbox
+.env.production

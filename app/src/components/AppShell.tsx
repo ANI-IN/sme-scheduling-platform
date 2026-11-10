@@ -182,6 +182,7 @@ export function AppShell() {
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-semibold">SME Scheduling</span>
+          <EnvironmentLabel />
         </div>
         <Banners />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-8">
@@ -214,6 +215,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () =>
         className={cn('flex items-center gap-2 px-3 pt-4 pb-3', collapsed && 'justify-center px-2')}
       >
         {!collapsed && <span className="truncate text-base font-semibold">SME Scheduling</span>}
+        {!collapsed && <EnvironmentLabel />}
         {onToggle && (
           <button
             onClick={onToggle}
@@ -462,5 +464,29 @@ function Banners() {
         </Bar>
       )}
     </>
+  );
+}
+
+/** Always visible outside Production, so nobody mistakes Sandbox for the real thing. */
+function EnvironmentLabel() {
+  const { account } = useAuth();
+  const env = account?.environment;
+  if (!env || env === 'Production') return null;
+  return (
+    <span
+      className={cn(
+        'rounded px-1.5 py-0.5 text-[11px] font-bold tracking-wider uppercase',
+        env === 'Sandbox'
+          ? 'bg-accent-soft text-accent-strong ring-1 ring-accent-strong'
+          : 'bg-neutral-soft text-neutral-strong',
+      )}
+      title={
+        env === 'Sandbox'
+          ? 'This is the Sandbox: practice data, and messages only go to allowed test channels and mailboxes.'
+          : 'This copy runs on a computer for development.'
+      }
+    >
+      {env === 'Sandbox' ? 'Sandbox' : 'Development'}
+    </span>
   );
 }

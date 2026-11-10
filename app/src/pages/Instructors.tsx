@@ -10,6 +10,7 @@ import { ago, fmtLocal, fmtPT } from '@/lib/time';
 import { isDiscordId, isEmail, parseChannelLink } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
+import { useAuth } from '@/lib/auth';
 import {
   Badge,
   Button,
@@ -94,7 +95,10 @@ export default function Instructors() {
   const show = params.get('show') ?? '';
   const status = params.get('status') ?? 'active';
   const teachesIn = params.get('domain') ?? '';
-  const showTest = params.get('test') === '1' || show === 'test';
+  // Outside Production the test instructors are the ones people practise with, so show them unless hidden.
+  const practice = useAuth().account?.environment !== 'Production';
+  const testParam = params.get('test');
+  const showTest = testParam === '1' || show === 'test' || (practice && testParam !== '0');
   const set = (k: string, v: string) => {
     const n = new URLSearchParams(params);
     if (v) n.set(k, v);
@@ -202,7 +206,7 @@ export default function Instructors() {
         <Checkbox
           label="Show test instructors"
           checked={showTest}
-          onChange={(v) => set('test', v ? '1' : '')}
+          onChange={(v) => set('test', v ? (practice ? '' : '1') : practice ? '0' : '')}
         />
         <span className="text-sm text-muted-foreground">{rows.length} shown</span>
       </Toolbar>

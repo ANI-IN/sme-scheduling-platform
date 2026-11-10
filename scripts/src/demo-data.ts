@@ -4,10 +4,10 @@
 //   npm run demo -w scripts -- load       # plan classes and simulate answers in a testing domain
 //   npm run demo -w scripts -- restore    # put the saved data back exactly as it was
 //
-// The demo uses the app's own functions (generate_classes, create_module_weeks, engine_tick,
+// The demo starts from the Sandbox starting data (reset_sandbox_data) and then uses the app's own
+// functions (engine_tick,
 // submit_response_page, create_help_request), so what the screenshots show is what the team
-// would see. It works on the first domain in testing that has modules in use; nothing here
-// names a domain, module or instructor. Needs Docker (the local Supabase database container).
+// would see. Needs Docker (the local Supabase database container).
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -99,41 +99,33 @@ async function load() {
     return true;
   };
 
-  const dom = await one<{ id: string; name: string } | undefined>(
-    `select d.id, d.name from public.domain d
-      where d.status = 'Test' and exists (select 1 from public.module m where m.domain_id = d.id and m.status = 'Active')
-      order by d.created_at limit 1`,
+  // Start from the Sandbox starting data (Backend and Fullstack, weekend and weekday cohorts).
+  await c.query(`select public.reset_sandbox_data('RESET')`);
+  // The screenshot account plays the Sandbox operations person and skips the Discord question.
+  // A reset keeps real people, so first remove an earlier copy of the screenshot account.
+  await c.query(`delete from public.team_member where email = $1`, [
+    process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com',
+  ]);
+  await c.query(
+    `update public.team_member set email = $1, discord_prompt_dismissed_at = now(), version = version
+      where email = 'sandbox.operations@example.com'`,
+    [process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com'],
   );
-  if (!dom) throw new Error('No domain in testing with modules in use.');
-  const first = await one<{ id: string }>(
-    `select id from public.module where domain_id = $1 and status = 'Active' order by rotation_order nulls last, name limit 1`,
-    [dom.id],
-  );
-  // Ten weeks starting next Sunday (Pacific), so some weeks are being asked and some are later.
-  const sundays = await one<{ d: string[] }>(
-    `select array_agg(to_char(s, 'YYYY-MM-DD') order by s) as d
-       from generate_series(
-         ((now() at time zone 'America/Los_Angeles')::date + (7 - extract(dow from (now() at time zone 'America/Los_Angeles'))::int)),
-         ((now() at time zone 'America/Los_Angeles')::date + (7 - extract(dow from (now() at time zone 'America/Los_Angeles'))::int)) + 63,
-         interval '7 days') s`,
-  );
-  await c.query(`update public.domain set test_clock_at = null where id = $1`, [dom.id]);
-  // Screenshot and test accounts skip the one time Discord question.
   await c.query(
     `update public.team_member set discord_prompt_dismissed_at = now(), version = version
       where discord_user_id is null and discord_prompt_dismissed_at is null`,
   );
-  const created = await one<{ v: { module_week_ids: string[] } }>(
-    `select public.create_module_weeks($1, public.generate_classes($1, $2, $3::date[]), true, 'Demo data') as v`,
-    [dom.id, first.id, sundays.d],
+  const dom = await one<{ id: string; name: string }>(
+    `select id, name from public.domain where name = 'Backend'`,
   );
   const weeks = (
     await c.query<{ id: string }>(
-      `select id from public.module_week where id = any($1::uuid[]) order by first_class_at`,
-      [created.v.module_week_ids],
+      `select w.id from public.module_week w join public.cohort c on c.id = w.cohort_id
+        where w.domain_id = $1 and c.name = 'Weekend cohort' order by w.first_class_at`,
+      [dom.id],
     )
   ).rows.map((r) => r.id);
-  console.log(`Planned ${weeks.length} class weeks in ${dom.name}.`);
+  console.log(`Sandbox data loaded; using ${weeks.length} weekend class weeks in ${dom.name}.`);
 
   await tick(dom.id); // setup check and the first requests
 

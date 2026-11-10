@@ -1,0 +1,1014 @@
+{
+  "name": "[Sandbox] WF4 Action runner",
+  "nodes": [
+    {
+      "id": "5ed09fae-084c-49aa-9bb6-8baa8780fe3a",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ],
+      "parameters": {
+        "content": "## WF4 Action runner\nRuns when the app (or WF1/WF2/WF3/WF5) **pokes** it, and every 5 minutes as a safety net.\n\n1. Takes queued app actions (`next_actions`). For \"run check now\" it first runs the engine.\n2. Delivers queued messages: `claim_outbound_messages(25)` then sends each row on its one channel.\n3. Every claimed row gets `report_message_result` (success or failure). The database handles retries and alerts.\n4. Marks the actions done (`complete_action`).\n\nIf more than 25 messages are waiting, the rest go out on the next poke or 5-minute run.\n\n**Edit only the Config node.**",
+        "height": 380,
+        "width": 760,
+        "color": 5
+      }
+    },
+    {
+      "id": "5dc25854-1836-404b-9a73-1117b607c0b8",
+      "name": "Poke webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sandbox-sme-poke",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {
+          "ignoreBots": false,
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "c43f4ea3-5cc5-5117-a64c-360741b539ed",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Poke secret (Sandbox)"
+        }
+      }
+    },
+    {
+      "id": "d19f496f-f5d4-4f06-af8e-ae18328e3db8",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f3b04bb0-09ea-48fd-b363-2d04680fcd29",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-SANDBOX-PROJECT.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://YOUR-N8N/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
+      }
+    },
+    {
+      "id": "8588d9e9-c41c-45b6-bd41-61e3dbd0648f",
+      "name": "Get queued actions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/next_actions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limit: 20 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "63b8bf70-ba5e-4e5d-a6fb-d850d491ef99",
+      "name": "Plan actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Collect the queued actions (the HTTP node returns one item per action, or one empty item).\nconst actions = $input.all().map(i => i.json).filter(a => a && a.id);\nreturn [{ json: {\n  actions: actions.map(a => ({ id: a.id, action: a.action })),\n  runCheck: actions.some(a => a.action === 'run_check_now'),\n} }];"
+      }
+    },
+    {
+      "id": "37bc2b9c-8bcc-408b-93ef-d2ba48cddbaf",
+      "name": "Run check now?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "20d9895d-e3e6-4ad9-924e-4ec470421b79",
+              "leftValue": "={{ $json.runCheck }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "246c5d4c-5660-412c-8db1-4eec1d5ccc0c",
+      "name": "Run engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/engine_tick_all",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_now: null }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "47468955-a0f5-418b-bcaf-6d880036a0a5",
+      "name": "Claim messages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/claim_outbound_messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limit: 25 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "e7f9a1e8-142e-4047-aef5-53c5c7e51474",
+      "name": "Keep claimed rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// One item per claimed message row. Drops the empty placeholder item (nothing claimed) and error items.\nreturn $input.all().filter(i => i.json && i.json.id && i.json.channel);"
+      }
+    },
+    {
+      "id": "5bcabd7b-26ac-4d08-910c-2a710431ea1d",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "b1aba48e-8f93-4753-8395-894756540897",
+      "name": "Note: Discord",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        -440
+      ],
+      "parameters": {
+        "content": "## Discord send\n- If the row has `discord_dm_user_id`, a DM channel is opened first; otherwise `discord_channel_id` is used.\n- Text is cut to 2000 characters. Only the listed users can be @mentioned (`allowed_mentions`).\n- Buttons become link buttons (up to 5 per row, 5 rows).\n- HTTP nodes return the full response and never throw on 4xx/5xx; network failures go to the error output. Both reach the result node.\n- 4xx (except 429) = permanent failure (e.g. Missing Access, Unknown Channel). 429/5xx/network = temporary; the database retries.\n- 1 second wait after each Discord send (rate limits).",
+        "height": 380,
+        "width": 1580,
+        "color": 6
+      }
+    },
+    {
+      "id": "15815321-01f0-4e43-87ff-d2fbf7d996e3",
+      "name": "Discord or Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "78df379c-0c4d-408e-b682-b2d3d5e6b86a",
+              "leftValue": "={{ $json.channel }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "Discord"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cf668400-24ea-44ce-a738-fe4f491fb102",
+      "name": "Prepare Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// Build the Discord message payload from the claimed row. No decisions: the database wrote the text.\nconst m = $input.first().json;\nlet text = String(m.body_text || m.subject || '');\nif (text.length > 2000) text = text.slice(0, 1999) + '…';\n\nconst buttons = (Array.isArray(m.buttons) ? m.buttons : []).filter(b => b && b.url).slice(0, 25);\nconst rows = [];\nfor (let i = 0; i < buttons.length; i += 5) {\n  rows.push({\n    type: 1,\n    components: buttons.slice(i, i + 5).map(b => ({\n      type: 2, style: 5, label: String(b.label || 'Open').slice(0, 80), url: String(b.url),\n    })),\n  });\n}\n\nconst payload = {\n  content: text,\n  allowed_mentions: { parse: [], users: (Array.isArray(m.mention_user_ids) ? m.mention_user_ids : []).slice(0, 100) },\n};\nif (rows.length) payload.components = rows;\n\nreturn [{ json: {\n  message_id: m.id,\n  dmUserId: m.discord_dm_user_id || null,\n  targetChannelId: m.discord_channel_id || null,\n  payload,\n} }];"
+      }
+    },
+    {
+      "id": "d7ebd747-e61d-4fcb-8326-4fc88bc0f923",
+      "name": "Needs DM channel?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "6f327fc3-134c-4deb-8e1e-73508e4cdabb",
+              "leftValue": "={{ !!$json.dmUserId }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4ed6d81e-06d3-40c1-ad92-73e381bee6db",
+      "name": "Open DM channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/v10/users/@me/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ recipient_id: $json.dmUserId }) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Discord bot (Sandbox)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "cccf9ca9-55d2-4d8b-9352-62896dd27f91",
+      "name": "Use DM channel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "function describeFailure(r) {\n  // r is either { error } (network failure / thrown error) or { statusCode, body } (full HTTP response)\n  if (r.error) {\n    const e = typeof r.error === 'object' ? r.error : { message: String(r.error) };\n    const msg = String(e.message || e.description || JSON.stringify(e));\n    const status = Number(e.httpCode || e.status || e.statusCode || (msg.match(/\\b([45]\\d\\d)\\b/) || [])[1] || 0);\n    return { text: ((status ? status + ' ' : '') + msg).slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n  }\n  const status = Number(r.statusCode || 0);\n  const b = r.body && typeof r.body === 'object' ? r.body : {};\n  let text = status + ' ' + (b.message || r.statusMessage || (typeof r.body === 'string' ? r.body.slice(0, 300) : ''));\n  if (b.code) text += ' (Discord code ' + b.code + ')';\n  if (b.errors) text += ' ' + JSON.stringify(b.errors).slice(0, 500);\n  if (status === 429 && b.retry_after) text += ' (rate limited, retry after ' + b.retry_after + 's)';\n  return { text: text.trim().slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n}\n\nconst prep = $('Prepare Discord').first().json;\nconst r = $input.first().json;\nif (!r.error && r.statusCode >= 200 && r.statusCode < 300 && r.body && r.body.id) {\n  return [{ json: { ...prep, targetChannelId: r.body.id, ready: true } }];\n}\nconst f = describeFailure(r);\nreturn [{ json: {\n  ready: false,\n  p_message_id: prep.message_id, p_ok: false, p_external_id: null,\n  p_error: 'Could not open DM channel: ' + f.text, p_permanent: f.permanent,\n} }];"
+      }
+    },
+    {
+      "id": "8f2bf807-f5d8-4818-b1a6-50741d3882e1",
+      "name": "DM channel ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "b3fe9e26-015d-4511-b83c-26e8d4ade54e",
+              "leftValue": "={{ $json.ready }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b57b597b-49d9-4345-a182-62af462105da",
+      "name": "Send Discord message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3300,
+        -100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://discord.com/api/v10/channels/' + ($json.targetChannelId || 'missing') + '/messages' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Discord bot (Sandbox)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2f77bf83-a8ef-4848-adf6-67e7b55ab93e",
+      "name": "Discord result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "function describeFailure(r) {\n  // r is either { error } (network failure / thrown error) or { statusCode, body } (full HTTP response)\n  if (r.error) {\n    const e = typeof r.error === 'object' ? r.error : { message: String(r.error) };\n    const msg = String(e.message || e.description || JSON.stringify(e));\n    const status = Number(e.httpCode || e.status || e.statusCode || (msg.match(/\\b([45]\\d\\d)\\b/) || [])[1] || 0);\n    return { text: ((status ? status + ' ' : '') + msg).slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n  }\n  const status = Number(r.statusCode || 0);\n  const b = r.body && typeof r.body === 'object' ? r.body : {};\n  let text = status + ' ' + (b.message || r.statusMessage || (typeof r.body === 'string' ? r.body.slice(0, 300) : ''));\n  if (b.code) text += ' (Discord code ' + b.code + ')';\n  if (b.errors) text += ' ' + JSON.stringify(b.errors).slice(0, 500);\n  if (status === 429 && b.retry_after) text += ' (rate limited, retry after ' + b.retry_after + 's)';\n  return { text: text.trim().slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n}\n\nconst prep = $('Prepare Discord').first().json;\nconst r = $input.first().json;\nif (!prep.targetChannelId && !prep.dmUserId) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null,\n    p_error: 'No Discord channel or user on this message', p_permanent: true } }];\n}\nif (!r.error && r.statusCode >= 200 && r.statusCode < 300) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: true, p_external_id: (r.body && r.body.id) || null,\n    p_error: null, p_permanent: false } }];\n}\nconst f = describeFailure(r);\nreturn [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null, p_error: f.text, p_permanent: f.permanent } }];"
+      }
+    },
+    {
+      "id": "7f96001c-1cdf-4454-abe0-afe202b3f1a4",
+      "name": "Wait 1 second",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3740,
+        -100
+      ],
+      "parameters": {
+        "amount": 1,
+        "unit": "seconds"
+      },
+      "webhookId": "bcb77db5-09ad-57a1-a28d-3241d7b0d3ec"
+    },
+    {
+      "id": "df70085d-553d-40cb-8488-753d967aa042",
+      "name": "Note: Email",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        260
+      ],
+      "parameters": {
+        "content": "## Email send (Gmail)\n- Sends `body_html`, or `body_text` with line breaks turned into `<br>`.\n- Sender name \"SME Scheduling\", no n8n attribution.\n- Failures go to the error output. Invalid address / bad request = permanent; rate limits and server errors = temporary.",
+        "height": 260,
+        "width": 1580,
+        "color": 4
+      }
+    },
+    {
+      "id": "2a72c2d4-a835-4c8c-a9e3-6670f8629231",
+      "name": "Prepare email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        340
+      ],
+      "parameters": {
+        "jsCode": "const m = $input.first().json;\nconst esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst html = m.body_html || ('<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5\">'\n  + esc(m.body_text || '').replace(/\\r?\\n/g, '<br>') + '</div>');\nreturn [{ json: { message_id: m.id, to: m.to_address || '', subject: m.subject || '(no subject)', html } }];"
+      }
+    },
+    {
+      "id": "a8bc3687-3e69-4825-86c1-f0ef3aab9660",
+      "name": "Send email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2420,
+        340
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "SME Scheduling"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail scheduling (Sandbox)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b76c9d08-4a54-485b-b18c-23a414566337",
+      "name": "Email result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        340
+      ],
+      "parameters": {
+        "jsCode": "const prep = $('Prepare email').first().json;\nconst r = $input.first().json;\nif (!r.error && r.id) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: true, p_external_id: r.id, p_error: null, p_permanent: false } }];\n}\nconst e = r.error && typeof r.error === 'object' ? r.error : { message: r.error ? String(r.error) : 'Gmail returned no message id' };\nconst text = [e.message, e.description].filter(Boolean).join(' — ').slice(0, 1000) || 'Gmail send failed';\nconst temporary = /429|rate|quota|limit|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|5\\d\\d|backend error|unavailable/i.test(text);\nconst permanent = !temporary && (!prep.to || /invalid|bad request|\\b400\\b|recipient address/i.test(text));\nreturn [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null, p_error: text, p_permanent: permanent } }];"
+      }
+    },
+    {
+      "id": "89ced751-ca0c-46f1-87c1-ac90e1fe4325",
+      "name": "Report result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3960,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/report_message_result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_message_id: $json.p_message_id, p_ok: $json.p_ok === true, p_external_id: $json.p_external_id ?? null, p_error: $json.p_error ?? null, p_permanent: $json.p_permanent === true }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "1141b445-44e5-47f7-a743-9b85fe354116",
+      "name": "Note: finish",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        420
+      ],
+      "parameters": {
+        "content": "## Finish actions\nThis branch starts from **Plan actions** but sits lower on the canvas, so with execution order v1 it runs **after** the whole delivery branch above has finished.\n\nEach queued action is marked Done (or Failed if the engine run or the claim failed) with `complete_action`.",
+        "height": 300,
+        "width": 900,
+        "color": 3
+      }
+    },
+    {
+      "id": "6474e3c2-2e53-42dd-8af0-e0104a632758",
+      "name": "Finish actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        540
+      ],
+      "parameters": {
+        "jsCode": "const plan = $('Plan actions').first().json;\nif (!plan.actions || !plan.actions.length) return [];\n\nconst errText = j => j && j.error ? (typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error))) : null;\nlet engine = null, engineError = null, claimError = null, claimed = 0;\ntry { engine = $('Run engine').first().json; engineError = errText(engine); } catch (e) { /* engine not run */ }\ntry { claimError = errText($('Claim messages').first().json); } catch (e) { /* not run */ }\ntry { claimed = $('Keep claimed rows').all().length; } catch (e) { claimed = 0; }\n\nreturn plan.actions.map(a => {\n  const failed = (a.action === 'run_check_now' && engineError) || claimError;\n  return { json: {\n    p_action_id: a.id,\n    p_ok: !failed,\n    p_result: { claimed_messages: claimed, engine: a.action === 'run_check_now' && !engineError ? engine : null },\n    p_error: failed ? String(engineError || claimError).slice(0, 1000) : null,\n  } };\n});"
+      }
+    },
+    {
+      "id": "895ffc1c-ed1b-4863-9678-0e7b8c2a2934",
+      "name": "Complete action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        540
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/complete_action",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Poke webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Get queued actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get queued actions": {
+      "main": [
+        [
+          {
+            "node": "Plan actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan actions": {
+      "main": [
+        [
+          {
+            "node": "Run check now?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Finish actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run check now?": {
+      "main": [
+        [
+          {
+            "node": "Run engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Claim messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run engine": {
+      "main": [
+        [
+          {
+            "node": "Claim messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim messages": {
+      "main": [
+        [
+          {
+            "node": "Keep claimed rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep claimed rows": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Discord or Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord or Email?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Discord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Discord": {
+      "main": [
+        [
+          {
+            "node": "Needs DM channel?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs DM channel?": {
+      "main": [
+        [
+          {
+            "node": "Open DM channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Discord message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open DM channel": {
+      "main": [
+        [
+          {
+            "node": "Use DM channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Use DM channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use DM channel": {
+      "main": [
+        [
+          {
+            "node": "DM channel ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DM channel ready?": {
+      "main": [
+        [
+          {
+            "node": "Send Discord message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Discord message": {
+      "main": [
+        [
+          {
+            "node": "Discord result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord result": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 second",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1 second": {
+      "main": [
+        [
+          {
+            "node": "Report result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare email": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "Email result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email result": {
+      "main": [
+        [
+          {
+            "node": "Report result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report result": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finish actions": {
+      "main": [
+        [
+          {
+            "node": "Complete action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "meta": {},
+  "tags": [
+    {
+      "name": "Sandbox"
+    }
+  ]
+}

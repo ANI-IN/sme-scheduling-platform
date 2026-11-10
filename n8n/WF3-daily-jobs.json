@@ -183,14 +183,14 @@
         0
       ],
       "parameters": {
+        "authentication": "serviceAccount",
         "resource": "file",
         "operation": "upload",
         "name": "={{ $json.fileName }}",
         "driveId": {
           "__rl": true,
-          "mode": "list",
-          "value": "My Drive",
-          "cachedResultName": "My Drive"
+          "mode": "id",
+          "value": "REPLACE_WITH_SHARED_DRIVE_ID"
         },
         "folderId": {
           "__rl": true,
@@ -201,9 +201,9 @@
         "options": {}
       },
       "credentials": {
-        "googleDriveOAuth2Api": {
+        "googleApi": {
           "id": "REPLACE_ME",
-          "name": "Google Drive backup"
+          "name": "Google service account"
         }
       },
       "onError": "continueRegularOutput"

@@ -135,7 +135,13 @@ export function ClassDrawer({
       open
       onOpenChange={(o) => !o && onClose()}
       title={`${week.module?.name ?? 'Class week'}: week of ${weekOf}`}
-      description={week.cohort ? `Cohort ${week.cohort}` : undefined}
+      description={
+        week.cohort
+          ? /cohort/i.test(week.cohort)
+            ? week.cohort
+            : `Cohort ${week.cohort}`
+          : undefined
+      }
     >
       <div className="space-y-6 text-sm">
         <div className="flex flex-wrap gap-2">

@@ -1,12 +1,12 @@
 -- =====================================================================================
 -- Seed data — Backend v1 (PRD Appendix A). Runs on `supabase db reset` locally.
--- For a hosted project, run it once in the SQL editor (docs/SETUP.md), then replace every
+-- For a hosted project, run it once in the SQL editor (docs/SETUP_GUIDE.md), then replace every
 -- value marked "Needs real details" in the app (Settings → Team, Instructors, Modules).
 -- Backend exists only here, as data. Nothing in the code refers to it.
 -- =====================================================================================
 
 -- Company email domain: only accounts @this-domain can sign in. Local development uses
--- example.com; on a hosted project set your real domain (docs/SETUP.md step 3).
+-- example.com; on a hosted project set your real domain (docs/SETUP_GUIDE.md, npm run configure).
 update public.app_config
    set company_email_domain = 'example.com',
        app_base_url = 'http://localhost:5173',

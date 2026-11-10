@@ -1,0 +1,313 @@
+{
+  "name": "[Sandbox] WF3 Daily jobs",
+  "nodes": [
+    {
+      "id": "fb4674e8-fb32-4df0-a34b-66ab20e8a426",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ],
+      "parameters": {
+        "content": "## WF3 Daily jobs (09:00 Asia/Kolkata)\n1. `daily_jobs(null)` queues the daily heartbeat (digests run inside the hourly engine, time-gated).\n2. Pokes WF4 to send it.\n3. Nightly backup: `export_snapshot()` → `sme-backup-YYYY-MM-DD.json` → Google Drive folder.\n\nEvery step continues on error so one failure does not skip the others. The last node fails the execution if anything went wrong, so WF5 alerts the admin.\n\n**Edit the Config node, and the Drive folder id in \"Upload to Google Drive\".**",
+        "height": 340,
+        "width": 900,
+        "color": 5
+      }
+    },
+    {
+      "id": "58a66b2f-aa26-4f97-91e2-ba1868137dec",
+      "name": "Every day 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "15cbba58-781f-49e0-8e36-a817f216fd94",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-SANDBOX-PROJECT.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://YOUR-N8N/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
+      }
+    },
+    {
+      "id": "63111e85-5bc3-4790-97c8-8536c4726da9",
+      "name": "Run daily jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/daily_jobs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_now: null }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "17cbe22a-7dcd-4764-b950-e5e90e8103a9",
+      "name": "Poke WF4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.pokeUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-poke-key",
+              "value": "={{ $('Config').first().json.pokeKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "bd78328b-a252-4129-b9ce-f15f8a247c93",
+      "name": "Export snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/export_snapshot",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Supabase secret key (Sandbox)"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "2ca30e62-6ad6-4715-906e-0fc86ef1b24c",
+      "name": "Make backup file",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Turn the snapshot into a JSON file named sme-backup-YYYY-MM-DD.json (date in IST).\nconst snap = $input.first().json;\nif (snap.error) return [{ json: { skipped: true, error: snap.error } }];\nconst date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD\nconst fileName = 'sme-backup-' + date + '.json';\nconst buf = Buffer.from(JSON.stringify(snap, null, 1), 'utf8');\nreturn [{\n  json: { fileName, bytes: buf.length },\n  binary: { data: { data: buf.toString('base64'), mimeType: 'application/json', fileName, fileExtension: 'json' } },\n}];"
+      }
+    },
+    {
+      "id": "0852af0c-181c-4ff9-86d4-cfb411906c50",
+      "name": "Upload to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "file",
+        "operation": "upload",
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_SHARED_DRIVE_ID"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_DRIVE_FOLDER_ID"
+        },
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "name": "Google service account (Sandbox)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3323e4e5-1e5f-4d29-8802-8d2500e14c69",
+      "name": "Check for problems",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Fail the execution (→ WF5 admin alert) if any step above failed. Everything else already ran.\nconst steps = ['Run daily jobs', 'Export snapshot', 'Make backup file', 'Upload to Google Drive'];\nconst problems = [];\nfor (const s of steps) {\n  try {\n    const j = $(s).first().json;\n    if (j && j.error) problems.push(s + ': ' + (typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error))));\n  } catch (e) { problems.push(s + ': did not run'); }\n}\nif (problems.length) throw new Error('Daily jobs finished with problems — ' + problems.join(' | '));\nreturn [{ json: { ok: true } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Every day 09:00": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Run daily jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run daily jobs": {
+      "main": [
+        [
+          {
+            "node": "Poke WF4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poke WF4": {
+      "main": [
+        [
+          {
+            "node": "Export snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export snapshot": {
+      "main": [
+        [
+          {
+            "node": "Make backup file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make backup file": {
+      "main": [
+        [
+          {
+            "node": "Upload to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Check for problems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata"
+  },
+  "active": false,
+  "pinData": {},
+  "meta": {},
+  "tags": [
+    {
+      "name": "Sandbox"
+    }
+  ]
+}

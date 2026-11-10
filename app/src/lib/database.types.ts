@@ -21,14 +21,14 @@ export type Database = {
                   ]
                 },"app_config": {
                   Row: {
-                    "admin_discord_channel_id": string | null,"app_base_url": string | null,"company_email_domain": string,"created_at": string,"discord_guild_id": string | null,"environment": string,"id": number,"response_base_url": string | null,"scheduling_email": string | null,"scheduling_sender_name": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "admin_discord_channel_id": string | null,"app_base_url": string | null,"company_email_domain": string,"created_at": string,"discord_guild_id": string | null,"environment": string,"id": number,"response_base_url": string | null,"sandbox_allowed_discord_servers": (string)[],"sandbox_allowed_email_domains": (string)[],"scheduling_email": string | null,"scheduling_sender_name": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"environment"?: string,"id"?: number,"response_base_url"?: string | null,"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"environment"?: string,"id"?: number,"response_base_url"?: string | null,"sandbox_allowed_discord_servers"?: (string)[],"sandbox_allowed_email_domains"?: (string)[],"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"environment"?: string,"id"?: number,"response_base_url"?: string | null,"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"environment"?: string,"id"?: number,"response_base_url"?: string | null,"sandbox_allowed_discord_servers"?: (string)[],"sandbox_allowed_email_domains"?: (string)[],"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -1039,7 +1039,7 @@ isOneToOne: false
 { Args: { "p_action_id": string,"p_error"?: string,"p_ok": boolean,"p_result"?: Json }; Returns: undefined
                            },
 "configure_environment":
-{ Args: { "p_allowed_email_domain": string,"p_environment": string }; Returns: undefined
+{ Args: { "p_allowed_email_domain": string,"p_environment": string,"p_sandbox_discord_servers"?: (string)[],"p_sandbox_email_domains"?: (string)[] }; Returns: undefined
                            },
 "connection_status":
 { Args: Record<PropertyKey, never>; Returns: Json
@@ -1192,6 +1192,9 @@ isOneToOne: false
                            },
 "reset_message_template":
 { Args: { "p_domain_id": string,"p_template_id": string }; Returns: undefined
+                           },
+"reset_sandbox_data":
+{ Args: { "p_confirm": string,"p_test_channel_id"?: string,"p_test_discord_user_id"?: string,"p_test_email"?: string }; Returns: Json
                            },
 "reset_setting":
 { Args: { "p_domain_id": string,"p_key": string }; Returns: undefined

@@ -16,37 +16,86 @@ serves the pages they render and passes inbound replies to them.
 "Poke" = an empty `POST` to the WF4 webhook with the header `x-poke-key`. It carries no data; it only tells
 WF4 "there is work in the database, process it now". WF4 also runs every 5 minutes, so nothing is lost if a poke fails.
 
+## Sandbox and Production
+
+The files in this folder are the **base** workflows. Do not import them directly. Run
+
+```bash
+npm run n8n-export -w scripts
+```
+
+to build the two sets you import:
+
+| | `n8n/sandbox/` | `n8n/production/` |
+|---|---|---|
+| Workflow names | `[Sandbox] WF1 Hourly engine` and so on | `[Production] WF1 Hourly engine` and so on |
+| Tag | `Sandbox` | `Production` |
+| Credential names | `Supabase secret key (Sandbox)` and so on | `Supabase secret key (Production)` and so on |
+| WF2 webhook | `/webhook/sandbox-respond` | `/webhook/respond` |
+| WF4 webhook | `/webhook/sandbox-sme-poke` | `/webhook/sme-poke` |
+| Config placeholder | `https://YOUR-SANDBOX-PROJECT.supabase.co` | `https://YOUR-PRODUCTION-PROJECT.supabase.co` |
+
+Because names, credentials and webhook paths differ, both sets can run in **one** n8n instance without touching
+each other, or in two separate instances (better when you can afford it). Each set must only ever use its own
+environment's credentials: the Sandbox set talks to the Sandbox Supabase project, the Sandbox Discord bot and the
+Sandbox mailbox; the Production set to the Production ones. Change the base files, then export again; never edit
+the exported files by hand.
+
+### Every credential and variable, per environment
+
+| What | Kind | Sandbox | Production |
+|---|---|---|---|
+| `Supabase secret key (<env>)` | n8n credential, Header Auth `apikey` | Sandbox project `sb_secret_…` | Production project `sb_secret_…` |
+| `Discord bot (<env>)` | n8n credential, Header Auth `Authorization: Bot …` | Sandbox bot token (bot only in the test server) | Production bot token |
+| `Gmail scheduling (<env>)` | n8n credential, Gmail OAuth2 | Sandbox mailbox, for example `scheduling-sandbox@…` | Real scheduling mailbox |
+| `Google service account (<env>)` | n8n credential, Google Service Account | Can be the same service account | Production service account |
+| `Poke secret (<env>)` | n8n credential, Header Auth `x-poke-key` | Its own random string | A different random string |
+| `supabaseUrl` | Config node, all five workflows | Sandbox project URL | Production project URL |
+| `pokeUrl` | Config node, all five workflows | `https://<your-n8n>/webhook/sandbox-sme-poke` | `https://<your-n8n>/webhook/sme-poke` |
+| `pokeKey` | Config node, all five workflows | The Sandbox poke secret | The Production poke secret |
+| Shared drive ID and folder ID | WF3 node "Upload to Google Drive" | A Sandbox backup folder | The Production backup folder |
+| Error workflow | Settings of WF1 to WF4 | `[Sandbox] WF5 Error handler` | `[Production] WF5 Error handler` |
+| `response_base_url` | Database, app Settings | `https://<your-n8n>/webhook/sandbox-respond` | `https://<your-n8n>/webhook/respond` |
+| `VITE_N8N_POKE_URL`, `VITE_N8N_POKE_KEY` | App hosting variables | Sandbox values | Production values |
+
+The Sandbox database also refuses to send anything outside its allow lists (`SANDBOX_ALLOWED_DISCORD_SERVERS` and
+`SANDBOX_ALLOWED_EMAIL_DOMAINS`, set with `npm run configure -w scripts`), and the Production database never messages
+an instructor marked as a test instructor. These checks are in the database, so they hold even if a workflow is
+pointed at the wrong place.
+
+In the steps below, `(<env>)` means `(Sandbox)` or `(Production)`. Do the steps once per environment.
+
 ---
 
 ## 1. Before you start
 
 You need:
 
-1. The Supabase project URL, e.g. `https://abcdefgh.supabase.co`.
+1. The Supabase project URL, for example `https://abcdefgh.supabase.co`.
 2. Admin access to the company Discord server.
-3. A Google Workspace account for the dedicated scheduling mailbox (e.g. `scheduling@…`), and access to Google Cloud Console.
+3. A Google Workspace account for the dedicated scheduling mailbox (for example `scheduling@…`), and access to Google Cloud Console.
 4. A Google Drive folder for the nightly backups.
-5. Your n8n address, e.g. `https://n8n.yourcompany.com` (written as `https://<your-n8n>` below).
+5. Your n8n address, for example `https://n8n.yourcompany.com` (written as `https://<your-n8n>` below).
 
 ## 2. Create the credentials
 
 In n8n: **Overview → Credentials → Create credential** (or the **+** menu → Credential). Use exactly these names,
-because the workflows look them up by name.
+with the environment at the end (for example `Supabase secret key (Sandbox)`), because the workflows look them up by name.
 
-### 2.1 "Supabase secret key" (Header Auth)
+### 2.1 "Supabase secret key (<env>)" (Header Auth)
 
-1. In Supabase: **Dashboard → Project Settings → API Keys → Secret keys**. Create one (e.g. "n8n") or copy the existing `sb_secret_…` key.
+1. In Supabase: **Dashboard → Project Settings → API Keys → Secret keys**. Create one (for example "n8n") or copy the existing `sb_secret_…` key.
 2. In n8n create a credential of type **Header Auth**.
-3. Name: `Supabase secret key`.
+3. Name: `Supabase secret key (Sandbox)` or `Supabase secret key (Production)`.
 4. Header **Name**: `apikey`
 5. Header **Value**: the `sb_secret_…` key.
 6. Do **not** add an `Authorization: Bearer` header. The new Supabase keys only go in the `apikey` header.
 
 Keep this key private: it bypasses all row-level security.
 
-### 2.2 "Discord bot" (Header Auth)
+### 2.2 "Discord bot (<env>)" (Header Auth)
 
-1. Go to <https://discord.com/developers/applications> → **New Application** (e.g. "SME Scheduling").
+1. Go to <https://discord.com/developers/applications> → **New Application** (for example "SME Scheduling").
 2. Open **Bot** → **Reset Token** → copy the token.
 3. On the same **Bot** page, under **Privileged Gateway Intents**, switch on **MESSAGE CONTENT INTENT** and save.
    Without it the bot sees typed replies as empty text and they can't be read.
@@ -55,11 +104,11 @@ Keep this key private: it bypasses all row-level security.
 5. Make sure the bot (or its role) can see every instructor channel, the alert channels, the admin channel and the test channel
    (private channels need the bot added explicitly).
 6. In n8n create a credential of type **Header Auth**:
-   - Name: `Discord bot`
+   - Name: `Discord bot (Sandbox)` or `Discord bot (Production)`
    - Header **Name**: `Authorization`
    - Header **Value**: `Bot ` followed by the token (the word `Bot`, a space, then the token).
 
-### 2.3 "Gmail scheduling" (Gmail OAuth2)
+### 2.3 "Gmail scheduling (<env>)" (Gmail OAuth2)
 
 1. In Google Cloud Console create (or pick) a project for the integration.
 2. **APIs & Services → Library** → enable **Gmail API**.
@@ -68,26 +117,35 @@ Keep this key private: it bypasses all row-level security.
    Under **Authorized redirect URIs** add `https://<your-n8n>/rest/oauth2-credential/callback`
    (the n8n credential window shows this exact URL as "OAuth Redirect URL" — copy it from there).
 5. Copy the **Client ID** and **Client secret**.
-6. In n8n create a credential of type **Gmail OAuth2 API**, name `Gmail scheduling`, paste the Client ID and secret,
+6. In n8n create a credential of type **Gmail OAuth2 API**, name `Gmail scheduling (Sandbox)` or `Gmail scheduling (Production)`, paste the Client ID and secret,
    click **Sign in with Google** and sign in **as the scheduling mailbox** (the address messages should come from and replies go to).
 
-### 2.4 "Google Drive backup" (Google Drive OAuth2)
+### 2.4 "Google service account (<env>)" (Google Service Account, for the backups)
 
-Same as 2.3, but enable the **Google Drive API** (you can reuse the same Google Cloud project and OAuth client;
-the redirect URI is the same). Create an n8n credential of type **Google Drive OAuth2 API** named `Google Drive backup`
-and sign in with an account that can write to the backup folder.
+The nightly backup is uploaded by a Google service account, so it keeps working when a person leaves.
+A service account has no Drive storage of its own, so the backup folder must be in a **shared drive**.
 
-### 2.5 "Poke secret" (Header Auth)
+1. In the same Google Cloud project: **APIs & Services → Library** → enable **Google Drive API**.
+2. **IAM & Admin → Service Accounts → Create service account**, for example `sme-backup`. No roles are needed. Create.
+3. Open it → **Keys → Add key → Create new key → JSON**. A file downloads. Keep it private; it works like a password.
+4. In Google Drive create a shared drive (for example "Scheduling backups"), and in it one folder per environment.
+   Add the service account's email (it ends in `iam.gserviceaccount.com`) to the shared drive as **Content manager**.
+5. In n8n create a credential of type **Google Service Account API**, name `Google service account (Sandbox)` or
+   `Google service account (Production)`. Paste the `client_email` and the `private_key` from the JSON file. Save.
+6. Delete the downloaded JSON file once the credential is saved.
 
-1. Make a long random string (e.g. from a password manager, or `openssl rand -hex 24`).
+### 2.5 "Poke secret (<env>)" (Header Auth)
+
+1. Make a long random string (for example from a password manager, or `openssl rand -hex 24`).
 2. In n8n create a credential of type **Header Auth**:
-   - Name: `Poke secret`
+   - Name: `Poke secret (Sandbox)` or `Poke secret (Production)` (a different string for each)
    - Header **Name**: `x-poke-key`
    - Header **Value**: the random string.
 3. Keep the string: it also goes in every Config node (step 4) and in the app (step 7).
 
 ## 3. Import the workflows
 
+Import from `n8n/sandbox/` for Sandbox and from `n8n/production/` for Production.
 Import **WF5 first** (the others point to it as their error workflow), then the rest:
 
 1. In n8n: **Overview → Create → Workflow** (or **Workflows → Add workflow**), then the **…** menu (top right) → **Import from File…**.
@@ -101,21 +159,21 @@ Import **WF5 first** (the others point to it as their error workflow), then the 
 Every workflow starts with a **Config** Code node. It is the only node you edit. Open it and change the three values:
 
 ```js
-const supabaseUrl = 'https://YOUR-PROJECT.supabase.co';   // your Supabase project URL
-const pokeUrl     = 'https://YOUR-N8N/webhook/sme-poke';   // WF4 production webhook URL (step 6)
+const supabaseUrl = 'https://YOUR-SANDBOX-PROJECT.supabase.co';   // this environment's Supabase project URL
+const pokeUrl     = 'https://YOUR-N8N/webhook/sandbox-sme-poke';   // this environment's WF4 webhook URL (step 6)
 const pokeKey     = 'REPLACE_WITH_POKE_SECRET';            // the Poke secret value (step 2.5)
 ```
 
 Do this in **all five** workflows (WF4 only uses `supabaseUrl`, but keep them identical).
 
-WF3 has one more value: open **Upload to Google Drive** and replace `REPLACE_WITH_DRIVE_FOLDER_ID` with the folder id
-(the last part of the folder's URL: `https://drive.google.com/drive/folders/<this part>`).
-If the folder is in a shared drive, also pick that drive in the **Drive** field.
+WF3 has two more values: open **Upload to Google Drive** and replace `REPLACE_WITH_SHARED_DRIVE_ID` with the shared
+drive ID and `REPLACE_WITH_DRIVE_FOLDER_ID` with the folder ID (each is the last part of the address when you open it
+in Drive: `https://drive.google.com/drive/folders/<this part>`).
 
 ## 5. Set the error workflow
 
 For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
-**WF5 Error handler** → Save. (WF5 itself has no error workflow.)
+**[Sandbox] WF5 Error handler** (or **[Production] WF5 Error handler**) → Save. (WF5 itself has no error workflow.)
 
 ## 6. Publish (activate) the workflows
 
@@ -124,8 +182,8 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
 2. Only published workflows run on schedule and answer their **production** webhook URLs
    (`/webhook/...`). The **test** URLs (`/webhook-test/...`) only work while you click "Listen for test event".
 3. Production URLs (open the webhook node → **Production URL** to copy them):
-   - WF4: `https://<your-n8n>/webhook/sme-poke`
-   - WF2: `https://<your-n8n>/webhook/respond`
+   - WF4: `https://<your-n8n>/webhook/sandbox-sme-poke` (Sandbox) or `https://<your-n8n>/webhook/sme-poke` (Production)
+   - WF2: `https://<your-n8n>/webhook/sandbox-respond` (Sandbox) or `https://<your-n8n>/webhook/respond` (Production)
 
 ## 7. Tell the database and the app where n8n is
 
@@ -136,7 +194,7 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
      ```sql
      update public.app_config set response_base_url = 'https://<your-n8n>/webhook/respond' where id = 1;
      ```
-2. **Poke URL + secret (WF4)** — in the app's environment (Cloudflare Pages → your project → Settings → Variables, and `app/.env.local` for local use):
+2. **Poke URL + secret (WF4)** — in the app's environment (Vercel → your project → Settings → Environment Variables, and `app/.env.local` for local use):
    - `VITE_N8N_POKE_URL` = `https://<your-n8n>/webhook/sme-poke`
    - `VITE_N8N_POKE_KEY` = the Poke secret value
    - Redeploy the app after changing them.
@@ -160,7 +218,7 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
    the answer is recorded and follow-up messages arrive within seconds.
 5. Type a reply in a test instructor's Discord channel or reply to a test email; after the next hourly run (or run WF1
    manually with **Execute workflow**) it shows up in **Needs Attention**.
-6. Run WF3 manually once and check that `sme-backup-YYYY-MM-DD.json` appears in the Drive folder.
+6. Run WF3 manually once and check that `sme-backup-YYYY-MM-DD.json` appears in the shared drive folder.
 7. To test WF5, temporarily break the Supabase URL in WF1's Config and run WF1 — an admin alert should arrive and a
    History entry should be recorded (put the URL back afterwards).
 
@@ -174,9 +232,9 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
   The GET webhook also has **Ignore Bots** on, so link-preview bots get no page at all.
 - **Message delivery.** WF4 claims up to 25 messages per run, sends each one on its single channel, and reports every
   claimed row back. Failures are reported with the error text; 4xx errors (except 429) are marked permanent
-  (e.g. Discord "Missing Access" / "Unknown Channel", invalid email address), everything else is temporary.
+  (for example Discord "Missing Access" / "Unknown Channel", invalid email address), everything else is temporary.
   The database re-queues temporary failures (up to 3 attempts) and raises alerts. If more than 25 are waiting,
-  the rest go on the next poke or within 5 minutes. A row stuck in "Sending" (e.g. n8n restarted mid-send) is
+  the rest go on the next poke or within 5 minutes. A row stuck in "Sending" (for example n8n restarted mid-send) is
   re-queued automatically by the database after 15 minutes.
 - **Discord rate limits.** WF4 waits 1 second after each Discord send; WF1 reads channels 2 per second.
 - **Discord replies.** Only channels returned by `discord_watchlist()` are read, and only messages written by that
@@ -186,7 +244,7 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
   Do not read the scheduling mailbox's inbox by hand in a way that marks mails read before the hourly run,
   or leave them unread.
 - **Branch order.** All workflows use execution order v1: branches run top to bottom, one after another. Some workflows
-  rely on that (e.g. WF4 marks actions Done only after delivery). Keep the layout if you move nodes.
+  rely on that (for example WF4 marks actions Done only after delivery). Keep the layout if you move nodes.
 - **Optional AI summary.** WF1 has a note showing where an OpenAI node could add a one-line `p_summary` to typed replies.
   AI never decides anything.
 - **Timezones.** WF3's workflow timezone is set to Asia/Kolkata, so 09:00 means 09:00 IST regardless of the server timezone.
