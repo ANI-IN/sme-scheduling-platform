@@ -26,11 +26,6 @@ import {
   trowClick,
 } from '@/components/ui';
 
-export const ROLE_LABEL: Record<string, string> = {
-  Ops: 'Operations',
-  PM: 'Product manager',
-  Lead: 'Lead',
-};
 const DIGEST_LABEL: Record<string, string> = {
   Discord: 'Discord',
   Email: 'Email',
@@ -44,7 +39,7 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        description="The people who run classes. Module owners, domain leads and the operations team are chosen from this list."
+        description="The people who run classes. Module owners, the operations team and escalation contacts are chosen from this list."
       >
         <Button onClick={() => setEditing('new')}>
           <Plus className="h-4 w-4" aria-hidden /> Add team member
@@ -67,7 +62,7 @@ export default function Team() {
             <thead className={thead}>
               <tr>
                 <th className={th}>Name</th>
-                <th className={th}>Role</th>
+                <th className={th}>Job title</th>
                 <th className={th}>Email</th>
                 <th className={th}>Discord</th>
                 <th className={th}>Daily summary</th>
@@ -81,7 +76,9 @@ export default function Team() {
                     {t.is_placeholder && <Badge tone="warning">Needs real details</Badge>}
                     {!t.active && <Badge>Not in use</Badge>}
                   </td>
-                  <td className={td}>{ROLE_LABEL[t.label] ?? t.label}</td>
+                  <td className={td}>
+                    {t.job_title || <span className="text-muted-foreground">Not set</span>}
+                  </td>
                   <td className={`${td} text-muted-foreground`}>{t.email}</td>
                   <td className={td}>
                     {t.discord_user_id ? (
@@ -115,7 +112,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
     name: member?.name ?? '',
     email: member?.email ?? '',
     discord_user_id: member?.discord_user_id ?? '',
-    label: member?.label ?? 'Ops',
+    job_title: member?.job_title ?? '',
     receives_digest: member?.receives_digest ?? true,
     digest_channel: member?.digest_channel ?? 'Discord',
     active: member?.active ?? true,
@@ -227,14 +224,11 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
             onChange={(e) => setF({ ...f, discord_user_id: e.target.value })}
           />
         </Field>
-        <Field label="Role">
-          <Select value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })}>
-            {Object.entries(ROLE_LABEL).map(([k, l]) => (
-              <option key={k} value={k}>
-                {l}
-              </option>
-            ))}
-          </Select>
+        <Field
+          label="Job title"
+          hint="Optional. Shown only; what someone does comes from where they are assigned."
+        >
+          <Input value={f.job_title} onChange={(e) => setF({ ...f, job_title: e.target.value })} />
         </Field>
         <div className="space-y-2 rounded-md border border-border p-3">
           <Checkbox

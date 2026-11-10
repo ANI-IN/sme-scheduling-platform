@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useConfirm } from '@/components/Confirm';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useModules, type Domain } from '@/lib/data';
-import { isSunday, parseDateList, weeklyDates } from '@/lib/time';
+import { parseDateList, weeklyDates } from '@/lib/time';
 import {
   Badge,
   Button,
@@ -58,6 +59,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
   const [rows, setRows] = useState<ProposedWeek[] | null>(null);
   const [err, setErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  const confirm = useConfirm();
   const holidayOn = (d: string) => holidays.data?.find((h) => h.date === d)?.name ?? null;
 
   async function propose() {
@@ -65,16 +67,12 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
     try {
       let dates: string[];
       if (mode === 'weeks') {
-        if (!first) throw new Error('Choose the first Sunday.');
-        if (!isSunday(first))
-          throw new Error('The first date must be a Sunday (the start of the class week).');
+        if (!first) throw new Error('Choose the date of the first class.');
         dates = weeklyDates(first, weeks);
       } else {
         const parsed = parseDateList(list);
         if (parsed.bad.length)
           throw new Error(`These dates couldn’t be read: ${parsed.bad.join(', ')}`);
-        const notSunday = parsed.dates.filter((d) => !isSunday(d));
-        if (notSunday.length) throw new Error(`These are not Sundays: ${notSunday.join(', ')}`);
         dates = parsed.dates;
       }
       if (dates.length === 0) throw new Error('No dates to plan.');
@@ -118,10 +116,11 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           module_id: m.id,
           module_name: m.name,
           classes: [...m.class_pattern_item]
-            .sort((a, b) => a.weekday_offset - b.weekday_offset)
+            .filter((p) => !p.cohort_id)
+            .sort((a, b) => a.day_offset - b.day_offset)
             .map((p) => {
               const date = DateTime.fromISO(w.week_start_date)
-                .plus({ days: p.weekday_offset })
+                .plus({ days: p.day_offset })
                 .toISODate()!;
               const start = DateTime.fromFormat(p.start_time_pt.slice(0, 5), 'HH:mm');
               return {
@@ -153,7 +152,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
     setSaving(true);
     setErr(null);
     try {
-      const res = (await rpc('create_module_weeks', {
+      const payload = {
         p_domain_id: domain.id,
         p_rows: rows!.map((w) => ({
           module_id: w.module_id,
@@ -161,7 +160,23 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           cohort: w.cohort,
           classes: w.classes,
         })),
-      })) as { created: number };
+      };
+      let res = (await rpc('create_module_weeks', payload)) as {
+        created: number;
+        needs_confirmation?: boolean;
+        warnings?: { text: string }[];
+      };
+      if (res.needs_confirmation) {
+        const ok = await confirm({
+          title: 'Plan these classes anyway?',
+          body: (res.warnings ?? []).map((x) => x.text).join(' '),
+          confirmLabel: 'Plan anyway',
+        });
+        if (!ok) return;
+        res = (await rpc('create_module_weeks', { ...payload, p_accept_warnings: true })) as {
+          created: number;
+        };
+      }
       toast.success(`Created ${res.created} class week${res.created === 1 ? '' : 's'}`);
       await qc.invalidateQueries();
       onClose();
@@ -197,7 +212,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-1">
               <input type="radio" checked={mode === 'weeks'} onChange={() => setMode('weeks')} />{' '}
-              First Sunday and number of weeks
+              First class date and number of weeks
             </label>
             <label className="flex items-center gap-1">
               <input type="radio" checked={mode === 'list'} onChange={() => setMode('list')} />{' '}
@@ -206,7 +221,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           </div>
           {mode === 'weeks' ? (
             <div className="flex gap-3">
-              <Field label="First Sunday">
+              <Field label="Date of the first class" hint="Any day of the week.">
                 <Input type="date" value={first} onChange={(e) => setFirst(e.target.value)} />
               </Field>
               <Field label="Number of weeks">
@@ -221,7 +236,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             </div>
           ) : (
             <Field
-              label="Sundays from the official schedule"
+              label="Date of the first class of each class week"
               hint="One per line, for example 1/3/2027 or Jan 3, 2027"
             >
               <Textarea

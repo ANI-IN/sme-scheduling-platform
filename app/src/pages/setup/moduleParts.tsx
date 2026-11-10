@@ -44,19 +44,22 @@ import { useFormErrors } from '@/lib/useFormErrors';
 export type ModuleRow = NonNullable<ReturnType<typeof useModules>['data']>[number];
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+/** A pattern day: days after the first class of the class week. */
+export const dayLabel = (o: number) =>
+  o === 0 ? 'First day' : `${o} day${o === 1 ? '' : 's'} after the first day`;
+
 export type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
 export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run }) {
   const [n, setN] = useState({
     class_type: 'Live class',
-    weekday_offset: 0,
+    day_offset: 0,
     start_time_pt: '09:00',
     duration_minutes: 240,
   });
   const items = [...m.class_pattern_item].sort(
-    (a, b) => a.weekday_offset - b.weekday_offset || a.start_time_pt.localeCompare(b.start_time_pt),
+    (a, b) => a.day_offset - b.day_offset || a.start_time_pt.localeCompare(b.start_time_pt),
   );
-  const dayLabel = (o: number) => `${WEEKDAYS[o % 7]}${o >= 7 ? ' of the next week' : ''}`;
   const time = (t: string) => DateTime.fromFormat(t.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   return (
     <section>
@@ -82,7 +85,7 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
             {items.map((p) => (
               <tr key={p.id} className="border-b border-border last:border-0">
                 <td className={td}>{p.class_type}</td>
-                <td className={td}>{dayLabel(p.weekday_offset)}</td>
+                <td className={td}>{dayLabel(p.day_offset)}</td>
                 <td className={td}>{time(p.start_time_pt)}</td>
                 <td className={td}>{p.duration_minutes} minutes</td>
                 <td className={`${td} text-right`}>
@@ -109,15 +112,15 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Class type">
           <Select value={n.class_type} onChange={(e) => setN({ ...n, class_type: e.target.value })}>
-            {['Live class', 'Assignment review', 'Other'].map((s) => (
+            {['Live class', 'Assignment review', 'Office hours', 'Other'].map((s) => (
               <option key={s}>{s}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Day" hint="Class weeks start on Sunday.">
+        <Field label="Day" hint="Counted from the first class of the class week, on any weekday.">
           <Select
-            value={n.weekday_offset}
-            onChange={(e) => setN({ ...n, weekday_offset: Number(e.target.value) })}
+            value={n.day_offset}
+            onChange={(e) => setN({ ...n, day_offset: Number(e.target.value) })}
           >
             {Array.from({ length: 14 }, (_, i) => (
               <option key={i} value={i}>

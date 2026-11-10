@@ -20,7 +20,7 @@ import {
   Select,
 } from '@/components/ui';
 import { InstructorDrawer } from '../Instructors';
-import { PatternEditor, RankingEditor, Resources, WEEKDAYS, type ModuleRow } from './moduleParts';
+import { PatternEditor, RankingEditor, Resources, dayLabel, type ModuleRow } from './moduleParts';
 import { Owners } from './ModuleDetail';
 
 const STEPS = [
@@ -333,7 +333,7 @@ function PeopleStep({
           .from('domain_team')
           .select('*')
           .eq('domain_id', m.domain_id)
-          .eq('role', 'Ops'),
+          .eq('role', 'Operations'),
       ),
   });
   const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
@@ -436,10 +436,10 @@ function Review({
             'Class times (Pacific)',
             m.class_pattern_item.length
               ? [...m.class_pattern_item]
-                  .sort((a, b) => a.weekday_offset - b.weekday_offset)
+                  .sort((a, b) => a.day_offset - b.day_offset)
                   .map(
                     (p) =>
-                      `${p.class_type}, ${WEEKDAYS[p.weekday_offset % 7]} ${p.start_time_pt.slice(0, 5)}, ${p.duration_minutes} minutes`,
+                      `${p.class_type}, ${dayLabel(p.day_offset)} ${p.start_time_pt.slice(0, 5)}, ${p.duration_minutes} minutes`,
                   )
                   .join('; ')
               : 'None',

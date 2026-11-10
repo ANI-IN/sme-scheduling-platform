@@ -41,7 +41,7 @@ $$;
 
 create or replace function tests.make_team_member(p_name text, p_label text default 'Ops')
 returns uuid language sql as $$
-  insert into public.team_member (name, email, discord_user_id, label)
+  insert into public.team_member (name, email, discord_user_id, job_title)
   values (p_name, lower(replace(p_name, ' ', '.')) || '@example.com', tests.rand_discord(), p_label)
   returning id;
 $$;
@@ -55,7 +55,7 @@ begin
   returning id into v;
   v_ops := tests.make_team_member(p_name || ' Ops', 'Ops');
   v_lead := tests.make_team_member(p_name || ' Lead', 'Lead');
-  insert into public.domain_team (domain_id, team_member_id, role) values (v, v_ops, 'Ops'), (v, v_lead, 'Lead');
+  insert into public.domain_team (domain_id, team_member_id, role) values (v, v_ops, 'Operations'), (v, v_lead, 'Escalation');
   return v;
 end $$;
 
@@ -74,7 +74,7 @@ returns uuid language plpgsql as $$
 declare v uuid;
 begin
   insert into public.module (domain_id, name, rotation_order) values (p_domain, p_name, p_order) returning id into v;
-  insert into public.class_pattern_item (module_id, class_type, title_template, weekday_offset, start_time_pt, duration_minutes, sort_order)
+  insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
   values (v, 'Live class', '{module}: Live class', 0, '09:00', 240, 1),
          (v, 'Assignment review', '{module}: Assignment review', 4, '18:00', 120, 2);
   insert into public.module_resource (module_id, title, url) values (v, p_name || ' module page', 'https://example.com/' || v);
@@ -102,11 +102,11 @@ begin
   select name into v_mod from public.module where id = p_module;
   insert into public.module_week (module_id, week_start_date, cohort) values (p_module, p_week_start, p_cohort)
   returning id into v;
-  for p in select * from public.class_pattern_item where module_id = p_module order by sort_order loop
+  for p in select * from public.class_pattern_item where module_id = p_module and cohort_id is null order by sort_order loop
     insert into public.class_session (module_week_id, pattern_item_id, class_type, title, starts_at, ends_at)
     values (v, p.id, p.class_type, replace(replace(p.title_template, '{module}', v_mod), '{class_type}', p.class_type),
-            public.pt_to_utc(p_week_start + p.weekday_offset, p.start_time_pt),
-            public.pt_to_utc(p_week_start + p.weekday_offset, p.start_time_pt) + make_interval(mins => p.duration_minutes));
+            public.pt_to_utc(p_week_start + p.day_offset, p.start_time_pt),
+            public.pt_to_utc(p_week_start + p.day_offset, p.start_time_pt) + make_interval(mins => p.duration_minutes));
   end loop;
   return v;
 end $$;
@@ -143,8 +143,8 @@ begin
   v_mw := tests.make_week(v_mod, p_week);
   v := jsonb_build_object('domain', v_dom, 'module', v_mod, 'mw', v_mw,
     'owner', (select team_member_id from public.module_owner where module_id = v_mod limit 1),
-    'ops', (select team_member_id from public.domain_team where domain_id = v_dom and role = 'Ops' limit 1),
-    'lead', (select team_member_id from public.domain_team where domain_id = v_dom and role = 'Lead' limit 1));
+    'ops', (select team_member_id from public.domain_team where domain_id = v_dom and role = 'Operations' limit 1),
+    'lead', (select team_member_id from public.domain_team where domain_id = v_dom and role = 'Escalation' limit 1));
   for i in 1 .. p_n loop
     v := v || jsonb_build_object('i' || i, v_ids[i]);
   end loop;

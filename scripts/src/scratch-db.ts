@@ -36,8 +36,20 @@ export async function createScratchDb(serverUrl: string): Promise<Scratch> {
     for (const f of readdirSync(MIGRATIONS)
       .filter((x) => x.endsWith('.sql'))
       .sort()) {
-      await db.query(readFileSync(join(MIGRATIONS, f), 'utf8'));
+      try {
+        await db.query(readFileSync(join(MIGRATIONS, f), 'utf8'));
+      } catch (e) {
+        const err = e as Error & { position?: string };
+        throw new Error(
+          `${f}: ${err.message}${err.position ? ` (at character ${err.position})` : ''}`,
+        );
+      }
     }
+  } catch (e) {
+    await db.end().catch(() => {});
+    await admin.query(`drop database if exists ${name} with (force)`);
+    await admin.end();
+    throw e;
   } finally {
     await db.end();
   }

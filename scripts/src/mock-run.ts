@@ -150,15 +150,15 @@ async function setup(prefix: string, status: 'Test' | 'Live') {
     [`${prefix} domain`, status],
   );
   const owner = await one<{ id: string }>(
-    `insert into public.team_member (name, email, discord_user_id, label) values ($1, $2, '200000000000000001', 'PM') returning id`,
+    `insert into public.team_member (name, email, discord_user_id, job_title) values ($1, $2, '200000000000000001', 'Product manager') returning id`,
     [`${prefix} Owner`, `${prefix.toLowerCase()}.owner@example.com`],
   );
   const ops = await one<{ id: string }>(
-    `insert into public.team_member (name, email, discord_user_id, label) values ($1, $2, '200000000000000002', 'Ops') returning id`,
+    `insert into public.team_member (name, email, discord_user_id, job_title) values ($1, $2, '200000000000000002', 'Operations') returning id`,
     [`${prefix} Ops`, `${prefix.toLowerCase()}.ops@example.com`],
   );
   await c.query(
-    `insert into public.domain_team (domain_id, team_member_id, role) values ($1, $2, 'Ops'), ($1, $3, 'Lead')`,
+    `insert into public.domain_team (domain_id, team_member_id, role) values ($1, $2, 'Operations'), ($1, $3, 'Escalation')`,
     [dom.id, ops.id, owner.id],
   );
   const mod = await one<{ id: string }>(
@@ -174,7 +174,7 @@ async function setup(prefix: string, status: 'Test' | 'Live') {
     [mod.id],
   );
   await c.query(
-    `insert into public.class_pattern_item (module_id, class_type, title_template, weekday_offset, start_time_pt, duration_minutes, sort_order)
+    `insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
      values ($1, 'Live class', '{module}: Live class', 0, '09:00', 240, 1), ($1, 'Assignment review', '{module}: Assignment review', 4, '18:00', 120, 2)`,
     [mod.id],
   );

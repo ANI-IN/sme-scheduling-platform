@@ -59,7 +59,7 @@ export default function Domains() {
     <div>
       <PageHeader
         title="Domains"
-        description="Program areas such as Backend. Each domain has its own status, alert channel, leads and operations team."
+        description="Program areas such as Backend. Each domain has its own status, alert channel, escalation contacts and operations team."
       >
         <Button onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" aria-hidden /> Create domain
@@ -80,7 +80,7 @@ export default function Domains() {
               <tr>
                 <th className={th}>Domain</th>
                 <th className={th}>Status</th>
-                <th className={th}>Leads</th>
+                <th className={th}>Escalation contacts</th>
                 <th className={th}>Operations team</th>
                 <th className={th}>Alert channel</th>
               </tr>
@@ -93,12 +93,14 @@ export default function Domains() {
                     <Badge tone={statusTone[d.status]}>{statusLabel[d.status]}</Badge>
                   </td>
                   <td className={td}>
-                    {people(d.id, 'Lead') || (
+                    {people(d.id, 'Escalation') || (
                       <span className="text-muted-foreground">None yet</span>
                     )}
                   </td>
                   <td className={td}>
-                    {people(d.id, 'Ops') || <span className="text-muted-foreground">None yet</span>}
+                    {people(d.id, 'Operations') || (
+                      <span className="text-muted-foreground">None yet</span>
+                    )}
                   </td>
                   <td className={td}>
                     {d.alert_discord_channel_id ? (
@@ -242,7 +244,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
     );
   }
 
-  const role = (r: 'Lead' | 'Ops') => ({
+  const role = (r: 'Escalation' | 'Operations') => ({
     onAdd: (id: string) =>
       run(async () =>
         check(
@@ -339,12 +341,15 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
             </Button>
           </div>
         </Section>
-        <Section title="Domain leads" description="Tagged when something is escalated.">
+        <Section
+          title="Escalation contacts"
+          description="Gets told when an urgent problem is not fixed in time."
+        >
           <PeoplePicker
             people={team.data ?? []}
-            selected={ids('Lead')}
-            addLabel="Add a lead"
-            {...role('Lead')}
+            selected={ids('Escalation')}
+            addLabel="Add an escalation contact"
+            {...role('Escalation')}
           />
         </Section>
         <Section
@@ -353,9 +358,9 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
         >
           <PeoplePicker
             people={team.data ?? []}
-            selected={ids('Ops')}
+            selected={ids('Operations')}
             addLabel="Add a person"
-            {...role('Ops')}
+            {...role('Operations')}
           />
         </Section>
         <ErrorText error={err} />

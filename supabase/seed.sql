@@ -23,18 +23,18 @@ declare
   r int;
 begin
   -- Team members (placeholders: replace names, emails and Discord IDs in Settings → Team)
-  insert into public.team_member (name, email, label, is_placeholder)
-  values ('Module owner (needs real details)', 'owner.placeholder@example.com', 'PM', true) returning id into v_owner;
-  insert into public.team_member (name, email, label, is_placeholder)
-  values ('Operations (needs real details)', 'ops.placeholder@example.com', 'Ops', true) returning id into v_ops;
-  insert into public.team_member (name, email, label, is_placeholder)
+  insert into public.team_member (name, email, job_title, is_placeholder)
+  values ('Module owner (needs real details)', 'owner.placeholder@example.com', 'Product manager', true) returning id into v_owner;
+  insert into public.team_member (name, email, job_title, is_placeholder)
+  values ('Operations (needs real details)', 'ops.placeholder@example.com', 'Operations', true) returning id into v_ops;
+  insert into public.team_member (name, email, job_title, is_placeholder)
   values ('Lead (needs real details)', 'lead.placeholder@example.com', 'Lead', true) returning id into v_lead;
 
   -- Domain (status Test: every message goes to the test channel / test inbox)
   insert into public.domain (name, status, alert_discord_channel_id, test_discord_channel_id, test_email)
   values ('Backend', 'Test', '000000000000000001', '000000000000000002', 'test-inbox.placeholder@example.com')
   returning id into v_dom;
-  insert into public.domain_team (domain_id, team_member_id, role) values (v_dom, v_lead, 'Lead'), (v_dom, v_ops, 'Ops');
+  insert into public.domain_team (domain_id, team_member_id, role) values (v_dom, v_lead, 'Escalation'), (v_dom, v_ops, 'Operations');
 
   -- Instructors from the current priority sheet (PLACEHOLDER contact details; ops verifies who is active)
   foreach i in array array['Karl Peterson', 'Robin Kessler', 'Shelly Carver', 'Aaron Kemp', 'Tomas Dietrich',
@@ -62,7 +62,7 @@ begin
       (5, 'Concurrency', array['Felix Sandoval', 'Robin Kessler'])) as t(ord, name, ranking) loop
     insert into public.module (domain_id, name, rotation_order) values (v_dom, m.name, m.ord) returning id into v_mod;
     insert into public.module_owner (module_id, team_member_id) values (v_mod, v_owner);
-    insert into public.class_pattern_item (module_id, class_type, title_template, weekday_offset, start_time_pt, duration_minutes, sort_order)
+    insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
     values (v_mod, 'Live class', '{module}: Live class', 0, '09:00', 240, 1),
            (v_mod, 'Assignment review', '{module}: Assignment review', 4, '18:00', 120, 2);
     insert into public.module_resource (module_id, title, url)
