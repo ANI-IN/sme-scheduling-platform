@@ -187,14 +187,14 @@ isOneToOne: false
                   ]
                 },"checklist_item": {
                   Row: {
-                    "booking_id": string | null,"class_id": string,"created_at": string,"done": boolean,"done_at": string | null,"done_by": string | null,"due_at": string | null,"id": string,"label": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "added_manually": boolean,"booking_id": string | null,"class_id": string,"created_at": string,"done": boolean,"done_at": string | null,"done_by": string | null,"due_at": string | null,"id": string,"label": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "booking_id"?: string | null,"class_id": string,"created_at"?: string,"done"?: boolean,"done_at"?: string | null,"done_by"?: string | null,"due_at"?: string | null,"id"?: string,"label": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "added_manually"?: boolean,"booking_id"?: string | null,"class_id": string,"created_at"?: string,"done"?: boolean,"done_at"?: string | null,"done_by"?: string | null,"due_at"?: string | null,"id"?: string,"label": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "booking_id"?: string | null,"class_id"?: string,"created_at"?: string,"done"?: boolean,"done_at"?: string | null,"done_by"?: string | null,"due_at"?: string | null,"id"?: string,"label"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "added_manually"?: boolean,"booking_id"?: string | null,"class_id"?: string,"created_at"?: string,"done"?: boolean,"done_at"?: string | null,"done_by"?: string | null,"due_at"?: string | null,"id"?: string,"label"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -435,17 +435,23 @@ isOneToOne: false
                   ]
                 },"holiday": {
                   Row: {
-                    "created_at": string,"date": string,"id": string,"name": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "created_at": string,"date": string,"domain_id": string | null,"id": string,"name": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"date": string,"id"?: string,"name": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "created_at"?: string,"date": string,"domain_id"?: string | null,"id"?: string,"name": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"date"?: string,"id"?: string,"name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "created_at"?: string,"date"?: string,"domain_id"?: string | null,"id"?: string,"name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "holiday_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"instructor": {
                   Row: {
@@ -580,6 +586,26 @@ isOneToOne: false
       columns: ["team_member_id"]
 isOneToOne: false
       referencedRelation: "team_member"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"message_template": {
+                  Row: {
+                    "body": string,"created_at": string,"domain_id": string,"id": string,"subject": string,"template_id": string,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"created_at"?: string,"domain_id": string,"id"?: string,"subject": string,"template_id": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"domain_id"?: string,"id"?: string,"subject"?: string,"template_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "message_template_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
       referencedColumns: ["id"]
     }
                   ]
@@ -933,7 +959,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "add_one_class":
+            "add_checklist_item":
+{ Args: { "p_class_id": string,"p_label": string }; Returns: string
+                           },
+"add_one_class":
 { Args: { "p_accept_warnings"?: boolean,"p_class_type": string,"p_cohort_id": string,"p_date": string,"p_end": string,"p_module_id": string,"p_module_week_id": string,"p_reason"?: string,"p_start": string,"p_title"?: string }; Returns: Json
                            },
 "advance_test_clock":
@@ -1015,6 +1044,9 @@ isOneToOne: false
 "connection_status":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"copy_domain_settings":
+{ Args: { "p_from_domain_id": string,"p_to_domain_id": string }; Returns: Json
+                           },
 "create_help_request":
 { Args: { "p_categories": (string)[],"p_details": string,"p_module_week_id": string,"p_reply_channel"?: string,"p_urgency"?: string }; Returns: Json
                            },
@@ -1031,6 +1063,9 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: {
               "channel_id": string,"discord_user_id": string,"instructor_id": string,"last_message_id": string
             }[]
+                           },
+"domain_setup_status":
+{ Args: { "p_domain_id": string }; Returns: Json
                            },
 "effective_settings":
 { Args: { "p_domain_id": string }; Returns: Json
@@ -1083,6 +1118,12 @@ isOneToOne: false
 "mark_verified_manually":
 { Args: { "p_instructor_id": string,"p_note"?: string }; Returns: undefined
                            },
+"message_templates":
+{ Args: { "p_domain_id": string }; Returns: Json
+                           },
+"module_overview":
+{ Args: { "p_domain_id": string }; Returns: Json
+                           },
 "my_account":
 { Args: { "p_signed_in"?: boolean }; Returns: Json
                            },
@@ -1110,6 +1151,9 @@ isOneToOne: false
 "pause_outreach":
 { Args: { "p_module_week_id": string,"p_paused": boolean }; Returns: undefined
                            },
+"preview_message_template":
+{ Args: { "p_body": string,"p_domain_id": string,"p_subject": string,"p_template_id": string }; Returns: Json
+                           },
 "preview_next":
 { Args: { "p_module_week_id": string }; Returns: Json
                            },
@@ -1134,6 +1178,9 @@ isOneToOne: false
 "release_booking":
 { Args: { "p_module_week_id": string,"p_reason"?: string,"p_restart"?: boolean }; Returns: Json
                            },
+"remove_checklist_item":
+{ Args: { "p_item_id": string }; Returns: undefined
+                           },
 "reply_to_instructor":
 { Args: { "p_item_id": string,"p_text": string }; Returns: Json
                            },
@@ -1142,6 +1189,9 @@ isOneToOne: false
                            },
 "resend_message":
 { Args: { "p_message_id": string }; Returns: Json
+                           },
+"reset_message_template":
+{ Args: { "p_domain_id": string,"p_template_id": string }; Returns: undefined
                            },
 "reset_setting":
 { Args: { "p_domain_id": string,"p_key": string }; Returns: undefined
@@ -1158,8 +1208,17 @@ isOneToOne: false
 "run_check_now":
 { Args: { "p_domain_id": string }; Returns: Json
                            },
+"run_practice_class":
+{ Args: { "p_domain_id": string }; Returns: Json
+                           },
+"save_message_template":
+{ Args: { "p_body": string,"p_domain_id": string,"p_subject": string,"p_template_id": string }; Returns: undefined
+                           },
 "save_ranking":
 { Args: { "p_cohort_id"?: string,"p_expected_ids"?: (string)[],"p_instructor_ids": (string)[],"p_module_id": string }; Returns: undefined
+                           },
+"send_template_test":
+{ Args: { "p_body": string,"p_domain_id": string,"p_subject": string,"p_template_id": string }; Returns: undefined
                            },
 "send_test_alert":
 { Args: { "p_team_member_id": string }; Returns: undefined
@@ -1194,6 +1253,9 @@ isOneToOne: false
 "set_setting_at":
 { Args: { "p_key": string,"p_reason"?: string,"p_scope": string,"p_scope_id": string,"p_value": Json }; Returns: undefined
                            },
+"set_settings_at":
+{ Args: { "p_reason"?: string,"p_scope": string,"p_scope_id": string,"p_values": Json }; Returns: undefined
+                           },
 "set_test_clock":
 { Args: { "p_at": string,"p_domain_id": string }; Returns: undefined
                            },
@@ -1207,6 +1269,9 @@ isOneToOne: false
 { Args: { "p_include_later"?: boolean,"p_module_week_id": string,"p_weeks": number }; Returns: Json
                            },
 "skip_to_next":
+{ Args: { "p_module_week_id": string }; Returns: Json
+                           },
+"start_asking_now":
 { Args: { "p_module_week_id": string }; Returns: Json
                            },
 "submit_help_request":

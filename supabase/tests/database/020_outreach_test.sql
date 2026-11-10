@@ -31,7 +31,7 @@ select is((select reminder_at from public.request where module_week_id = :'mw' a
 select is((select deadline_at from public.request where module_week_id = :'mw' and status = 'Sent'), '2027-01-03 18:00+00'::timestamptz,
   'more than 10 days out: move on after 48h');
 select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Discord')
-          like '%Live class: Sun, Jan 31 · 9:00 AM – 1:00 PM PST%', 'M1 shows the class in PT with PST label');
+          like '%Live class: Sun, Jan 31 · 9:00 AM to 1:00 PM PST%', 'M1 shows the class in PT with PST label');
 select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Discord')
           like 'Hi <@%', 'Discord message @mentions the instructor');
 select is((select jsonb_array_length(buttons) from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Email'), 2,

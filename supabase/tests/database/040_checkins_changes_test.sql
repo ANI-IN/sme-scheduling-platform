@@ -180,9 +180,9 @@ select tests.scenario('DS', 'Live', '2027-03-14', 1) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'mw') as mw \gset
 select tests.tick(:'dom', '2027-02-12 18:00+00');
 select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Email')
-          like '%Live class: Sun, Mar 14 · 9:00 AM – 1:00 PM PDT%', 'first PDT Sunday shows 9:00 AM PDT');
+          like '%Live class: Sun, Mar 14 · 9:00 AM to 1:00 PM PDT%', 'first PDT Sunday shows 9:00 AM PDT');
 select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Email')
-          like '%Assignment review: Thu, Mar 18 · 6:00 PM – 8:00 PM PDT%', 'review shows 6:00 PM PDT');
+          like '%Assignment review: Thu, Mar 18 · 6:00 PM to 8:00 PM PDT%', 'review shows 6:00 PM PDT');
 
 -- =============================================================== outage: nothing lost or duplicated
 select tests.scenario('OU', 'Live', '2027-01-31', 2) as j \gset

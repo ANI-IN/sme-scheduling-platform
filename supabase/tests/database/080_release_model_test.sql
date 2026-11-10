@@ -69,7 +69,7 @@ select public.add_one_class(:'mw', null, null, '2027-02-05', '10:00', '11:00', '
 select is((select count(*)::int from public.booking_slot s join public.booking b on b.id = s.booking_id
             where b.module_week_id = :'mw' and b.status = 'Active'), 3,
   'a class added to a confirmed class week is booked for the same instructor');
-insert into public.holiday (date, name) values ('2027-03-03', 'Release test holiday') on conflict (date) do update set name = excluded.name;
+insert into public.holiday (date, name) values ('2027-03-03', 'Release test holiday') on conflict do nothing;
 select is((public.add_one_class(null, :'mod', :'coh_b', '2027-03-03', '10:00', '11:00', 'Office hours') ->> 'needs_confirmation')::boolean, true,
   'a class on a holiday needs the warning to be accepted');
 select is((public.add_one_class(null, :'mod', :'coh_b', '2027-03-04', '05:00', '06:00', 'Office hours') -> 'warnings' -> 0 ->> 'code'),
