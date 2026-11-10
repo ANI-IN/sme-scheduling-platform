@@ -124,7 +124,7 @@ async function load() {
       where discord_user_id is null and discord_prompt_dismissed_at is null`,
   );
   const created = await one<{ v: { module_week_ids: string[] } }>(
-    `select public.create_module_weeks($1, public.generate_classes($1, $2, $3::date[])) as v`,
+    `select public.create_module_weeks($1, public.generate_classes($1, $2, $3::date[]), true, 'Demo data') as v`,
     [dom.id, first.id, sundays.d],
   );
   const weeks = (

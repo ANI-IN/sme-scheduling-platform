@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, CircleAlert, CircleDashed } from 'lucide-react';
-import { poke, rpc } from '@/lib/rpc';
-import { useSystem } from '@/lib/data';
+import { check, poke, rpc } from '@/lib/rpc';
+import { supabase } from '@/lib/supabase';
+import { useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -38,6 +39,7 @@ export default function Connections() {
           <Health />
           <ConfigForm key={data.config.version} config={data.config} />
           <PauseAll />
+          <AppErrors />
         </>
       )}
     </div>
@@ -239,6 +241,49 @@ function PauseAll() {
         {on ? 'Pause all messages' : 'Turn messages back on'}
       </Button>
       <ErrorText error={err} />
+    </Section>
+  );
+}
+
+/** Private log of errors people ran into in the app (newest first). */
+function AppErrors() {
+  const team = useTeam();
+  const errors = useQuery({
+    queryKey: ['app_error'],
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('app_error')
+          .select('*')
+          .order('last_at', { ascending: false })
+          .limit(20),
+      ),
+  });
+  const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
+  return (
+    <Section
+      title="Errors in the app"
+      description="Problems people ran into while using the app, newest first. Only the team can see this."
+    >
+      {errors.isLoading ? (
+        <SkeletonRows rows={3} />
+      ) : (errors.data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">No errors so far.</p>
+      ) : (
+        <ul className="divide-y divide-border text-sm">
+          {(errors.data ?? []).map((e) => (
+            <li key={e.id} className="py-2">
+              <div className="font-medium">{e.message}</div>
+              <div className="text-xs text-muted-foreground">
+                {fmtLocal(e.last_at)}
+                {e.count > 1 ? `, ${e.count} times` : ''}
+                {e.page ? `, on ${e.page}` : ''}
+                {e.team_member_id ? `, ${names.get(e.team_member_id) ?? 'a team member'}` : ''}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }

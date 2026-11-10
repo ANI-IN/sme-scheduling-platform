@@ -103,7 +103,9 @@ export function AppShell() {
 
   // Live updates: anything the automation or a teammate changes refreshes the open screens.
   useEffect(() => {
-    const ch = supabase.channel('live');
+    // A unique name per mount: removing a channel is asynchronous, and reusing the same name before it
+    // is gone makes Supabase refuse new listeners ("cannot add postgres_changes callbacks").
+    const ch = supabase.channel(`live-${Math.random().toString(36).slice(2)}`);
     for (const table of liveTables) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
         void qc.invalidateQueries();

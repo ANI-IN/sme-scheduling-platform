@@ -16,6 +16,7 @@ export type HistoryLike = {
   after: unknown;
   note: string | null;
   undo_of: number | null;
+  entity_label?: string | null;
 };
 
 export type NameBook = {
@@ -29,7 +30,6 @@ export type Change = { label: string; from: string; to: string };
 export type Described = { sentence: string; changes: Change[] };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const HIDDEN = new Set([
   'id',
@@ -72,7 +72,12 @@ const FIELD: Record<string, string> = {
   alert_discord_channel_id: 'Alert channel',
   test_discord_channel_id: 'Testing channel',
   test_email: 'Testing email',
-  label: 'Role',
+  job_title: 'Job title',
+  access_removed_at: 'Access removed',
+  preferred_contact: 'Preferred contact',
+  monthly_class_limit: 'Monthly class limit',
+  start_date: 'Start date',
+  same_instructor: 'Same instructor for the whole class week',
   receives_digest: 'Gets the daily summary',
   digest_channel: 'Daily summary by',
   active: 'Active',
@@ -80,7 +85,7 @@ const FIELD: Record<string, string> = {
   url: 'Link',
   include_in_confirmation: 'Included in the confirmation',
   class_type: 'Class type',
-  weekday_offset: 'Day',
+  day_offset: 'Day',
   start_time_pt: 'Start time (Pacific)',
   duration_minutes: 'Length in minutes',
   from_date: 'From',
@@ -108,13 +113,20 @@ function value(v: unknown, book: NameBook, key?: string): string {
   if (typeof v === 'object') return 'updated';
   const s = String(v);
   if (UUID.test(s)) return book.name(s) ?? 'another record';
-  if (key === 'weekday_offset')
-    return WEEKDAYS[Number(s) % 7] + (Number(s) >= 7 ? ' of the next week' : '');
+  if (key === 'day_offset')
+    return Number(s) === 0
+      ? 'the first day'
+      : `${s} day${Number(s) === 1 ? '' : 's'} after the first day`;
   if (/^\d{2}:\d{2}(:\d{2})?$/.test(s))
     return DateTime.fromFormat(s.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return DateTime.fromISO(s).toFormat('ccc LLL d, yyyy');
-  if (key === 'status' || key === 'label') return STATUS_WORD[s] ?? s;
-  if (key === 'role') return s === 'Lead' ? 'Domain lead' : s === 'Ops' ? 'Operations team' : s;
+  if (key === 'status') return STATUS_WORD[s] ?? s;
+  if (key === 'role')
+    return s === 'Escalation' || s === 'Lead'
+      ? 'Escalation contact'
+      : s === 'Operations' || s === 'Ops'
+        ? 'Operations team'
+        : s;
   return plain(s);
 }
 
@@ -139,7 +151,7 @@ function noun(e: HistoryLike, book: NameBook): string {
     case 'module_resource':
       return `the material "${r.title}" for ${n(r.module_id)}`;
     case 'class_pattern_item':
-      return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.weekday_offset, book, 'weekday_offset')} at ${value(r.start_time_pt, book)} (Pacific) for ${n(r.module_id)}`;
+      return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.day_offset, book, 'day_offset')} at ${value(r.start_time_pt, book)} (Pacific) for ${n(r.module_id)}${r.cohort_id ? ` in ${n(r.cohort_id)}` : ''}`;
     case 'module_ranking':
       return `${n(r.instructor_id)} in the instructor order for ${n(r.module_id)}`;
     case 'team_member':
@@ -147,15 +159,31 @@ function noun(e: HistoryLike, book: NameBook): string {
     case 'domain':
       return `domain ${r.name}`;
     case 'domain_team':
-      return `${n(r.team_member_id)} as ${r.role === 'Lead' ? 'a domain lead' : 'part of the operations team'} for ${n(r.domain_id)}`;
+      return `${n(r.team_member_id)} as ${r.role === 'Escalation' || r.role === 'Lead' ? 'an escalation contact' : 'part of the default operations team'} for ${n(r.domain_id)}`;
+    case 'module_operations':
+      return `${n(r.team_member_id)} in the operations team for ${n(r.module_id)}${r.cohort_id ? ` (${n(r.cohort_id)})` : ''}`;
+    case 'cohort':
+      return `cohort ${r.name ?? e.entity_label ?? ''}`;
+    case 'class_type':
+      return `the class type ${r.name}`;
     case 'holiday':
       return `the holiday ${r.name} on ${value(r.date, book)}`;
     case 'setting':
-      return `the setting "${book.settingLabel(String(r.key)) ?? r.key}"${r.domain_id ? ` for ${n(r.domain_id)}` : ''}`;
+      return `the setting "${book.settingLabel(String(r.key)) ?? r.key}"${
+        r.module_week_id
+          ? ' for one class week'
+          : r.module_id
+            ? ` for ${n(r.module_id)}`
+            : r.cohort_id
+              ? ` for ${n(r.cohort_id)}`
+              : r.domain_id
+                ? ` for ${n(r.domain_id)}`
+                : ' for every domain'
+      }`;
     case 'app_config':
       return 'the connection settings';
     default:
-      return 'a setup record';
+      return e.entity_label ?? 'a setup record';
   }
 }
 
@@ -246,6 +274,37 @@ const rewrites: [
   [/^Ranking exhausted/, (_m, c) => `No more instructors to ask for ${c.module}`],
   [/^Module week completed$/, (_m, c) => `The class week for ${c.module} finished`],
   [/^Kill switch ON/, (_m, c) => `${c.actor} paused all messages to instructors`],
+  [
+    /^All messages to instructors paused$/,
+    (_m, c) => `${c.actor} paused all messages to instructors`,
+  ],
+  [
+    /^Messages to instructors turned back on$/,
+    (_m, c) => `${c.actor} turned messages to instructors back on`,
+  ],
+  [/^Went live$/, (_m, c) => `${c.actor} took the domain live: real instructors now get messages`],
+  [/^Testing turned on$/, (_m, c) => `${c.actor} turned on testing for the domain`],
+  [/^Domain paused$/, (_m, c) => `${c.actor} paused the domain`],
+  [/^Moved back to Draft$/, (_m, c) => `${c.actor} moved the domain back to Draft`],
+  [/^Signed in$/, (_m, c) => `${c.actor} signed in`],
+  [/^Sign in refused$/, () => 'A sign in was refused'],
+  [/^Access removed$/, (_m, c) => `${c.actor} removed someone's access`],
+  [/^Access given back$/, (_m, c) => `${c.actor} gave someone their access back`],
+  [/^Downloaded (.+)$/, (m, c) => `${c.actor} downloaded ${m[1]} as a spreadsheet`],
+  [/^Warnings accepted$/, (_m, c) => `${c.actor} went ahead despite warnings`],
+  [/^Class added$/, (_m, c) => `${c.actor} added a class to ${c.module}`],
+  [
+    /^Planned (\d+) class week\(s\)$/,
+    (m, c) => `${c.actor} planned ${m[1]} class week${m[1] === '1' ? '' : 's'}`,
+  ],
+  [
+    /^Same instructor turned (on|off) for the class week$/,
+    (m, c) =>
+      m[1] === 'off'
+        ? `${c.actor} let each class of ${c.module} have its own instructor`
+        : `${c.actor} set one instructor for the whole class week of ${c.module}`,
+  ],
+  [/^Environment set to (\w+)$/, (m) => `The app was set up as ${m[1]}`],
   [/^Kill switch OFF/, (_m, c) => `${c.actor} turned messages to instructors back on`],
   [/^Test clock set to (.+)$/, (m, c) => `${c.actor} set the practice clock to ${m[1]}`],
   [/^Test clock cleared/, (_m, c) => `${c.actor} set the practice clock back to real time`],
@@ -302,11 +361,22 @@ export function describeHistory(e: HistoryLike, book: NameBook): Described {
         changes: changesOf(e, book),
       };
     if (e.entity_table === 'setting') {
-      const label = book.settingLabel(String(rowOf(e).key)) ?? 'a setting';
+      const r = rowOf(e);
+      const label = book.settingLabel(String(r.key)) ?? 'a setting';
+      const level = r.module_week_id
+        ? ' for one class week'
+        : r.module_id
+          ? ` for ${book.name(r.module_id as string) ?? 'a module'}`
+          : r.cohort_id
+            ? ` for ${book.name(r.cohort_id as string) ?? 'a cohort'}`
+            : '';
       if (verb.endsWith('removed'))
-        return { sentence: `${actor} reset "${label}" to the default`, changes: [] };
+        return {
+          sentence: `${actor} reset "${label}"${level} to the ${level ? 'value above it' : 'default'}`,
+          changes: [],
+        };
       return {
-        sentence: `${actor} set "${label}" to ${value((e.after as { value?: unknown })?.value, book)}`,
+        sentence: `${actor} set "${label}"${level} to ${value((e.after as { value?: unknown })?.value, book)}`,
         changes: changesOf(e, book),
       };
     }

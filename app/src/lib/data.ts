@@ -41,6 +41,21 @@ export const useInstructors = () =>
       ),
   });
 
+export const useCohorts = (domainId: string | undefined) =>
+  useQuery({
+    queryKey: ['cohort', domainId],
+    enabled: !!domainId,
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('cohort')
+          .select('*')
+          .eq('domain_id', domainId!)
+          .order('start_date', { ascending: false, nullsFirst: false })
+          .order('name'),
+      ),
+  });
+
 export const useModules = (domainId: string | undefined) =>
   useQuery({
     queryKey: ['module', domainId],
@@ -132,11 +147,12 @@ export function useNameBook() {
   const extra = useQuery({
     queryKey: ['module', 'names'],
     queryFn: async () => {
-      const [m, s] = await Promise.all([
+      const [m, s, c] = await Promise.all([
         supabase.from('module').select('id, name'),
         supabase.from('setting_definition').select('key, label'),
+        supabase.from('cohort').select('id, name'),
       ]);
-      return { modules: check(m), settings: check(s) };
+      return { modules: check(m), settings: check(s), cohorts: check(c) };
     },
   });
   const names = new Map<string, string>();
@@ -144,6 +160,7 @@ export function useNameBook() {
   (team.data ?? []).forEach((x) => names.set(x.id, x.name));
   (domains.data ?? []).forEach((x) => names.set(x.id, x.name));
   (extra.data?.modules ?? []).forEach((x) => names.set(x.id, x.name));
+  (extra.data?.cohorts ?? []).forEach((x) => names.set(x.id, x.name));
   const labels = new Map((extra.data?.settings ?? []).map((s) => [s.key, s.label]));
   return {
     name: (id: string | null | undefined) => (id ? names.get(id) : undefined),

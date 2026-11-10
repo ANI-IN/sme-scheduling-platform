@@ -5,7 +5,14 @@ import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useInstructors, useModules, useNameBook, useTeam, type HistoryEvent } from '@/lib/data';
+import {
+  useCohorts,
+  useInstructors,
+  useModules,
+  useNameBook,
+  useTeam,
+  type HistoryEvent,
+} from '@/lib/data';
 import { describeHistory } from '@/lib/historyText';
 import { plain } from '@/lib/plain';
 import { fmtLocal, fmtPT } from '@/lib/time';
@@ -26,9 +33,14 @@ import {
   th,
 } from '@/components/ui';
 
+/** Activity history loads 100 entries at a time. */
+const PAGE = 100;
+
 export default function History() {
   const { domain } = useDomain();
   const modules = useModules(domain?.id);
+  const cohorts = useCohorts(domain?.id);
+  const [limit, setLimit] = useState(PAGE);
   const instructors = useInstructors();
   const team = useTeam();
   const qc = useQueryClient();
@@ -36,6 +48,7 @@ export default function History() {
   const [f, setF] = useState({
     scope: 'domain',
     category: '',
+    cohort: '',
     module: '',
     instructor: '',
     actor: '',
@@ -53,26 +66,29 @@ export default function History() {
       domain?.id,
       f.scope,
       f.category,
+      f.cohort,
       f.module,
       f.instructor,
       f.actor,
       f.from,
       f.to,
+      limit,
     ],
     queryFn: async () => {
       let q = supabase
         .from('history_event')
-        .select('*')
+        .select('*, undoable')
         .order('id', { ascending: false })
-        .limit(1000);
+        .limit(limit);
       if (f.scope === 'domain' && domain) q = q.or(`domain_id.eq.${domain.id},domain_id.is.null`);
       if (f.category) q = q.eq('category', f.category);
+      if (f.cohort) q = q.eq('cohort_id', f.cohort);
       if (f.module) q = q.eq('module_id', f.module);
       if (f.instructor) q = q.eq('instructor_id', f.instructor);
       if (f.actor) q = q.eq('actor_team_member_id', f.actor);
       if (f.from) q = q.gte('at', DateTime.fromISO(f.from).startOf('day').toUTC().toISO()!);
       if (f.to) q = q.lte('at', DateTime.fromISO(f.to).endOf('day').toUTC().toISO()!);
-      return check(await q);
+      return check(await q) as (HistoryEvent & { undoable: boolean | null })[];
     },
   });
 
@@ -95,7 +111,13 @@ export default function History() {
       : true,
   );
 
-  const exportCsv = () =>
+  const exportCsv = () => {
+    void rpc('log_export', {
+      p_what: 'Activity history',
+      p_rows: rows.length,
+      p_filters: f,
+      p_domain_id: domain?.id,
+    }).catch(() => {});
     downloadCsv(
       `history-${DateTime.now().toFormat('yyyy-LL-dd')}.csv`,
       toCsv(
@@ -116,9 +138,11 @@ export default function History() {
         })),
       ),
     );
+  };
 
-  const canUndo = (e: HistoryEvent) =>
-    e.category === 'Setup changes' && !e.undo_of && !undone.has(e.id) && !!e.entity_table;
+  // The database decides what can be undone (never creating or deleting a domain, cohort or module).
+  const canUndo = (e: HistoryEvent & { undoable?: boolean | null }) =>
+    !!e.undoable && !undone.has(e.id);
 
   return (
     <div>
@@ -147,6 +171,19 @@ export default function History() {
           <option value="">All types</option>
           {historyCategories.map((c) => (
             <option key={c}>{c}</option>
+          ))}
+        </Select>
+        <Select
+          aria-label="Cohort"
+          value={f.cohort}
+          onChange={(e) => setF({ ...f, cohort: e.target.value })}
+          className="w-44"
+        >
+          <option value="">All cohorts</option>
+          {(cohorts.data ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </Select>
         <Select
@@ -185,22 +222,24 @@ export default function History() {
             </option>
           ))}
         </Select>
-        <Input
-          type="date"
-          value={f.from}
-          onChange={(e) => setF({ ...f, from: e.target.value })}
-          className="w-40"
-          title="From"
-          aria-label="From date"
-        />
-        <Input
-          type="date"
-          value={f.to}
-          onChange={(e) => setF({ ...f, to: e.target.value })}
-          className="w-40"
-          title="To"
-          aria-label="To date"
-        />
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          From
+          <Input
+            type="date"
+            value={f.from}
+            onChange={(e) => setF({ ...f, from: e.target.value })}
+            className="w-40"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          To
+          <Input
+            type="date"
+            value={f.to}
+            onChange={(e) => setF({ ...f, to: e.target.value })}
+            className="w-40"
+          />
+        </label>
         <Input
           placeholder="Search"
           value={f.q}
@@ -330,6 +369,13 @@ export default function History() {
               ))}
             </tbody>
           </table>
+          {(events.data ?? []).length >= limit && (
+            <div className="border-t border-border p-3 text-center">
+              <Button variant="secondary" onClick={() => setLimit(limit + PAGE)}>
+                Show more
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

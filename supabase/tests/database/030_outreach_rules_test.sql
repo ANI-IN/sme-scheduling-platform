@@ -132,7 +132,7 @@ select is((select array_agg(instructor_id order by rank) from public.module_rank
   'undo restores the previous ranking');
 select ok(exists (select 1 from public.history_event where action = 'Undo: Ranking saved'), 'undo is logged');
 select throws_ok(format('select public.undo_history_event(%s)', (select id from public.history_event where action = 'Ranking saved' and entity_id = :'mod' order by id limit 1)),
-  'P0001', 'This change was already undone.', 'a change can only be undone once');
+  '22023', 'This change was already undone.', 'a change can only be undone once');
 
 -- =============================================================== quiet hours (PRD 9.4)
 select tests.scenario('QH', 'Live', '2027-01-31', 2) as j \gset

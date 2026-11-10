@@ -258,7 +258,13 @@ export default function Schedule() {
     setSelected(new Set());
   };
 
-  const exportCsv = () =>
+  const exportCsv = () => {
+    void rpc('log_export', {
+      p_what: 'Upcoming classes',
+      p_rows: table.getFilteredRowModel().rows.length,
+      p_filters: { search, module: moduleFilter, show_past: showPast },
+      p_domain_id: domain?.id,
+    }).catch(() => {});
     downloadCsv(
       `schedule-${domain?.name}-${DateTime.now().toFormat('yyyy-LL-dd')}.csv`,
       toCsv(
@@ -282,6 +288,7 @@ export default function Schedule() {
         }),
       ),
     );
+  };
 
   const open = (weeks.data ?? []).find((w) => w.id === openWeek);
 

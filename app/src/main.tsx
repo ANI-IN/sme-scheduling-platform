@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import './index.css';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { installGlobalErrorReporting } from '@/lib/errorLog';
 import { DomainProvider } from '@/lib/domain';
 import { configMissing } from '@/lib/env';
 import { ConfirmProvider } from '@/components/Confirm';
@@ -92,6 +93,8 @@ function Gate() {
     </DomainProvider>
   );
 }
+
+installGlobalErrorReporting();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

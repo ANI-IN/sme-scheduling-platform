@@ -112,4 +112,44 @@ describe('plain wording for database text', () => {
       'No answer to the reminder 10 days before class: Shelly',
     );
   });
+
+  it('describes going live, pausing messages and downloads', () => {
+    expect(describeHistory({ ...base, action: 'Went live' }, book).sentence).toBe(
+      'Sienna took the domain live: real instructors now get messages',
+    );
+    expect(
+      describeHistory(
+        { ...base, category: 'System', action: 'All messages to instructors paused' },
+        book,
+      ).sentence,
+    ).toBe('Sienna paused all messages to instructors');
+    expect(
+      describeHistory(
+        { ...base, category: 'Team actions', action: 'Downloaded Upcoming classes' },
+        book,
+      ).sentence,
+    ).toBe('Sienna downloaded Upcoming classes as a spreadsheet');
+  });
+  it('names the level of a settings override and escalation contacts', () => {
+    const d = describeHistory(
+      {
+        ...base,
+        action: 'setting added',
+        entity_table: 'setting',
+        after: { key: 'outreach_days', module_id: ids.api, value: 25 },
+      },
+      book,
+    );
+    expect(d.sentence).toContain('for API Design');
+    const e = describeHistory(
+      {
+        ...base,
+        action: 'domain_team added',
+        entity_table: 'domain_team',
+        after: { team_member_id: ids.shelly, role: 'Escalation' },
+      },
+      book,
+    );
+    expect(e.sentence).toContain('Shelly Carver as an escalation contact');
+  });
 });

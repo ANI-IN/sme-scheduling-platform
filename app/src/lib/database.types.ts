@@ -33,6 +33,26 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"app_error": {
+                  Row: {
+                    "at": string,"browser": string | null,"count": number,"detail": string | null,"id": number,"last_at": string,"message": string,"page": string | null,"team_member_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"browser"?: string | null,"count"?: number,"detail"?: string | null,"id"?: never,"last_at"?: string,"message": string,"page"?: string | null,"team_member_id"?: string | null
+                  }
+                  Update: {
+                    "at"?: string,"browser"?: string | null,"count"?: number,"detail"?: string | null,"id"?: never,"last_at"?: string,"message"?: string,"page"?: string | null,"team_member_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "app_error_team_member_id_fkey"
+      columns: ["team_member_id"]
+isOneToOne: false
+      referencedRelation: "team_member"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"attention_item": {
                   Row: {
                     "ack_until": string | null,"acknowledged_by": string | null,"assigned_to": string | null,"class_id": string | null,"created_at": string,"dedupe_key": string | null,"detail": string | null,"domain_id": string | null,"done_at": string | null,"done_by": string | null,"done_note": string | null,"due_at": string | null,"escalated_at": string | null,"help_request_id": string | null,"id": string,"instructor_id": string | null,"is_test": boolean,"last_reminder_at": string | null,"message_id": string | null,"module_id": string | null,"module_week_id": string | null,"opened_at": string,"r1_at": string | null,"recipients": (string)[],"request_id": string | null,"severity": string,"status": string,"title": string,"type": string,"updated_at": string,"updated_by": string | null,"version": number
@@ -395,14 +415,14 @@ isOneToOne: false
                   ]
                 },"history_event": {
                   Row: {
-                    "action": string,"actor_instructor_id": string | null,"actor_kind": string,"actor_label": string | null,"actor_team_member_id": string | null,"after": Json | null,"at": string,"before": Json | null,"category": string,"class_id": string | null,"domain_id": string | null,"entity_id": string | null,"entity_table": string | null,"id": number,"instructor_id": string | null,"is_test": boolean,"module_id": string | null,"module_week_id": string | null,"note": string | null,"sim_at": string | null,"undo_of": number | null
+                    "action": string,"actor_instructor_id": string | null,"actor_kind": string,"actor_label": string | null,"actor_team_member_id": string | null,"after": Json | null,"at": string,"before": Json | null,"category": string,"class_id": string | null,"cohort_id": string | null,"domain_id": string | null,"entity_id": string | null,"entity_label": string | null,"entity_table": string | null,"id": number,"instructor_id": string | null,"is_test": boolean,"module_id": string | null,"module_week_id": string | null,"note": string | null,"sim_at": string | null,"undo_of": number | null,"undoable": boolean | null
                   }
-                  ComputedFields: never
+                  ComputedFields: "undoable"
                   Insert: {
-                    "action": string,"actor_instructor_id"?: string | null,"actor_kind": string,"actor_label"?: string | null,"actor_team_member_id"?: string | null,"after"?: Json | null,"at"?: string,"before"?: Json | null,"category": string,"class_id"?: string | null,"domain_id"?: string | null,"entity_id"?: string | null,"entity_table"?: string | null,"id"?: never,"instructor_id"?: string | null,"is_test"?: boolean,"module_id"?: string | null,"module_week_id"?: string | null,"note"?: string | null,"sim_at"?: string | null,"undo_of"?: number | null
+                    "action": string,"actor_instructor_id"?: string | null,"actor_kind": string,"actor_label"?: string | null,"actor_team_member_id"?: string | null,"after"?: Json | null,"at"?: string,"before"?: Json | null,"category": string,"class_id"?: string | null,"cohort_id"?: string | null,"domain_id"?: string | null,"entity_id"?: string | null,"entity_label"?: string | null,"entity_table"?: string | null,"id"?: never,"instructor_id"?: string | null,"is_test"?: boolean,"module_id"?: string | null,"module_week_id"?: string | null,"note"?: string | null,"sim_at"?: string | null,"undo_of"?: number | null
                   }
                   Update: {
-                    "action"?: string,"actor_instructor_id"?: string | null,"actor_kind"?: string,"actor_label"?: string | null,"actor_team_member_id"?: string | null,"after"?: Json | null,"at"?: string,"before"?: Json | null,"category"?: string,"class_id"?: string | null,"domain_id"?: string | null,"entity_id"?: string | null,"entity_table"?: string | null,"id"?: never,"instructor_id"?: string | null,"is_test"?: boolean,"module_id"?: string | null,"module_week_id"?: string | null,"note"?: string | null,"sim_at"?: string | null,"undo_of"?: number | null
+                    "action"?: string,"actor_instructor_id"?: string | null,"actor_kind"?: string,"actor_label"?: string | null,"actor_team_member_id"?: string | null,"after"?: Json | null,"at"?: string,"before"?: Json | null,"category"?: string,"class_id"?: string | null,"cohort_id"?: string | null,"domain_id"?: string | null,"entity_id"?: string | null,"entity_label"?: string | null,"entity_table"?: string | null,"id"?: never,"instructor_id"?: string | null,"is_test"?: boolean,"module_id"?: string | null,"module_week_id"?: string | null,"note"?: string | null,"sim_at"?: string | null,"undo_of"?: number | null
                   }
                   Relationships: [
                     {
@@ -1051,6 +1071,12 @@ isOneToOne: false
 "jump_test_clock":
 { Args: { "p_days_before": number,"p_domain_id": string,"p_module_week_id": string }; Returns: Json
                            },
+"log_app_error":
+{ Args: { "p_browser"?: string,"p_detail"?: string,"p_message": string,"p_page"?: string }; Returns: undefined
+                           },
+"log_export":
+{ Args: { "p_domain_id"?: string,"p_filters"?: Json,"p_rows": number,"p_what": string }; Returns: undefined
+                           },
 "log_system_error":
 { Args: { "p_message": string,"p_url"?: string,"p_workflow": string }; Returns: undefined
                            },
@@ -1200,6 +1226,9 @@ isOneToOne: false
                            },
 "undo_history_event":
 { Args: { "p_event_id": number }; Returns: Json
+                           },
+"undoable":
+{ Args: { "e": Omit<Database["public"]['Tables']["history_event"]['Row'], Database["public"]['Tables']["history_event"]['ComputedFields']> }; Returns: boolean
                            },
 "update_class_details":
 { Args: { "p_class_id": string,"p_class_type": string,"p_expected_version"?: number,"p_notes": string,"p_problem_flag": boolean,"p_title": string }; Returns: undefined
