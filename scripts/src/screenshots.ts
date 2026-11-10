@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Page } from 'playwright';
+import { chromePath, localKeys, signInLink } from './browser.ts';
 import pg from 'pg';
 
 const ROOT = join(import.meta.dirname, '..', '..');
@@ -23,29 +24,6 @@ async function removeDemoModules() {
   await c.end();
 }
 
-/** Use Playwright's own browser, or any Chromium Playwright has installed on this machine. */
-function chromePath(): string | undefined {
-  const base = join(
-    process.env.LOCALAPPDATA ?? join(process.env.HOME ?? '', '.cache'),
-    'ms-playwright',
-  );
-  if (!existsSync(base)) return undefined;
-  for (const d of readdirSync(base)
-    .filter((x) => /^chromium-\d+$/.test(x))
-    .sort()
-    .reverse()) {
-    for (const exe of [
-      'chrome-win64/chrome.exe',
-      'chrome-win/chrome.exe',
-      'chrome-linux/chrome',
-      'chrome-linux64/chrome',
-    ]) {
-      if (existsSync(join(base, d, exe))) return join(base, d, exe);
-    }
-  }
-  return undefined;
-}
-
 type Shot = {
   name: string;
   path: string;
@@ -53,35 +31,6 @@ type Shot = {
   /** Only at this width (for example the mobile menu). */
   width?: 'desktop' | 'mobile';
 };
-
-function localKeys(): { api: string; secret: string } {
-  const out = execFileSync(
-    'node',
-    [join(ROOT, 'node_modules', 'supabase', 'dist', 'supabase.js'), 'status', '-o', 'json'],
-    {
-      cwd: ROOT,
-      encoding: 'utf8',
-    },
-  );
-  const j = JSON.parse(out.slice(out.indexOf('{'))) as Record<string, string>;
-  return { api: j.API_URL!, secret: j.SECRET_KEY ?? j.SERVICE_ROLE_KEY! };
-}
-
-async function signInLink(api: string, secret: string): Promise<string> {
-  const res = await fetch(`${api}/auth/v1/admin/generate_link`, {
-    method: 'POST',
-    headers: {
-      apikey: secret,
-      Authorization: `Bearer ${secret}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ type: 'magiclink', email: EMAIL, redirect_to: APP }),
-  });
-  const j = (await res.json()) as { action_link?: string; properties?: { action_link?: string } };
-  const link = j.action_link ?? j.properties?.action_link;
-  if (!link) throw new Error(`Could not create a sign-in link: ${JSON.stringify(j)}`);
-  return link;
-}
 
 const click = (text: string | RegExp) => async (p: Page) => {
   await p.getByRole('button', { name: text }).first().click();
@@ -216,6 +165,8 @@ export const SHOTS: Shot[] = [
     path: '/settings/connections',
     act: click(/^pause all messages$/i),
   },
+  { name: 'help', path: '/help' },
+  { name: 'help-guide', path: '/help/planning-classes' },
   { name: 'activity', path: '/activity' },
   { name: 'activity-details', path: '/activity', act: click(/show details/i) },
 ];
@@ -239,7 +190,7 @@ async function main() {
       });
       await ctx.addInitScript((t) => localStorage.setItem('ik-theme', t), theme);
       const page = await ctx.newPage();
-      await page.goto(await signInLink(api, secret));
+      await page.goto(await signInLink(api, secret, EMAIL, APP));
       await page
         .waitForURL((u) => u.toString().startsWith(APP) && !u.hash.includes('access_token'), {
           timeout: 15000,

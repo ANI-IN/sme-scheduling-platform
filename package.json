@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "mock": "npm run mock -w scripts --",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run check-build -w scripts"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run check-build -w scripts",
+    "help:screenshots": "npm run demo -w scripts -- snapshot && npm run demo -w scripts -- load && (npm run help-shots -w scripts; s=$?; npm run demo -w scripts -- restore; exit $s)"
   },
   "devDependencies": {
     "prettier": "^3.3.3",

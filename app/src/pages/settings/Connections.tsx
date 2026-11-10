@@ -33,7 +33,7 @@ export default function Connections() {
       />
       <Notice>
         Usually set up once by the admin.{' '}
-        <Link to="/help/connections" className="font-medium underline">
+        <Link to="/help/common-questions" className="font-medium underline">
           Read the help guide
         </Link>
         .

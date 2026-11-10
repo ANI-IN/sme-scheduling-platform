@@ -25,6 +25,7 @@ const Team = lazy(() => import('@/pages/setup/Team'));
 const Domains = lazy(() => import('@/pages/setup/Domains'));
 const Automation = lazy(() => import('@/pages/settings/Automation'));
 const Messages = lazy(() => import('@/pages/settings/Messages'));
+const Help = lazy(() => import('@/pages/Help'));
 const Testing = lazy(() => import('@/pages/settings/Testing'));
 const Connections = lazy(() => import('@/pages/settings/Connections'));
 const History = lazy(() => import('@/pages/History'));
@@ -78,6 +79,8 @@ function Gate() {
             <Route path="/settings" element={<Navigate to="/settings/automation" replace />} />
             <Route path="/settings/automation" element={<Automation />} />
             <Route path="/settings/messages" element={<Messages />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/help/:slug" element={<Help />} />
             <Route path="/settings/testing" element={<Testing />} />
             <Route path="/settings/connections" element={<Connections />} />
             <Route path="/activity" element={<History />} />

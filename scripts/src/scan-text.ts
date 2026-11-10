@@ -151,6 +151,17 @@ function walk(dir: string): string[] {
 
 for (const f of walk(SRC)) scanFile(f);
 
+// Help guides (Markdown): every line after the "---" that ends the title block.
+for (const f of readdirSync(join(SRC, 'help')).filter((x) => x.endsWith('.md'))) {
+  const rel = `app/src/help/${f}`;
+  const lines = readFileSync(join(SRC, 'help', f), 'utf8').split(/\r?\n/);
+  lines.forEach((line, n) => {
+    // Links and picture addresses are code, not text.
+    const text = line.replace(/\]\([^)]*\)/g, ']').replace(/^---$/, '');
+    if (text.trim()) check(`${rel}:${n + 1}`, text, false);
+  });
+}
+
 // Text stored in the database and shown as is.
 try {
   const db = new pg.Client({ connectionString: DB });

@@ -4,7 +4,8 @@ import { Dialog as D, Tabs as T, Tooltip as Tip } from 'radix-ui';
 import { AlertCircle, CalendarDays, ChevronRight, Info, Loader2, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { guideForPath } from '@/lib/helpLinks';
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -602,12 +603,26 @@ export function PageHeader({
   breadcrumbs?: Crumb[];
   children?: ReactNode;
 }) {
+  const { pathname } = useLocation();
+  const guide = pathname.startsWith('/help') ? null : guideForPath(pathname);
   return (
     <div className="mb-5">
       {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
+            {title}
+            {guide && (
+              <Link
+                to={`/help/${guide}`}
+                aria-label={`Help for ${title}`}
+                title="Open the help guide for this page"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground hover:border-primary hover:text-link"
+              >
+                ?
+              </Link>
+            )}
+          </h1>
           {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
         </div>
         {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}

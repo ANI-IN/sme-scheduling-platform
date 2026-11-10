@@ -12,7 +12,8 @@
     "demo": "tsx src/demo-data.ts",
     "check-migrations": "tsx src/check-migrations.ts",
     "check-build": "tsx src/check-build.ts",
-    "configure": "tsx src/configure.ts"
+    "configure": "tsx src/configure.ts",
+    "help-shots": "tsx src/help-screenshots.ts"
   },
   "dependencies": {
     "pg": "^8.23.1"

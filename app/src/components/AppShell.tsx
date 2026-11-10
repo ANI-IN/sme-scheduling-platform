@@ -21,6 +21,7 @@ import {
   UserRound,
   Users,
   X,
+  LifeBuoy,
   MessageSquareText,
   OctagonPause,
 } from 'lucide-react';
@@ -63,7 +64,12 @@ const groups: { label?: string; items: Item[] }[] = [
       { to: '/settings/connections', label: 'Connections', icon: PlugZap },
     ],
   },
-  { items: [{ to: '/activity', label: 'Activity history', icon: Activity }] },
+  {
+    items: [
+      { to: '/activity', label: 'Activity history', icon: Activity },
+      { to: '/help', label: 'Help', icon: LifeBuoy },
+    ],
+  },
 ];
 
 export const statusLabel: Record<string, string> = {
