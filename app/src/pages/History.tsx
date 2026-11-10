@@ -5,7 +5,9 @@ import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useInstructors, useModules, useTeam, type HistoryEvent } from '@/lib/data';
+import { useInstructors, useModules, useNameBook, useTeam, type HistoryEvent } from '@/lib/data';
+import { describeHistory } from '@/lib/historyText';
+import { plain } from '@/lib/plain';
 import { fmtLocal, fmtPT } from '@/lib/time';
 import { historyCategories } from '@/lib/labels';
 import { downloadCsv, toCsv } from '@/lib/csv';
@@ -22,20 +24,6 @@ import {
   td,
   th,
 } from '@/components/ui';
-
-const IGNORED = new Set(['updated_at', 'updated_by', 'version', 'created_at', 'id']);
-
-function diff(before: unknown, after: unknown): string[] {
-  const b = (before ?? {}) as Record<string, unknown>;
-  const a = (after ?? {}) as Record<string, unknown>;
-  const keys = [...new Set([...Object.keys(b), ...Object.keys(a)])].filter((k) => !IGNORED.has(k));
-  return keys
-    .filter((k) => JSON.stringify(b[k]) !== JSON.stringify(a[k]))
-    .map(
-      (k) =>
-        `${k}: ${before ? JSON.stringify(b[k] ?? null) : '—'} → ${after ? JSON.stringify(a[k] ?? null) : '—'}`,
-    );
-}
 
 export default function History() {
   const { domain } = useDomain();
@@ -55,6 +43,8 @@ export default function History() {
     q: '',
   });
   const [err, setErr] = useState<unknown>(null);
+  const book = useNameBook();
+  const [open, setOpen] = useState<Set<number>>(new Set());
 
   const events = useQuery({
     queryKey: [
@@ -116,7 +106,7 @@ export default function History() {
           who: e.actor_label,
           actor_kind: e.actor_kind,
           category: e.category,
-          action: e.action,
+          what: describeHistory(e, book).sentence,
           module: e.module_id ? names.get(e.module_id) : '',
           instructor: e.instructor_id ? names.get(e.instructor_id) : '',
           note: e.note,
@@ -226,9 +216,7 @@ export default function History() {
               <tr>
                 <th className={th}>When (your time)</th>
                 <th className={th}>Who</th>
-                <th className={th}>What</th>
-                <th className={th}>Related</th>
-                <th className={th}>Details</th>
+                <th className={th}>What happened</th>
                 <th className={th}></th>
               </tr>
             </thead>
@@ -247,33 +235,60 @@ export default function History() {
                       {e.actor_kind === 'TeamMember' ? 'Team' : e.actor_kind}
                     </div>
                   </td>
-                  <td className={td}>
-                    <Badge>{e.category}</Badge> <span className="ml-1">{e.action}</span>
-                    {e.is_test && <Badge tone="amber">TEST</Badge>}
-                    {undone.has(e.id) && <Badge tone="purple">Undone</Badge>}
-                  </td>
-                  <td className={`${td} text-xs`}>
-                    {[
-                      e.module_id && names.get(e.module_id),
-                      e.instructor_id && names.get(e.instructor_id),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </td>
-                  <td className={`${td} max-w-md text-xs`}>
-                    {e.note && <div className="whitespace-pre-line">{e.note}</div>}
-                    {e.category === 'Setup changes' &&
-                      diff(e.before, e.after)
-                        .slice(0, 6)
-                        .map((d) => (
-                          <div
-                            key={d}
-                            className="truncate font-mono text-[11px] text-slate-600"
-                            title={d}
-                          >
-                            {d}
+                  <td className={`${td} max-w-xl`}>
+                    {(() => {
+                      const d = describeHistory(e, book);
+                      return (
+                        <>
+                          <div>
+                            {d.sentence}
+                            {e.is_test && <Badge tone="amber">Testing</Badge>}
+                            {undone.has(e.id) && <Badge tone="purple">Undone</Badge>}
                           </div>
-                        ))}
+                          {d.changes.length > 0 && (
+                            <ul className="mt-1 space-y-0.5 text-xs text-slate-600">
+                              {d.changes.map((c) => (
+                                <li key={c.label}>
+                                  <span className="font-medium">{c.label}:</span> {c.from} → {c.to}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {e.note && e.category !== 'Setup changes' && (
+                            <div className="mt-1 text-xs whitespace-pre-line text-slate-600">
+                              {plain(e.note)}
+                            </div>
+                          )}
+                          <button
+                            className="mt-1 text-xs text-blue-700 hover:underline"
+                            onClick={() => {
+                              const n = new Set(open);
+                              if (n.has(e.id)) n.delete(e.id);
+                              else n.add(e.id);
+                              setOpen(n);
+                            }}
+                          >
+                            {open.has(e.id) ? 'Hide details' : 'Show details'}
+                          </button>
+                          {open.has(e.id) && (
+                            <pre className="mt-1 max-h-48 overflow-auto rounded bg-slate-50 p-2 text-[11px] whitespace-pre-wrap text-slate-600">
+                              {JSON.stringify(
+                                {
+                                  type: e.category,
+                                  record: e.entity_table,
+                                  action: e.action,
+                                  note: e.note,
+                                  before: e.before,
+                                  after: e.after,
+                                },
+                                null,
+                                2,
+                              )}
+                            </pre>
+                          )}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className={td}>
                     {canUndo(e) && (

@@ -1,5 +1,5 @@
--- Test helpers (schema "tests"). This file runs first and is NOT rolled back, so the helpers are
--- available to every other test file. Every test file itself runs inside begin … rollback.
+-- Test helpers (schema "tests"). Included by every test file *inside* its begin … rollback, so the
+-- helpers, like all test data, never stay in the app database.
 create extension if not exists pgtap with schema extensions;
 create schema if not exists tests;
 
@@ -208,8 +208,3 @@ $$;
 grant usage on schema tests to authenticated, anon;
 grant execute on all functions in schema tests to authenticated, anon;
 
-begin;
-select plan(1);
-select ok(true, 'test helpers installed');
-select * from finish();
-rollback;

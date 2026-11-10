@@ -2,6 +2,7 @@
 -- double clicks, scanner protection, write-before-send idempotency, outage catch-up.
 -- Module week: Concurrency, live class Sun Jan 31 2027 9:00 AM PST (17:00 UTC), review Thu Feb 4.
 begin;
+\ir ../helpers/helpers.psql
 select plan(46);
 
 select tests.scenario('BE1') as j \gset

@@ -2,6 +2,7 @@
 -- reply, follow-up, merge, convert to cancellation), checklist nudge + escalation, schedule running
 -- low, email bounce, Discord failure, typed replies, digests, heartbeat.
 begin;
+\ir ../helpers/helpers.psql
 select plan(40);
 
 -- =============================================================== Need Help

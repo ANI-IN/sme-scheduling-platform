@@ -3,6 +3,7 @@
 -- confirmation, class cancelled, daylight saving in messages, outage catch-up.
 -- Live class Sun Jan 31 2027 9:00 AM PST = 17:00 UTC.
 begin;
+\ir ../helpers/helpers.psql
 select plan(63);
 
 -- =============================================================== check-ins

@@ -1,5 +1,6 @@
 -- M1: rules the database enforces (PRD §6.2, §20.1).
 begin;
+\ir ../helpers/helpers.psql
 select plan(44);
 select tests.company();
 

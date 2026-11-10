@@ -1,5 +1,6 @@
 -- Regression tests for the independent review findings (M8).
 begin;
+\ir ../helpers/helpers.psql
 select plan(22);
 
 -- 1. Pausing a Test domain must keep test routing (BR-13).

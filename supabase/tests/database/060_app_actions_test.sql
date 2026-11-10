@@ -1,5 +1,6 @@
 -- App actions and access (AUTH-4, SCH-1/3/4, HIS-3, SYS-1, PRD 7.3 Reply, resend).
 begin;
+\ir ../helpers/helpers.psql
 select plan(24);
 
 select tests.scenario('AP', 'Live', '2027-01-31', 2) as j \gset

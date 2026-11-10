@@ -7,6 +7,7 @@ import { check, poke, rpc } from '@/lib/rpc';
 import { useInstructors, useSystem, type Instructor } from '@/lib/data';
 import { ago, fmtPT } from '@/lib/time';
 import { isDiscordId, isEmail, parseChannelLink } from '@/lib/validation';
+import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import {
   Badge,
@@ -226,6 +227,7 @@ function InstructorDrawer({
         emails.includes(o.primary_email.toLowerCase()) ||
         (!!f.discord_user_id && o.discord_user_id === f.discord_user_id.trim())),
   );
+  const v = useFormErrors(errors);
   const channel = parseChannelLink(f.discord_channel_link);
   const contactChanged =
     !!instructor &&
@@ -237,6 +239,7 @@ function InstructorDrawer({
 
   async function save() {
     setErr(null);
+    if (!v.submit() || dup) return;
     setSaving(true);
     try {
       const row = {
@@ -360,12 +363,17 @@ function InstructorDrawer({
             )}
           </div>
         )}
-        <Field label="Full name" error={errors.full_name}>
-          <Input value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} />
+        <Field label="Full name" error={v.show('full_name')}>
+          <Input
+            value={f.full_name}
+            onBlur={v.touch('full_name')}
+            onChange={(e) => setF({ ...f, full_name: e.target.value })}
+          />
         </Field>
-        <Field label="Primary email" error={errors.primary_email}>
+        <Field label="Primary email" error={v.show('primary_email')}>
           <Input
             value={f.primary_email}
+            onBlur={v.touch('primary_email')}
             onChange={(e) => setF({ ...f, primary_email: e.target.value })}
           />
         </Field>
@@ -375,6 +383,8 @@ function InstructorDrawer({
             <div key={idx} className="flex gap-2">
               <Input
                 value={e}
+                onBlur={v.touch(`extra${idx}`)}
+                aria-invalid={!!v.show(`extra${idx}`)}
                 onChange={(ev) =>
                   setExtras(extras.map((x, j) => (j === idx ? ev.target.value : x)))
                 }
@@ -395,10 +405,11 @@ function InstructorDrawer({
         <Field
           label="Discord user ID"
           hint="Right-click the person in Discord → Copy User ID (17–20 digits)."
-          error={errors.discord_user_id}
+          error={v.show('discord_user_id')}
         >
           <Input
             value={f.discord_user_id}
+            onBlur={v.touch('discord_user_id')}
             onChange={(e) => setF({ ...f, discord_user_id: e.target.value })}
           />
         </Field>
@@ -409,10 +420,11 @@ function InstructorDrawer({
               ? `Server ${channel.serverId} · channel ${channel.channelId}`
               : 'Right-click their channel → Copy Link.'
           }
-          error={errors.discord_channel_link}
+          error={v.show('discord_channel_link')}
         >
           <Input
             value={f.discord_channel_link}
+            onBlur={v.touch('discord_channel_link')}
             onChange={(e) => setF({ ...f, discord_channel_link: e.target.value })}
           />
         </Field>
@@ -439,11 +451,7 @@ function InstructorDrawer({
         )}
         <ErrorText error={err} />
         <div className="flex gap-2">
-          <Button
-            onClick={save}
-            loading={saving}
-            disabled={Object.keys(errors).length > 0 || !!dup}
-          >
+          <Button onClick={save} loading={saving} disabled={!!dup}>
             Save
           </Button>
           <Button variant="outline" onClick={onClose}>

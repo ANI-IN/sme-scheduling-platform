@@ -124,6 +124,33 @@ export function useSettingsMap(domainId: string | undefined) {
   };
 }
 
+/** Every id the app may need to show by name (all domains), for History and other read-only text. */
+export function useNameBook() {
+  const instructors = useInstructors();
+  const team = useTeam();
+  const domains = useDomains();
+  const extra = useQuery({
+    queryKey: ['module', 'names'],
+    queryFn: async () => {
+      const [m, s] = await Promise.all([
+        supabase.from('module').select('id, name'),
+        supabase.from('setting_definition').select('key, label'),
+      ]);
+      return { modules: check(m), settings: check(s) };
+    },
+  });
+  const names = new Map<string, string>();
+  (instructors.data ?? []).forEach((x) => names.set(x.id, x.full_name));
+  (team.data ?? []).forEach((x) => names.set(x.id, x.name));
+  (domains.data ?? []).forEach((x) => names.set(x.id, x.name));
+  (extra.data?.modules ?? []).forEach((x) => names.set(x.id, x.name));
+  const labels = new Map((extra.data?.settings ?? []).map((s) => [s.key, s.label]));
+  return {
+    name: (id: string | null | undefined) => (id ? names.get(id) : undefined),
+    settingLabel: (key: string) => labels.get(key),
+  };
+}
+
 /** Name lookup helpers */
 export function nameMap<T extends { id: string }>(
   rows: T[] | undefined,

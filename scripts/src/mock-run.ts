@@ -1,14 +1,19 @@
-// Mock mode (M6): run the real engine against the local database and print every message that
-// n8n would send — no Discord, Gmail or n8n needed. Clicks are simulated through the same
-// confirm-page functions n8n WF2 calls (GET shows the page, POST records the answer).
+// Mock mode (M6): run the real engine and print every message that n8n would send; no Discord,
+// Gmail or n8n needed. Clicks are simulated through the same confirm-page functions n8n WF2 calls
+// (GET shows the page, POST records the answer).
 //
-//   npm run mock                 # full timeline (rolled back afterwards — nothing is kept)
+//   npm run mock                 # full timeline
 //   npm run mock -- --race       # also run a real two-connection "double Yes" race
 //
-// Requires the local Supabase stack (npm run db:start). DATABASE_URL overrides the connection.
+// Everything runs in a throwaway scratch database built from the migrations and dropped at the
+// end, so the app's database is never touched. Requires the local Supabase stack
+// (npm run db:start). DATABASE_URL overrides the server connection.
 import pg from 'pg';
+import { createScratchDb } from './scratch-db.ts';
 
-const url = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
+const serverUrl =
+  process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
+let url = serverUrl;
 const RACE = process.argv.includes('--race');
 
 type Msg = {
@@ -24,7 +29,7 @@ type Msg = {
   buttons: { label: string; answer: string; url: string }[];
 };
 
-const c = new pg.Client({ connectionString: url });
+let c: pg.Client;
 const line = (s = '') => console.log(s);
 const text = (html: string) =>
   html
@@ -264,7 +269,7 @@ async function timeline() {
   );
   line(`\nHistory entries recorded for this run: ${hist.n}`);
   await c.query('rollback');
-  line('\n(Rolled back — the database is unchanged.)');
+  line('\n(Rolled back.)');
 }
 
 /** Two real connections press the same Yes link at the same moment → exactly one booking. */
@@ -291,39 +296,22 @@ async function race() {
   );
   line(Number(n.n) === 1 ? '  ✓ exactly one booking' : '  ✗ UNEXPECTED');
   await Promise.all([a.end(), b.end()]);
-  // Clean up the race data (History keeps its entries — it is append-only by design).
-  await c.query(`select set_config('app.suppress_setup_log', 'on', false)`);
-  await c.query(`update public.domain set status = 'Draft' where id = $1`, [s.dom]);
-  for (const sql of [
-    `delete from public.reminder where attention_item_id in (select id from public.attention_item where domain_id = $1)`,
-    `update public.attention_item set message_id = null where domain_id = $1`,
-    `delete from public.message where domain_id = $1 or module_week_id in (select id from public.module_week where domain_id = $1)`,
-    `delete from public.attention_item where domain_id = $1`,
-    `delete from public.checklist_item where class_id in (select c.id from public.class_session c join public.module_week w on w.id = c.module_week_id where w.domain_id = $1)`,
-    `update public.request set booking_id = null where module_week_id in (select id from public.module_week where domain_id = $1)`,
-    `delete from public.booking where module_week_id in (select id from public.module_week where domain_id = $1)`,
-    `delete from public.request where module_week_id in (select id from public.module_week where domain_id = $1)`,
-    `delete from public.class_session where module_week_id in (select id from public.module_week where domain_id = $1)`,
-    `delete from public.module_week where domain_id = $1`,
-    `delete from public.module_ranking where module_id in (select id from public.module where domain_id = $1)`,
-    `delete from public.module where domain_id = $1`,
-    `delete from public.instructor where full_name like (select split_part(name, ' ', 1) || ' %' from public.domain where id = $1)`,
-    `delete from public.domain_team where domain_id = $1`,
-    `delete from public.team_member where name like (select split_part(name, ' ', 1) || ' %' from public.domain where id = $1)`,
-    `delete from public.setting where domain_id = $1`,
-    `delete from public.domain where id = $1`,
-  ])
-    await c.query(sql, [s.dom]);
-  line('  (race data cleaned up)');
 }
 
 async function main() {
+  const scratch = await createScratchDb(serverUrl);
+  url = scratch.url;
+  c = new pg.Client({ connectionString: url });
   await c.connect();
   try {
+    await c.query(`update public.app_config set app_base_url = 'http://localhost:5173',
+                   response_base_url = 'http://localhost:5678/webhook/respond' where id = 1`);
     await timeline();
     if (RACE) await race();
   } finally {
     await c.end();
+    await scratch.drop();
+    line('\n(Scratch database removed; the app database was not touched.)');
   }
 }
 

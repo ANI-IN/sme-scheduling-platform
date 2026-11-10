@@ -3,6 +3,7 @@
 -- deactivation, ranking change mid-outreach + undo, quiet hours, kill switch, test mode,
 -- readiness failure and escalation.
 begin;
+\ir ../helpers/helpers.psql
 select plan(57);
 
 -- =============================================================== everyone declines → Needs instructor

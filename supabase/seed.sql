@@ -90,4 +90,4 @@ alter table public.history_event disable trigger history_no_truncate;
 truncate public.history_event;
 alter table public.history_event enable trigger history_no_truncate;
 insert into public.history_event (actor_kind, actor_label, category, action, note)
-values ('System', 'Seed', 'System', 'Seed data loaded', 'Backend domain (Test), 5 modules, rankings from Appendix A, placeholders.');
+values ('System', 'Seed', 'System', 'Seed data loaded', 'Backend domain in testing, 5 modules with their instructor order, and details still to fill in.');
