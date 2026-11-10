@@ -157,6 +157,10 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  /* Focus rings only for keyboard focus, never left behind after a mouse click. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;

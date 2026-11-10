@@ -11,6 +11,8 @@ import { fmtLocal, fmtPTRange, ptParts } from '@/lib/time';
 import { weekState } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
+import { useDomain } from '@/lib/domain';
+import { AddClassDialog } from './AddClassDialog';
 import {
   Badge,
   Button,
@@ -117,6 +119,9 @@ export function ClassDrawer({
   const [note, setNote] = useState('');
   const [help, setHelp] = useState({ cats: [] as string[], details: '', urgency: 'NoRush' });
   const [shiftN, setShiftN] = useState(1);
+  const [addingClass, setAddingClass] = useState(false);
+  const [task, setTask] = useState({ label: '', classId: '' });
+  const { domain } = useDomain();
   const book = useNameBook();
 
   const openHelp = week.help_request.some((h) =>
@@ -290,7 +295,54 @@ export function ClassDrawer({
             >
               Send last message again
             </Button>
+            {!booking && !state.asking && week.status !== 'Cancelled' && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  run(() => rpc('start_asking_now', { p_module_week_id: week.id }), 'Asking now')
+                }
+              >
+                Start asking now
+              </Button>
+            )}
+            {week.status !== 'Cancelled' && (
+              <Button size="sm" variant="secondary" onClick={() => setAddingClass(true)}>
+                Add a class to this week
+              </Button>
+            )}
           </div>
+          {week.status !== 'Cancelled' && (
+            <Checkbox
+              label="The same instructor teaches every class of this week"
+              hint={
+                week.same_instructor
+                  ? 'Turn off to find a different instructor for each class (only while nobody is confirmed or being asked).'
+                  : 'Each class has its own instructor and its own request.'
+              }
+              checked={week.same_instructor}
+              onChange={async (on) => {
+                if (
+                  await confirm({
+                    title: on
+                      ? 'Use one instructor for the whole class week?'
+                      : 'Find a different instructor for each class?',
+                    body: on
+                      ? 'The classes are joined back into one class week with one request.'
+                      : 'Each class becomes its own class week with its own request and instructor.',
+                  })
+                )
+                  await run(
+                    () =>
+                      rpc('set_week_same_instructor', {
+                        p_module_week_id: week.id,
+                        p_on: on,
+                      }),
+                    on ? 'One instructor for the whole week' : 'Each class has its own instructor',
+                  );
+              }}
+            />
+          )}
           <div className="flex flex-wrap items-end gap-2">
             <Field label="Move this and later class weeks by">
               <div className="flex items-center gap-2">
@@ -334,7 +386,51 @@ export function ClassDrawer({
 
         <DrawerGroup title="Tasks for the operations team">
           {(checklist.data ?? []).length === 0 && (
-            <p className="text-muted-foreground">Tasks are added when an instructor confirms.</p>
+            <p className="text-muted-foreground">
+              The usual tasks are added when an instructor confirms. You can add extra tasks for a
+              class at any time.
+            </p>
+          )}
+          {classes.some((c) => c.status === 'Planned') && (
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Extra task">
+                <Input
+                  value={task.label}
+                  placeholder="For example: book the bigger room"
+                  onChange={(e) => setTask({ ...task, label: e.target.value })}
+                />
+              </Field>
+              <Field label="For class">
+                <Select
+                  value={task.classId || classes.find((c) => c.status === 'Planned')?.id || ''}
+                  onChange={(e) => setTask({ ...task, classId: e.target.value })}
+                >
+                  {classes
+                    .filter((c) => c.status === 'Planned')
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {plain(c.title)}
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!task.label.trim()}
+                onClick={async () => {
+                  const classId =
+                    task.classId || classes.find((c) => c.status === 'Planned')?.id || '';
+                  await run(
+                    () => rpc('add_checklist_item', { p_class_id: classId, p_label: task.label }),
+                    'Task added',
+                  );
+                  setTask({ label: '', classId });
+                }}
+              >
+                Add task
+              </Button>
+            </div>
           )}
           {classes.map((c) => {
             const items = (checklist.data ?? []).filter((i) => i.class_id === c.id);
@@ -344,14 +440,30 @@ export function ClassDrawer({
                 <div className="mb-1 text-xs text-muted-foreground">{plain(c.title)}</div>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
                   {items.map((i) => (
-                    <Checkbox
-                      key={i.id}
-                      label={plain(i.label)}
-                      checked={i.done}
-                      onChange={(v) =>
-                        void run(() => rpc('set_checklist_item', { p_item_id: i.id, p_done: v }))
-                      }
-                    />
+                    <span key={i.id} className="inline-flex items-center gap-1">
+                      <Checkbox
+                        label={plain(i.label)}
+                        checked={i.done}
+                        onChange={(v) =>
+                          void run(() => rpc('set_checklist_item', { p_item_id: i.id, p_done: v }))
+                        }
+                      />
+                      {i.added_manually && (
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-danger-strong"
+                          aria-label={`Remove the task ${i.label}`}
+                          onClick={() =>
+                            void run(
+                              () => rpc('remove_checklist_item', { p_item_id: i.id }),
+                              'Task removed',
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -502,6 +614,9 @@ export function ClassDrawer({
           </div>
         </DrawerGroup>
       </div>
+      {addingClass && domain && (
+        <AddClassDialog domain={domain} week={week} onClose={() => setAddingClass(false)} />
+      )}
     </Drawer>
   );
 }

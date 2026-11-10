@@ -1,7 +1,7 @@
 // The app's component kit (shadcn-style, Tailwind + Radix). Every color comes from the theme
 // tokens in index.css, so each component works in light and dark themes.
 import { Dialog as D, Tabs as T, Tooltip as Tip } from 'radix-ui';
-import { AlertCircle, ChevronRight, Info, Loader2, X } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronRight, Info, Loader2, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Link } from 'react-router-dom';
@@ -67,6 +67,64 @@ const field =
 
 export function Input({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cn(field, 'h-9', className)} />;
+}
+
+/** "Wed, Nov 18, 2026" for a yyyy-mm-dd value (no time zone shift). */
+export function formatDateValue(v: string): string {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+/**
+ * A date picker that shows the date as "Wed, Nov 18, 2026" (any day of the week). The native picker
+ * sits on top, invisible, so the calendar, keyboard entry and screen readers work as usual.
+ */
+export function DateInput({
+  value,
+  onChange,
+  className,
+  placeholder = 'Choose a date',
+  ...p
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'type'> & {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className={cn('relative h-9 min-w-44', className)}>
+      <input
+        {...p}
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => {
+          try {
+            e.currentTarget.showPicker?.();
+          } catch {
+            /* older browsers open their own picker */
+          }
+        }}
+        className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+      <div
+        aria-hidden
+        className={cn(
+          field,
+          'pointer-events-none flex h-9 items-center justify-between gap-2 peer-focus-visible:outline-2 peer-focus-visible:outline-ring',
+          !value && 'text-muted-foreground',
+        )}
+      >
+        <span className="truncate">{value ? formatDateValue(value) : placeholder}</span>
+        <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </div>
+    </div>
+  );
 }
 
 export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -224,6 +282,7 @@ export function Section({
   children,
   className,
   tone,
+  id,
 }: {
   title: ReactNode;
   description?: ReactNode;
@@ -231,9 +290,11 @@ export function Section({
   children?: ReactNode;
   className?: string;
   tone?: 'danger';
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={cn(
         'rounded-lg border bg-card shadow-sm',
         tone === 'danger' ? 'border-destructive/40' : 'border-border',
@@ -569,11 +630,20 @@ export function Stat({
   value,
   tone = 'neutral',
   hint,
+  to,
+  onClick,
+  active,
 }: {
   label: string;
   value: number | string;
   tone?: Tone;
   hint?: ReactNode;
+  /** Makes the card a link to the matching list. */
+  to?: string;
+  /** Makes the card a filter button. */
+  onClick?: () => void;
+  /** Shown as selected (when the card is a filter). */
+  active?: boolean;
 }) {
   const dot = {
     neutral: 'bg-neutral-strong',
@@ -589,16 +659,34 @@ export function Stat({
     accent: 'bg-accent-strong',
     purple: 'bg-accent-strong',
   }[tone];
-  return (
-    <div className="min-w-36 flex-1 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+  const body = (
+    <>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className={cn('h-2 w-2 rounded-full', dot)} aria-hidden />
         {label}
       </div>
       <div className="mt-1 text-2xl font-semibold text-foreground tabular-nums">{value}</div>
       {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
-    </div>
+    </>
   );
+  const cls = cn(
+    'block min-w-36 flex-1 rounded-lg border bg-card px-4 py-3 text-left shadow-sm',
+    active ? 'border-primary ring-1 ring-primary' : 'border-border',
+    (to || onClick) && 'cursor-pointer transition-colors hover:border-primary/60 hover:bg-muted/40',
+  );
+  if (to)
+    return (
+      <Link to={to} className={cls}>
+        {body}
+      </Link>
+    );
+  if (onClick)
+    return (
+      <button type="button" className={cls} onClick={onClick} aria-pressed={!!active}>
+        {body}
+      </button>
+    );
+  return <div className={cls}>{body}</div>;
 }
 
 export const tableWrap = 'overflow-x-auto rounded-lg border border-border bg-card shadow-sm';

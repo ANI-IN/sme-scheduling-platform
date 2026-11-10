@@ -26,7 +26,7 @@ import {
 import { ClassDrawer, useRun } from './ClassDrawer';
 
 /** Tasks waiting for a person (shown on Home). */
-export function TaskList() {
+export function TaskList({ cohortId }: { cohortId?: string } = {}) {
   const { domain } = useDomain();
   const team = useTeam();
   const me = useMe();
@@ -66,7 +66,14 @@ export function TaskList() {
     () => new Map((team.data ?? []).map((t) => [t.id, t.name])),
     [team.data],
   );
-  const all = items.data ?? [];
+  const cohortWeeks = new Set(
+    (weeks.data ?? []).filter((w) => w.cohort_id === cohortId).map((w) => w.id),
+  );
+  const all = (items.data ?? []).filter(
+    (a) => !cohortId || (a.module_week_id !== null && cohortWeeks.has(a.module_week_id)),
+  );
+  const filtering = !!(f.type || f.assigned || f.urgent || f.mine || f.done);
+  const showFilters = filtering || all.some((a) => a.status !== 'Done');
   const rows = all
     .filter((a) => (f.done ? a.status === 'Done' : a.status !== 'Done'))
     .filter((a) => !f.type || a.type === f.type)
@@ -89,45 +96,47 @@ export function TaskList() {
 
   return (
     <div>
-      <Toolbar>
-        <Select
-          aria-label="Type of task"
-          value={f.type}
-          onChange={(e) => setF({ ...f, type: e.target.value })}
-          className="w-60"
-        >
-          <option value="">All types</option>
-          {Object.entries(attentionTypeLabel).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </Select>
-        <Select
-          aria-label="Assigned to"
-          value={f.assigned}
-          onChange={(e) => setF({ ...f, assigned: e.target.value })}
-          className="w-60"
-        >
-          <option value="">Assigned to anyone</option>
-          {(team.data ?? []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </Select>
-        <Checkbox
-          label="Urgent only"
-          checked={f.urgent}
-          onChange={(v) => setF({ ...f, urgent: v })}
-        />
-        <Checkbox label="Mine only" checked={f.mine} onChange={(v) => setF({ ...f, mine: v })} />
-        <Checkbox
-          label="Show done in the last 7 days"
-          checked={f.done}
-          onChange={(v) => setF({ ...f, done: v })}
-        />
-      </Toolbar>
+      {showFilters && (
+        <Toolbar>
+          <Select
+            aria-label="Type of task"
+            value={f.type}
+            onChange={(e) => setF({ ...f, type: e.target.value })}
+            className="w-60"
+          >
+            <option value="">All types</option>
+            {Object.entries(attentionTypeLabel).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </Select>
+          <Select
+            aria-label="Assigned to"
+            value={f.assigned}
+            onChange={(e) => setF({ ...f, assigned: e.target.value })}
+            className="w-60"
+          >
+            <option value="">Assigned to anyone</option>
+            {(team.data ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </Select>
+          <Checkbox
+            label="Urgent only"
+            checked={f.urgent}
+            onChange={(v) => setF({ ...f, urgent: v })}
+          />
+          <Checkbox label="Mine only" checked={f.mine} onChange={(v) => setF({ ...f, mine: v })} />
+          <Checkbox
+            label="Show done in the last 7 days"
+            checked={f.done}
+            onChange={(v) => setF({ ...f, done: v })}
+          />
+        </Toolbar>
+      )}
       <ErrorText error={err} />
       {items.isLoading ? (
         <SkeletonRows rows={4} />

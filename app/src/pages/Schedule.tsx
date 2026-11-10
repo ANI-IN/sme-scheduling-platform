@@ -12,7 +12,7 @@ import { CalendarDays, Download, LifeBuoy, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
+import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
 import { fmtPTRange, PT } from '@/lib/time';
 import { weekState } from '@/lib/status';
 import { plain } from '@/lib/plain';
@@ -36,6 +36,7 @@ import {
   th,
 } from '@/components/ui';
 import { PlanDialog } from './PlanDialog';
+import { AddClassDialog } from './AddClassDialog';
 import { ClassDrawer, useRun } from './ClassDrawer';
 
 type Row = {
@@ -51,6 +52,7 @@ export default function Schedule() {
   const weeks = useWeeks(domain?.id);
   const instructors = useInstructors();
   const modules = useModules(domain?.id);
+  const cohorts = useCohorts(domain?.id);
   const confirm = useConfirm();
   const { run, err } = useRun();
   const [planning, setPlanning] = useState(false);
@@ -58,6 +60,9 @@ export default function Schedule() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showPast, setShowPast] = useState(false);
   const [moduleFilter, setModuleFilter] = useState('');
+  const [cohortFilter, setCohortFilter] = useState('');
+  const [adding, setAdding] = useState(false);
+  const manyCohorts = (cohorts.data ?? []).length > 1;
   const [search, setSearch] = useState('');
   const [queueFor, setQueueFor] = useState<string[] | null>(null);
   const [shiftN, setShiftN] = useState(1);
@@ -109,6 +114,7 @@ export default function Schedule() {
       )
         continue;
       if (moduleFilter && w.module_id !== moduleFilter) continue;
+      if (cohortFilter && w.cohort_id !== cohortFilter) continue;
       const classes = [...w.class_session].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
       classes.forEach((c, idx) => {
         const date = DateTime.fromISO(c.starts_at).setZone(PT).toISODate()!;
@@ -116,7 +122,7 @@ export default function Schedule() {
       });
     }
     return out;
-  }, [weeks.data, showPast, moduleFilter, holidayMap]);
+  }, [weeks.data, showPast, moduleFilter, cohortFilter, holidayMap]);
 
   const columns = useMemo(
     () => [
@@ -167,9 +173,9 @@ export default function Schedule() {
             <div>
               <div className="font-medium">
                 {row.original.first ? row.original.week.module?.name : ''}
-                {row.original.first && row.original.week.cohort && (
+                {row.original.first && manyCohorts && (
                   <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    Cohort {row.original.week.cohort}
+                    {row.original.week.cohort}
                   </span>
                 )}
               </div>
@@ -236,7 +242,7 @@ export default function Schedule() {
           ) : null,
       }),
     ],
-    [selected, names, checklistByWeek],
+    [selected, names, checklistByWeek, manyCohorts],
   );
 
   // TanStack Table manages its own memoisation; the React Compiler skips this component.
@@ -262,7 +268,7 @@ export default function Schedule() {
     void rpc('log_export', {
       p_what: 'Upcoming classes',
       p_rows: table.getFilteredRowModel().rows.length,
-      p_filters: { search, module: moduleFilter, show_past: showPast },
+      p_filters: { search, module: moduleFilter, cohort: cohortFilter, show_past: showPast },
       p_domain_id: domain?.id,
     }).catch(() => {});
     downloadCsv(
@@ -301,6 +307,9 @@ export default function Schedule() {
         <Button variant="secondary" onClick={exportCsv} disabled={rows.length === 0}>
           <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
         </Button>
+        <Button variant="secondary" onClick={() => setAdding(true)} disabled={!domain}>
+          <Plus className="h-4 w-4" aria-hidden /> Add one class
+        </Button>
         <Button onClick={() => setPlanning(true)} disabled={!domain}>
           <Plus className="h-4 w-4" aria-hidden /> Plan classes
         </Button>
@@ -326,6 +335,21 @@ export default function Schedule() {
             </option>
           ))}
         </Select>
+        {(cohorts.data ?? []).length > 1 && (
+          <Select
+            aria-label="Cohort"
+            value={cohortFilter}
+            onChange={(e) => setCohortFilter(e.target.value)}
+            className="w-52"
+          >
+            <option value="">All cohorts</option>
+            {(cohorts.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <Checkbox label="Show past and cancelled" checked={showPast} onChange={setShowPast} />
       </Toolbar>
 
@@ -469,7 +493,9 @@ export default function Schedule() {
         <SkeletonRows rows={8} />
       ) : rows.length === 0 ? (
         <Empty
-          title={search || moduleFilter ? 'No classes match' : 'No classes planned yet'}
+          title={
+            search || moduleFilter || cohortFilter ? 'No classes match' : 'No classes planned yet'
+          }
           icon={<CalendarDays className="h-5 w-5" />}
           action={
             <Button onClick={() => setPlanning(true)} disabled={!domain}>
@@ -515,6 +541,7 @@ export default function Schedule() {
         </div>
       )}
       {planning && domain && <PlanDialog domain={domain} onClose={() => setPlanning(false)} />}
+      {adding && domain && <AddClassDialog domain={domain} onClose={() => setAdding(false)} />}
       {open && <ClassDrawer week={open} names={names} onClose={() => setOpenWeek(null)} />}
       {queueFor && (
         <QueueDialog

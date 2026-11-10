@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, CircleAlert, CircleDashed } from 'lucide-react';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { supabase } from '@/lib/supabase';
 import { useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
-import { useConfirm } from '@/components/Confirm';
+import { PauseAllSection } from '@/components/PauseAll';
 import {
-  Badge,
   Button,
   ErrorText,
   Field,
@@ -38,7 +37,7 @@ export default function Connections() {
         <>
           <Health />
           <ConfigForm key={data.config.version} config={data.config} />
-          <PauseAll />
+          <PauseAllSection />
           <AppErrors />
         </>
       )}
@@ -186,61 +185,6 @@ function ConfigForm({ config }: { config: Config }) {
       >
         Save changes
       </Button>
-    </Section>
-  );
-}
-
-function PauseAll() {
-  const { data } = useSystem();
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const [err, setErr] = useState<unknown>(null);
-  const on = data!.state.outreach_enabled;
-  return (
-    <Section
-      tone="danger"
-      title="Pause all messages"
-      description="Stops every message to instructors in every domain, for example during an incident. Team alerts continue."
-      actions={
-        <Badge tone={on ? 'success' : 'danger'}>
-          {on ? 'Messages are on' : 'Messages are paused'}
-        </Badge>
-      }
-    >
-      {!on && (
-        <p className="mb-3 text-sm text-muted-foreground">
-          Paused since {fmtLocal(data!.state.kill_switch_changed_at)}. Nothing is lost: waiting
-          messages go out when you turn messages back on.
-        </p>
-      )}
-      <Button
-        variant={on ? 'destructive' : 'primary'}
-        onClick={async () => {
-          if (
-            await confirm({
-              title: on ? 'Pause all messages to instructors?' : 'Turn messages back on?',
-              body: on
-                ? 'No instructor will be messaged in any domain until you turn messages back on. Requests stop moving on. Team alerts continue.'
-                : 'Messages to instructors start again at the next automatic check.',
-              danger: on,
-              confirmLabel: on ? 'Pause all messages' : 'Turn messages back on',
-            })
-          ) {
-            setErr(null);
-            try {
-              await rpc('set_kill_switch', { p_outreach_enabled: !on });
-              await poke();
-              toast.success(on ? 'All messages are paused' : 'Messages are on again');
-              await qc.invalidateQueries();
-            } catch (e) {
-              setErr(e);
-            }
-          }
-        }}
-      >
-        {on ? 'Pause all messages' : 'Turn messages back on'}
-      </Button>
-      <ErrorText error={err} />
     </Section>
   );
 }

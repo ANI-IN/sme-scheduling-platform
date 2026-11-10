@@ -20,7 +20,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
-import { useInstructors, useSettingsMap, useWeeks, type WeekRow } from '@/lib/data';
+import { useCohorts, useInstructors, useSettingsMap, useWeeks, type WeekRow } from '@/lib/data';
+import { ActionMenu } from '@/components/ActionMenu';
 import { ago, fmtLocal, fmtPT } from '@/lib/time';
 import { weekState } from '@/lib/status';
 import { plain } from '@/lib/plain';
@@ -32,7 +33,9 @@ import {
   Button,
   Empty,
   ErrorText,
+  Field,
   Modal,
+  Notice,
   PageHeader,
   Select,
   Skeleton,
@@ -62,8 +65,8 @@ type Eligible = {
 };
 
 const OPEN = ['Queued', 'Sent', 'Reminded'];
-const label = (w: WeekRow) =>
-  `${w.module?.name}${w.cohort ? ` (${w.cohort})` : ''} · ${[...w.class_session]
+const label = (w: WeekRow, showCohort: boolean) =>
+  `${w.module?.name}${showCohort ? ` (${w.cohort})` : ''} · ${[...w.class_session]
     .filter((c) => c.status !== 'Cancelled')
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
     .map((c) => fmtPT(c.starts_at).split(',')[0])
@@ -79,6 +82,12 @@ export default function Outreach() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [manualFor, setManualFor] = useState<WeekRow | null>(null);
   const [drawer, setDrawer] = useState<string | null>(null);
+  const [askFor, setAskFor] = useState<WeekRow | null>(null);
+  const [focus, setFocus] = useState<'' | 'asking' | 'confirmed' | 'risk' | 'needs' | 'help'>('');
+  const [cohortId, setCohortId] = useState('');
+  const cohorts = useCohorts(domain?.id);
+  const manyCohorts = (cohorts.data ?? []).length > 1;
+  const toggleFocus = (f: typeof focus) => setFocus((x) => (x === f ? '' : f));
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
@@ -87,10 +96,31 @@ export default function Outreach() {
   const now = domainNow.toUTC().toISO()!;
 
   const upcoming = (weeks.data ?? []).filter(
-    (w) => !['Completed', 'Cancelled'].includes(w.status) && (w.last_class_end_at ?? '') > now,
+    (w) =>
+      !['Completed', 'Cancelled'].includes(w.status) &&
+      (w.last_class_end_at ?? '') > now &&
+      (!cohortId || w.cohort_id === cohortId),
   );
-  const finding = upcoming.filter((w) => !w.booking.some((b) => b.status === 'Active'));
-  const confirmed = upcoming.filter((w) => w.booking.some((b) => b.status === 'Active'));
+  const isAsking = (w: WeekRow) =>
+    w.request.some((r) => r.kind === 'Outreach' && OPEN.includes(r.status));
+  const hasHelp = (w: WeekRow) =>
+    w.help_request.some((h) => ['Open', 'InProgress', 'WaitingOnInstructor'].includes(h.status));
+  const matchesFocus = (w: WeekRow) =>
+    focus === ''
+      ? true
+      : focus === 'asking'
+        ? isAsking(w)
+        : focus === 'risk'
+          ? w.at_risk
+          : focus === 'needs'
+            ? w.status === 'NeedsInstructor'
+            : focus === 'help'
+              ? hasHelp(w)
+              : true;
+  const allFinding = upcoming.filter((w) => !w.booking.some((b) => b.status === 'Active'));
+  const allConfirmed = upcoming.filter((w) => w.booking.some((b) => b.status === 'Active'));
+  const finding = focus === 'confirmed' ? [] : allFinding.filter(matchesFocus);
+  const confirmed = ['asking', 'needs'].includes(focus) ? [] : allConfirmed.filter(matchesFocus);
 
   const previews = useQuery({
     queryKey: [
@@ -149,27 +179,74 @@ export default function Outreach() {
     <div className="space-y-6">
       <PageHeader
         title="Instructor requests"
-        description="Who we are asking to teach each class week, and the confirmed classes with their reminders."
-      />
+        description="Who we are asking to teach each class week, and the confirmed classes with their reminders. Select a card to show only those class weeks."
+      >
+        {(cohorts.data ?? []).length > 1 && (
+          <Select
+            aria-label="Cohort"
+            value={cohortId}
+            onChange={(e) => setCohortId(e.target.value)}
+            className="w-56"
+          >
+            <option value="">All cohorts</option>
+            {(cohorts.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </PageHeader>
       <div className="flex flex-wrap gap-3">
         <Stat
           label="Asking now"
-          value={
-            finding.filter((w) =>
-              w.request.some((r) => r.kind === 'Outreach' && OPEN.includes(r.status)),
-            ).length
-          }
+          value={allFinding.filter(isAsking).length}
           tone="info"
+          hint="Waiting for a reply"
+          onClick={() => toggleFocus('asking')}
+          active={focus === 'asking'}
         />
-        <Stat label="Confirmed" value={confirmed.length} tone="success" />
-        <Stat label="At risk" value={upcoming.filter((w) => w.at_risk).length} tone="warning" />
+        <Stat
+          label="Confirmed"
+          value={allConfirmed.length}
+          tone="success"
+          hint="Instructor said yes"
+          onClick={() => toggleFocus('confirmed')}
+          active={focus === 'confirmed'}
+        />
+        <Stat
+          label="At risk"
+          value={upcoming.filter((w) => w.at_risk).length}
+          tone="warning"
+          hint="Close to the class and not settled"
+          onClick={() => toggleFocus('risk')}
+          active={focus === 'risk'}
+        />
         <Stat
           label="Need an instructor"
           value={upcoming.filter((w) => w.status === 'NeedsInstructor').length}
           tone="danger"
+          hint="Nobody left to ask"
+          onClick={() => toggleFocus('needs')}
+          active={focus === 'needs'}
         />
-        <Stat label="Open help requests" value={helpOpen} tone="accent" />
+        <Stat
+          label="Open help requests"
+          value={helpOpen}
+          tone="accent"
+          hint="From instructors"
+          onClick={() => toggleFocus('help')}
+          active={focus === 'help'}
+        />
       </div>
+      {focus && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          Showing only some class weeks.
+          <Button size="sm" variant="ghost" onClick={() => setFocus('')}>
+            Show all
+          </Button>
+        </div>
+      )}
       <ErrorText error={err} />
 
       <section>
@@ -238,7 +315,7 @@ export default function Outreach() {
                             className="text-left font-medium text-link hover:underline"
                             onClick={() => setDrawer(w.id)}
                           >
-                            {label(w)}
+                            {label(w, manyCohorts)}
                           </button>
                           {w.at_risk && (
                             <div className="text-xs text-danger-strong">
@@ -279,10 +356,28 @@ export default function Outreach() {
                         <td className={td}>{statusOf(w, p)}</td>
                         <td className={td}>
                           <div className="flex flex-wrap gap-1">
+                            {!p?.asking &&
+                              !w.paused &&
+                              ['Ready', 'Planned', 'NotReady', 'NeedsInstructor'].includes(
+                                w.status,
+                              ) && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() =>
+                                    run(
+                                      () => rpc('start_asking_now', { p_module_week_id: w.id }),
+                                      'Asking now',
+                                    )
+                                  }
+                                >
+                                  Start asking now
+                                </Button>
+                              )}
                             <Button
                               size="sm"
                               variant="secondary"
-                              disabled={!p?.asking}
+                              hidden={!p?.asking}
                               onClick={async () => {
                                 if (
                                   await confirm({
@@ -299,28 +394,32 @@ export default function Outreach() {
                             >
                               Ask the next instructor
                             </Button>
-                            <Button size="sm" variant="secondary" onClick={() => setManualFor(w)}>
-                              Choose who to ask
-                            </Button>
-                            <Button size="sm" variant="secondary" onClick={() => setDrawer(w.id)}>
-                              Assign an instructor
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                run(
-                                  () =>
-                                    rpc('pause_outreach', {
-                                      p_module_week_id: w.id,
-                                      p_paused: !w.paused,
-                                    }),
-                                  w.paused ? 'Requests resumed' : 'Requests paused',
-                                )
-                              }
-                            >
-                              {w.paused ? 'Resume requests' : 'Pause requests'}
-                            </Button>
+                            <ActionMenu
+                              items={[
+                                {
+                                  label: 'Change the order for this class week',
+                                  onSelect: () => setManualFor(w),
+                                },
+                                { label: 'Ask a specific person', onSelect: () => setAskFor(w) },
+                                { label: 'Assign an instructor', onSelect: () => setDrawer(w.id) },
+                                {
+                                  label: 'Record a phone or chat confirmation',
+                                  onSelect: () => setDrawer(w.id),
+                                },
+                                {
+                                  label: w.paused ? 'Resume requests' : 'Pause requests',
+                                  onSelect: () =>
+                                    void run(
+                                      () =>
+                                        rpc('pause_outreach', {
+                                          p_module_week_id: w.id,
+                                          p_paused: !w.paused,
+                                        }),
+                                      w.paused ? 'Requests resumed' : 'Requests paused',
+                                    ),
+                                },
+                              ]}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -418,7 +517,7 @@ export default function Outreach() {
                           className="text-left font-medium text-link hover:underline"
                           onClick={() => setDrawer(w.id)}
                         >
-                          {label(w)}
+                          {label(w, manyCohorts)}
                         </button>
                         {w.at_risk && (
                           <div className="text-xs text-danger-strong">
@@ -500,6 +599,7 @@ export default function Outreach() {
         )}
       </section>
       {manualFor && <ManualPanel week={manualFor} onClose={() => setManualFor(null)} />}
+      {askFor && <AskPersonDialog week={askFor} onClose={() => setAskFor(null)} />}
       {drawer && (weeks.data ?? []).find((w) => w.id === drawer) && (
         <ClassDrawer
           week={(weeks.data ?? []).find((w) => w.id === drawer)!}
@@ -694,6 +794,89 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
           </Button>
         </div>
       </Modal>
+    </Modal>
+  );
+}
+
+/** Ask one chosen instructor now; if nobody says yes, the usual instructor order continues. */
+function AskPersonDialog({ week, onClose }: { week: WeekRow; onClose: () => void }) {
+  const { run, err, busy } = useRun();
+  const confirm = useConfirm();
+  const list = useQuery({
+    queryKey: ['request', 'eligibility', week.id],
+    queryFn: async () =>
+      (await rpc('week_eligibility', { p_module_week_id: week.id })) as unknown as Eligible[],
+  });
+  const [id, setId] = useState('');
+  const choice = (list.data ?? []).find((i) => i.instructor_id === id);
+  const send = async (decision?: 'keep' | 'withdraw') =>
+    (await run(() =>
+      rpc('set_outreach_queue', {
+        p_module_week_id: week.id,
+        p_mode: 'Manual',
+        p_instructor_ids: [id],
+        p_end_behaviour: 'ContinueWithRanking',
+        p_decision: decision,
+        p_start_now: true,
+      }),
+    )) as { needs_decision?: boolean; asking?: string } | undefined;
+  return (
+    <Modal
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Ask a specific person"
+      description="They are asked now. If they say no or do not reply, the usual instructor order continues."
+    >
+      {list.isLoading ? (
+        <SkeletonRows rows={3} />
+      ) : (
+        <Field label="Instructor">
+          <Select value={id} onChange={(e) => setId(e.target.value)}>
+            <option value="">Choose an instructor</option>
+            {(list.data ?? []).map((i) => (
+              <option
+                key={i.instructor_id}
+                value={i.instructor_id}
+                disabled={!!i.reason && i.reason !== 'Being asked now'}
+              >
+                {i.name}
+                {i.rank ? ` (${i.rank === 1 ? 'Primary' : `Backup ${i.rank - 1}`})` : ''}
+                {i.reason ? `: ${plain(i.reason)}` : ''}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+      {choice && (!choice.in_ranking || choice.warning) && (
+        <Notice tone="warning">
+          {!choice.in_ranking && 'This person is not in the instructor order for this module. '}
+          {choice.warning && plain(choice.warning)}
+        </Notice>
+      )}
+      <ErrorText error={err} />
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          disabled={!id}
+          loading={busy}
+          onClick={async () => {
+            let res = await send();
+            if (res?.needs_decision) {
+              const withdraw = await confirm({
+                title: `${res.asking ?? 'Someone'} is being asked right now`,
+                body: 'Withdraw that request politely and ask your chosen person now? Choose Cancel to keep waiting for their answer first.',
+                confirmLabel: 'Withdraw and ask now',
+              });
+              res = await send(withdraw ? 'withdraw' : 'keep');
+            }
+            if (res) onClose();
+          }}
+        >
+          Ask now
+        </Button>
+      </div>
     </Modal>
   );
 }

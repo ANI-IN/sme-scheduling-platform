@@ -87,6 +87,15 @@ const click = (text: string | RegExp) => async (p: Page) => {
   await p.getByRole('button', { name: text }).first().click();
   await p.waitForTimeout(700);
 };
+const menuItem = (text: string | RegExp) => async (p: Page) => {
+  await p
+    .getByRole('button', { name: /more options/i })
+    .first()
+    .click();
+  await p.waitForTimeout(300);
+  await p.getByRole('menuitem', { name: text }).first().click();
+  await p.waitForTimeout(700);
+};
 const clickRow = (selector: string) => async (p: Page) => {
   await p.locator(selector).first().click();
   await p.waitForTimeout(800);
@@ -133,6 +142,7 @@ export const SHOTS: Shot[] = [
   { name: 'shell-mobile-menu', path: '/', act: click(/open menu/i), width: 'mobile' },
   { name: 'classes', path: '/classes' },
   { name: 'classes-plan-dialog', path: '/classes', act: click(/plan classes/i) },
+  { name: 'classes-add-class', path: '/classes', act: click(/add one class/i) },
   { name: 'classes-class-drawer', path: '/classes', act: clickRow('tbody tr') },
   {
     name: 'classes-cancel-confirm',
@@ -140,7 +150,17 @@ export const SHOTS: Shot[] = [
     act: steps(clickRow('tbody tr'), click(/^cancel class week$/i)),
   },
   { name: 'requests', path: '/requests' },
-  { name: 'requests-choose-who', path: '/requests', act: click(/choose who to ask/i) },
+  {
+    name: 'requests-choose-who',
+    path: '/requests',
+    act: menuItem(/change the order for this class week/i),
+  },
+  { name: 'requests-ask-person', path: '/requests', act: menuItem(/ask a specific person/i) },
+  {
+    name: 'requests-more-menu',
+    path: '/requests',
+    act: click(/more options/i),
+  },
   { name: 'requests-ask-next-confirm', path: '/requests', act: click(/ask the next instructor/i) },
   { name: 'requests-release-confirm', path: '/requests', act: click(/^release$/i) },
   { name: 'modules', path: '/setup/modules' },

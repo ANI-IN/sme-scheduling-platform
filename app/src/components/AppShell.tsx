@@ -21,14 +21,16 @@ import {
   UserRound,
   Users,
   X,
+  OctagonPause,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { DiscordPrompt } from './DiscordPrompt';
+import { usePauseAll } from './PauseAll';
 import { useDomain } from '@/lib/domain';
-import { useSystem, type Domain } from '@/lib/data';
+import { type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
-import { Badge, cn, type Tone } from './ui';
+import { Badge, Button, cn, type Tone } from './ui';
 import { ThemeSwitch } from './ThemeSwitch';
 
 type Item = { to: string; label: string; icon: typeof Home; end?: boolean };
@@ -334,8 +336,9 @@ function DomainSwitcher({ collapsed }: { collapsed: boolean }) {
 }
 
 function UserMenu({ collapsed }: { collapsed: boolean }) {
-  const { session, signOut } = useAuth();
+  const { session, account, signOut } = useAuth();
   const email = session?.user.email ?? '';
+  const pause = usePauseAll();
   return (
     <div className={cn('border-t border-border p-3', collapsed && 'p-2')}>
       <DM.Root>
@@ -345,6 +348,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
             collapsed && 'justify-center px-0',
           )}
           aria-label="Your account and theme"
+          title={email}
         >
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-link"
@@ -359,12 +363,29 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
             side="top"
             align="start"
             sideOffset={6}
-            className="z-50 w-64 rounded-md border border-border bg-card p-2 text-card-foreground shadow-md"
+            className="z-50 w-72 rounded-md border border-border bg-card p-2 text-card-foreground shadow-md"
           >
-            <div className="px-1 pb-2 text-xs text-muted-foreground">Signed in as {email}</div>
+            <div className="px-1 pb-2">
+              {account?.member?.name && (
+                <div className="text-sm font-medium">{account.member.name}</div>
+              )}
+              <div className="text-xs break-all text-muted-foreground" title={email}>
+                {email}
+              </div>
+            </div>
             <div className="px-1 pb-1 text-xs font-medium">Theme</div>
             <ThemeSwitch className="mb-2 w-full justify-between" />
             <DM.Separator className="my-1 h-px bg-border" />
+            <DM.Item
+              onSelect={() => void pause.toggle()}
+              className={cn(
+                'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted',
+                pause.on && 'text-danger-strong',
+              )}
+            >
+              <OctagonPause className="h-4 w-4" aria-hidden />
+              {pause.on ? 'Pause all messages' : 'Turn messages back on'}
+            </DM.Item>
             <DM.Item
               onSelect={() => void signOut()}
               className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted"
@@ -389,8 +410,8 @@ function Bar({ tone, children }: { tone: 'warning' | 'neutral' | 'danger'; child
 
 function Banners() {
   const { domain } = useDomain();
-  const system = useSystem();
-  const paused = system.data && !system.data.state.outreach_enabled;
+  const pause = usePauseAll();
+  const paused = pause.loaded && !pause.on;
   return (
     <>
       {isTesting(domain) && domain && (
@@ -417,11 +438,15 @@ function Banners() {
       )}
       {paused && (
         <Bar tone="danger">
-          <strong className="font-semibold">All messages to instructors are paused</strong> in every
-          domain. Team alerts continue.{' '}
-          <Link to="/settings/connections" className="font-medium underline underline-offset-2">
-            Open Connections
-          </Link>
+          <span className="flex flex-wrap items-center gap-3">
+            <span>
+              <strong className="font-semibold">All messages to instructors are paused</strong> in
+              every domain. Team alerts continue.
+            </span>
+            <Button size="sm" onClick={() => void pause.toggle()}>
+              Resume messages
+            </Button>
+          </span>
         </Bar>
       )}
     </>
