@@ -9,16 +9,22 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { DomainProvider } from '@/lib/domain';
 import { configMissing } from '@/lib/env';
 import { ConfirmProvider } from '@/components/Confirm';
-import { Layout } from '@/components/Layout';
+import { AppShell } from '@/components/AppShell';
 import { Spinner } from '@/components/ui';
 import { Login } from '@/pages/Login';
 
-const NeedsAttention = lazy(() => import('@/pages/NeedsAttention'));
+const Home = lazy(() => import('@/pages/Home'));
 const Schedule = lazy(() => import('@/pages/Schedule'));
 const Outreach = lazy(() => import('@/pages/Outreach'));
-const Modules = lazy(() => import('@/pages/Modules'));
+const Modules = lazy(() => import('@/pages/setup/Modules'));
+const ModuleDetail = lazy(() => import('@/pages/setup/ModuleDetail'));
+const ModuleNew = lazy(() => import('@/pages/setup/ModuleNew'));
 const Instructors = lazy(() => import('@/pages/Instructors'));
-const Settings = lazy(() => import('@/pages/Settings'));
+const Team = lazy(() => import('@/pages/setup/Team'));
+const Domains = lazy(() => import('@/pages/setup/Domains'));
+const Automation = lazy(() => import('@/pages/settings/Automation'));
+const Testing = lazy(() => import('@/pages/settings/Testing'));
+const Connections = lazy(() => import('@/pages/settings/Connections'));
 const History = lazy(() => import('@/pages/History'));
 
 function ThemedToaster() {
@@ -57,15 +63,29 @@ function Gate() {
         }
       >
         <Routes>
-          <Route element={<Layout />}>
-            <Route path="/attention" element={<NeedsAttention />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/outreach" element={<Outreach />} />
-            <Route path="/modules" element={<Modules />} />
-            <Route path="/instructors" element={<Instructors />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/history" element={<History />} />
-            <Route path="*" element={<Navigate to="/attention" replace />} />
+          <Route element={<AppShell />}>
+            <Route index element={<Home />} />
+            <Route path="/classes" element={<Schedule />} />
+            <Route path="/requests" element={<Outreach />} />
+            <Route path="/setup/modules" element={<Modules />} />
+            <Route path="/setup/modules/new" element={<ModuleNew />} />
+            <Route path="/setup/modules/:id" element={<ModuleDetail />} />
+            <Route path="/setup/instructors" element={<Instructors />} />
+            <Route path="/setup/team" element={<Team />} />
+            <Route path="/setup/domains" element={<Domains />} />
+            <Route path="/settings" element={<Navigate to="/settings/automation" replace />} />
+            <Route path="/settings/automation" element={<Automation />} />
+            <Route path="/settings/testing" element={<Testing />} />
+            <Route path="/settings/connections" element={<Connections />} />
+            <Route path="/activity" element={<History />} />
+            {/* Old addresses keep working. */}
+            <Route path="/attention" element={<Navigate to="/" replace />} />
+            <Route path="/schedule" element={<Navigate to="/classes" replace />} />
+            <Route path="/outreach" element={<Navigate to="/requests" replace />} />
+            <Route path="/modules" element={<Navigate to="/setup/modules" replace />} />
+            <Route path="/instructors" element={<Navigate to="/setup/instructors" replace />} />
+            <Route path="/history" element={<Navigate to="/activity" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </Suspense>

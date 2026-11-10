@@ -6,6 +6,7 @@ import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useMe, useTeam, useWeeks, type AttentionItem } from '@/lib/data';
 import { ago, fmtLocal, fmtPT } from '@/lib/time';
+import { plain, plainLabel } from '@/lib/plain';
 import { attentionTypeLabel, helpCategories, helpStatusLabel } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -17,15 +18,14 @@ import {
   Field,
   Input,
   Modal,
-  PageHeader,
   Select,
   Spinner,
-  Stat,
   Textarea,
 } from '@/components/ui';
 import { ClassDrawer, useRun } from './ClassDrawer';
 
-export default function NeedsAttention() {
+/** Tasks waiting for a person (shown on Home). */
+export function TaskList() {
   const { domain } = useDomain();
   const team = useTeam();
   const me = useMe();
@@ -54,19 +54,6 @@ export default function NeedsAttention() {
       if (!f.done) q = q.neq('status', 'Done');
       else q = q.gte('done_at', DateTime.now().minus({ days: 7 }).toISO()!);
       return check(await q);
-    },
-  });
-  const doneToday = useQuery({
-    queryKey: ['attention_item', 'done-today', domain?.id],
-    enabled: !!domain,
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('attention_item')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'Done')
-        .gte('done_at', DateTime.now().startOf('day').toUTC().toISO()!)
-        .or(`domain_id.eq.${domain!.id},domain_id.is.null`);
-      return count ?? 0;
     },
   });
 
@@ -101,16 +88,6 @@ export default function NeedsAttention() {
 
   return (
     <div>
-      <PageHeader title="Needs Attention" />
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Stat
-          label="Urgent"
-          value={all.filter((a) => a.status !== 'Done' && a.severity === 'Urgent').length}
-          tone="red"
-        />
-        <Stat label="Open" value={all.filter((a) => a.status !== 'Done').length} tone="blue" />
-        <Stat label="Done today" value={doneToday.data ?? 0} tone="green" />
-      </div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Select
           value={f.type}
@@ -175,10 +152,10 @@ export default function NeedsAttention() {
                     {a.is_test && <Badge tone="amber">TEST</Badge>}
                     {a.escalated_at && <Badge tone="red">Escalated</Badge>}
                   </div>
-                  <div className="font-medium">{a.title}</div>
+                  <div className="font-medium">{plainLabel(a.title)}</div>
                   {a.detail && (
                     <div className="text-sm whitespace-pre-line text-muted-foreground">
-                      {a.detail}
+                      {plain(a.detail)}
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground">

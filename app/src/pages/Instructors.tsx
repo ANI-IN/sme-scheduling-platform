@@ -85,7 +85,7 @@ export default function Instructors() {
 
   return (
     <div>
-      <PageHeader title="Instructors">
+      <PageHeader title="Instructors" description="Each real person once, shared by every domain.">
         <Input
           placeholder="Search name or email"
           value={q}

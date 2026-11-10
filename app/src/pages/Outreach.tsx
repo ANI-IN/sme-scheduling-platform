@@ -141,7 +141,10 @@ export default function Outreach() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Outreach${domain ? ` — ${domain.name}` : ''}`} />
+      <PageHeader
+        title="Instructor requests"
+        description="Who we are asking to teach each class week, and the confirmed classes with their reminders."
+      />
       <div className="flex flex-wrap gap-3">
         <Stat
           label="Asking"

@@ -121,7 +121,10 @@ export default function History() {
 
   return (
     <div>
-      <PageHeader title="History">
+      <PageHeader
+        title="Activity history"
+        description="Everything that happened: changes, messages, answers and automatic checks. It cannot be edited or deleted."
+      >
         <Button variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
           Export CSV
         </Button>

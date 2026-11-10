@@ -265,7 +265,10 @@ export default function Schedule() {
 
   return (
     <div>
-      <PageHeader title={`Schedule${domain ? ` — ${domain.name}` : ''}`}>
+      <PageHeader
+        title="Upcoming classes"
+        description="Every planned class, grouped by class week. Times are Pacific."
+      >
         <Input
           placeholder="Search"
           value={search}
