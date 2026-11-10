@@ -9,7 +9,9 @@
       (function () {
         try {
           var c = localStorage.getItem('ik-theme');
-          var dark = c === 'dark' || (c !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var dark =
+            c === 'dark' ||
+            (c !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.classList.add('dark');
         } catch (e) {}
       })();
