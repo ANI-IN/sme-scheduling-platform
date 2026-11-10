@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { DiscordPrompt } from './DiscordPrompt';
 import { useDomain } from '@/lib/domain';
 import { useSystem, type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
@@ -172,6 +173,7 @@ export function AppShell() {
         <Banners />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-8">
           <Outlet />
+          <DiscordPrompt />
         </main>
       </div>
     </div>

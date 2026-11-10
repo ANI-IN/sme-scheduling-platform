@@ -21,14 +21,14 @@ export type Database = {
                   ]
                 },"app_config": {
                   Row: {
-                    "admin_discord_channel_id": string | null,"app_base_url": string | null,"company_email_domain": string,"created_at": string,"discord_guild_id": string | null,"id": number,"response_base_url": string | null,"scheduling_email": string | null,"scheduling_sender_name": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "admin_discord_channel_id": string | null,"app_base_url": string | null,"company_email_domain": string,"created_at": string,"discord_guild_id": string | null,"environment": string,"id": number,"response_base_url": string | null,"scheduling_email": string | null,"scheduling_sender_name": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"id"?: number,"response_base_url"?: string | null,"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"environment"?: string,"id"?: number,"response_base_url"?: string | null,"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"id"?: number,"response_base_url"?: string | null,"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_guild_id"?: string | null,"environment"?: string,"id"?: number,"response_base_url"?: string | null,"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -889,17 +889,23 @@ isOneToOne: false
                   ]
                 },"team_member": {
                   Row: {
-                    "active": boolean,"created_at": string,"digest_channel": string,"discord_user_id": string | null,"email": string,"id": string,"is_placeholder": boolean,"job_title": string | null,"name": string,"receives_digest": boolean,"updated_at": string,"updated_by": string | null,"version": number
+                    "access_removed_at": string | null,"access_removed_by": string | null,"active": boolean,"auth_user_id": string | null,"created_at": string,"digest_channel": string,"discord_prompt_dismissed_at": string | null,"discord_user_id": string | null,"email": string,"id": string,"is_placeholder": boolean,"job_title": string | null,"last_sign_in_at": string | null,"name": string,"receives_digest": boolean,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"created_at"?: string,"digest_channel"?: string,"discord_user_id"?: string | null,"email": string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"name": string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_prompt_dismissed_at"?: string | null,"discord_user_id"?: string | null,"email": string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name": string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "active"?: boolean,"created_at"?: string,"digest_channel"?: string,"discord_user_id"?: string | null,"email"?: string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"name"?: string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_prompt_dismissed_at"?: string | null,"discord_user_id"?: string | null,"email"?: string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name"?: string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "team_member_access_removed_by_fkey"
+      columns: ["access_removed_by"]
+isOneToOne: false
+      referencedRelation: "team_member"
+      referencedColumns: ["id"]
+    }
                   ]
                 }
           }
@@ -983,6 +989,9 @@ isOneToOne: false
 "complete_action":
 { Args: { "p_action_id": string,"p_error"?: string,"p_ok": boolean,"p_result"?: Json }; Returns: undefined
                            },
+"configure_environment":
+{ Args: { "p_allowed_email_domain": string,"p_environment": string }; Returns: undefined
+                           },
 "connection_status":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
@@ -1047,6 +1056,9 @@ isOneToOne: false
                            },
 "mark_verified_manually":
 { Args: { "p_instructor_id": string,"p_note"?: string }; Returns: undefined
+                           },
+"my_account":
+{ Args: { "p_signed_in"?: boolean }; Returns: Json
                            },
 "next_actions":
 { Args: { "p_limit"?: number }; Returns: {
@@ -1144,6 +1156,9 @@ isOneToOne: false
 "set_kill_switch":
 { Args: { "p_outreach_enabled": boolean }; Returns: undefined
                            },
+"set_member_access":
+{ Args: { "p_has_access": boolean,"p_reason"?: string,"p_team_member_id": string }; Returns: undefined
+                           },
 "set_outreach_queue":
 { Args: { "p_decision"?: string,"p_end_behaviour"?: string,"p_instructor_ids"?: (string)[],"p_mode": string,"p_module_week_id": string,"p_start_now"?: boolean }; Returns: Json
                            },
@@ -1188,6 +1203,9 @@ isOneToOne: false
                            },
 "update_class_details":
 { Args: { "p_class_id": string,"p_class_type": string,"p_expected_version"?: number,"p_notes": string,"p_problem_flag": boolean,"p_title": string }; Returns: undefined
+                           },
+"update_my_profile":
+{ Args: { "p_discord_user_id"?: string,"p_dismiss_discord_prompt"?: boolean }; Returns: undefined
                            },
 "week_eligibility":
 { Args: { "p_module_week_id": string }; Returns: Json

@@ -155,7 +155,7 @@ function ConfigForm({ config }: { config: Config }) {
   return (
     <Section
       title="Links and IDs"
-      description={`Only Google accounts ending in @${config.company_email_domain || '(not set)'} can sign in. That can only be changed in the database.`}
+      description="Addresses and IDs the automation needs. Who can sign in is set when the app is installed: company Google accounts only."
     >
       <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
         {FIELDS.map((f) => (

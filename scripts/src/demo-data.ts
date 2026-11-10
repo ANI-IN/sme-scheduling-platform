@@ -118,6 +118,11 @@ async function load() {
          interval '7 days') s`,
   );
   await c.query(`update public.domain set test_clock_at = null where id = $1`, [dom.id]);
+  // Screenshot and test accounts skip the one time Discord question.
+  await c.query(
+    `update public.team_member set discord_prompt_dismissed_at = now(), version = version
+      where discord_user_id is null and discord_prompt_dismissed_at is null`,
+  );
   const created = await one<{ v: { module_week_ids: string[] } }>(
     `select public.create_module_weeks($1, public.generate_classes($1, $2, $3::date[])) as v`,
     [dom.id, first.id, sundays.d],

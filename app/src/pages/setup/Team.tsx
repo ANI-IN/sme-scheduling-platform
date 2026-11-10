@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { BellRing, Plus, Users } from 'lucide-react';
+import { BellRing, Users } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/Confirm';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useTeam, type TeamMember } from '@/lib/data';
@@ -39,22 +41,14 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        description="The people who run classes. Module owners, the operations team and escalation contacts are chosen from this list."
-      >
-        <Button onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" aria-hidden /> Add team member
-        </Button>
-      </PageHeader>
+        description="Everyone who uses SME Scheduling. People appear here after they sign in for the first time with their company Google account. Module owners, the operations team and escalation contacts are chosen from this list."
+      />
       <ErrorText error={error} />
       {isLoading ? (
         <SkeletonRows />
       ) : (data ?? []).length === 0 ? (
-        <Empty
-          title="No team members yet"
-          icon={<Users className="h-5 w-5" />}
-          action={<Button onClick={() => setEditing('new')}>Add team member</Button>}
-        >
-          Add the people who own modules or handle operations.
+        <Empty title="No team members yet" icon={<Users className="h-5 w-5" />}>
+          Ask your colleagues to sign in once with their company Google account.
         </Empty>
       ) : (
         <div className={tableWrap}>
@@ -66,6 +60,7 @@ export default function Team() {
                 <th className={th}>Email</th>
                 <th className={th}>Discord</th>
                 <th className={th}>Daily summary</th>
+                <th className={th}>Access</th>
               </tr>
             </thead>
             <tbody>
@@ -89,6 +84,13 @@ export default function Team() {
                   </td>
                   <td className={td}>
                     {t.receives_digest ? DIGEST_LABEL[t.digest_channel] : 'Off'}
+                  </td>
+                  <td className={td}>
+                    {t.access_removed_at ? (
+                      <Badge tone="danger">Removed</Badge>
+                    ) : (
+                      <Badge tone="success">Has access</Badge>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -260,7 +262,64 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
           onChange={(c) => setF({ ...f, active: c })}
         />
         <ErrorText error={err} />
+        {member && <AccessSection member={member} onDone={onClose} />}
       </div>
     </Drawer>
+  );
+}
+
+/** Remove access: the person can no longer sign in, see data or be tagged. */
+function AccessSection({ member, onDone }: { member: TeamMember; onDone: () => void }) {
+  const { account } = useAuth();
+  const confirm = useConfirm();
+  const qc = useQueryClient();
+  const [err, setErr] = useState<unknown>(null);
+  const removed = !!member.access_removed_at;
+  const self = account?.member?.id === member.id;
+  return (
+    <div className="space-y-2 rounded-md border border-destructive/40 p-3">
+      <div className="text-sm font-semibold text-danger-strong">
+        {removed ? 'Access removed' : 'Access'}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {removed
+          ? 'This person cannot sign in. Their past work stays in Activity history.'
+          : self
+            ? 'You cannot remove your own access.'
+            : 'Removing access stops this person from signing in and from being tagged or reminded.'}
+      </p>
+      {!self && (
+        <Button
+          size="sm"
+          variant={removed ? 'secondary' : 'destructive'}
+          onClick={async () => {
+            if (
+              !removed &&
+              !(await confirm({
+                title: `Remove access for ${member.name}?`,
+                body: 'They are signed out at their next action and cannot sign in again until you give access back.',
+                danger: true,
+                confirmLabel: 'Remove access',
+              }))
+            )
+              return;
+            try {
+              await rpc('set_member_access', {
+                p_team_member_id: member.id,
+                p_has_access: removed,
+              });
+              toast.success(removed ? 'Access given back' : 'Access removed');
+              await qc.invalidateQueries();
+              onDone();
+            } catch (e) {
+              setErr(e);
+            }
+          }}
+        >
+          {removed ? 'Give access back' : 'Remove access'}
+        </Button>
+      )}
+      <ErrorText error={err} />
+    </div>
   );
 }
