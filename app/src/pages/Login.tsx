@@ -25,7 +25,7 @@ export function Login() {
         {env.devLogin && (
           <div className="mt-6 border-t pt-4">
             <p className="mb-2 text-xs text-muted-foreground">
-              Local development only: email sign-in link.
+              Local development only: email me a link to sign in.
             </p>
             <div className="flex gap-2">
               <Input

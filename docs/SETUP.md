@@ -144,7 +144,7 @@ free. Either works for this app.)
 ## 6. First checks (about 30 minutes)
 
 1. Open the app and **Sign in with Google** using a company account. An outside account must be refused.
-2. **Settings → Team:** replace `OWNER_PLACEHOLDER`, `OPS_PLACEHOLDER`, `LEAD_PLACEHOLDER` with real people (name, email,
+2. **Settings → Team:** replace the three team members marked "Needs real details" (Module owner, Operations, Lead) with real people (name, email,
    Discord user ID) and add the rest of the team. Press **Send test alert** for yourself.
 3. **Settings → System:** fill in the Discord server ID, admin channel ID, response page URL, app URL and scheduling email.
 4. **Modules:** set the domain's alert channel, leads and ops contacts; check each module's owners, pattern, resources

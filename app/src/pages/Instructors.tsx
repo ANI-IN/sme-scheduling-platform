@@ -85,7 +85,7 @@ const FILTERS: { value: string; label: string; test: (i: InstructorRow) => boole
     test: (i) => !!i.email_bounced_at || !!i.discord_failed_at,
   },
   { value: 'test', label: 'Test instructors', test: (i) => i.is_test },
-  { value: 'Inactive', label: 'Inactive', test: (i) => i.status === 'Inactive' },
+  { value: 'Inactive', label: 'Not in use', test: (i) => i.status === 'Inactive' },
   { value: 'Archived', label: 'Archived', test: (i) => i.status === 'Archived' },
   { value: 'all', label: 'Everyone', test: () => true },
 ];
@@ -414,7 +414,7 @@ export function InstructorDrawer({
     }
     await poke();
     toast.success(
-      `${instructor.full_name} is now ${status === 'Inactive' ? 'inactive' : 'archived'}`,
+      `${instructor.full_name} is now ${status === 'Inactive' ? 'not in use' : 'archived'}`,
     );
     setDeact(null);
     await refresh();
@@ -636,8 +636,8 @@ export function InstructorDrawer({
             <div className="flex flex-wrap gap-2 rounded-md border border-border p-3">
               <div className="w-full text-sm text-muted-foreground">
                 {instructor.status === 'Active'
-                  ? 'Inactive instructors are not asked. If they are being asked now, the request is withdrawn politely and the next instructor is asked.'
-                  : `This instructor is ${instructor.status.toLowerCase()}.`}
+                  ? 'Instructors who are not in use are never asked. If they are being asked now, the request is withdrawn politely and the next instructor is asked.'
+                  : `This instructor is ${instructor.status === 'Inactive' ? 'not in use' : instructor.status.toLowerCase()}.`}
               </div>
               {instructor.status === 'Active' ? (
                 <Button
@@ -646,16 +646,16 @@ export function InstructorDrawer({
                   onClick={async () => {
                     if (
                       await confirm({
-                        title: `Make ${instructor.full_name} inactive?`,
+                        title: `Stop using ${instructor.full_name}?`,
                         body: 'They will not be asked again. If they have confirmed classes, you will choose whether to keep each one.',
                         danger: true,
-                        confirmLabel: 'Make inactive',
+                        confirmLabel: 'Stop using',
                       })
                     )
                       await act(() => deactivate('Inactive'), 'Done');
                   }}
                 >
-                  Make inactive
+                  Stop using
                 </Button>
               ) : (
                 <Button
@@ -738,7 +738,7 @@ export function InstructorDrawer({
               variant="destructive"
               onClick={() => act(() => deactivate('Inactive', decisions), 'Done')}
             >
-              Make inactive
+              Stop using
             </Button>
           </div>
         </div>

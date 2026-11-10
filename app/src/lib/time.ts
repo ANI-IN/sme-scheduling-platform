@@ -6,7 +6,7 @@ const toDt = (iso: string, zone: string) => DateTime.fromISO(iso, { zone: 'utc' 
 
 /** "Sun Jan 31, 9:00 AM PST" — class times are always Pacific (PST/PDT by date). */
 export function fmtPT(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return 'Not set';
   return toDt(iso, PT).toFormat('ccc LLL d, h:mm a ZZZZ');
 }
 
@@ -25,7 +25,7 @@ export function ptParts(iso: string): { date: string; time: string } {
 
 /** History and system times: the viewer's local time zone, labelled. */
 export function fmtLocal(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return 'Not set';
   const d = DateTime.fromISO(iso).toLocal();
   // Browsers label India time as "GMT+5:30"; the team knows it as IST.
   const zone = d.offset === 330 ? 'IST' : d.offsetNameShort;

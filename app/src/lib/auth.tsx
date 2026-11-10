@@ -62,7 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         options: { emailRedirectTo: window.location.origin },
       });
-      return error ? error.message : 'Check the local mail catcher (Mailpit) for the sign-in link.';
+      return error
+        ? error.message
+        : 'Check the local mail catcher (Mailpit) for the link to sign in.';
     },
     async signOut() {
       await supabase.auth.signOut();

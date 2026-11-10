@@ -75,8 +75,8 @@ declare v uuid;
 begin
   insert into public.module (domain_id, name, rotation_order) values (p_domain, p_name, p_order) returning id into v;
   insert into public.class_pattern_item (module_id, class_type, title_template, weekday_offset, start_time_pt, duration_minutes, sort_order)
-  values (v, 'Live class', '{module} — Live class', 0, '09:00', 240, 1),
-         (v, 'Assignment review', '{module} — Assignment review', 4, '18:00', 120, 2);
+  values (v, 'Live class', '{module}: Live class', 0, '09:00', 240, 1),
+         (v, 'Assignment review', '{module}: Assignment review', 4, '18:00', 120, 2);
   insert into public.module_resource (module_id, title, url) values (v, p_name || ' module page', 'https://example.com/' || v);
   if p_with_owner then
     insert into public.module_owner (module_id, team_member_id) values (v, tests.make_team_member(p_name || ' Owner', 'PM'));

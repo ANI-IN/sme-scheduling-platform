@@ -220,7 +220,7 @@ export default function Schedule() {
         },
         {
           id: 'checklist',
-          header: 'Checklist',
+          header: 'Tasks',
           cell: ({ row, getValue }) => (row.original.first ? getValue() : null),
         },
       ),
@@ -519,7 +519,7 @@ export default function Schedule() {
   );
 }
 
-/** Bulk "Set instructors to ask": a manual queue in the order ticked. */
+/** Bulk "Choose who to ask": a chosen list in the order ticked. */
 function QueueDialog({ weekIds, onDone }: { weekIds: string[]; onDone: () => void }) {
   const instructors = useInstructors();
   const { run, err } = useRun();
@@ -530,8 +530,8 @@ function QueueDialog({ weekIds, onDone }: { weekIds: string[]; onDone: () => voi
     <Modal
       open
       onOpenChange={(o) => !o && onDone()}
-      title="Set instructors to ask"
-      description="Tick instructors in the order they should be asked (one at a time). Applied to the selected module weeks; anyone being asked right now keeps their request."
+      title="Choose who to ask"
+      description="Tick instructors in the order they should be asked, one at a time. This applies to every selected class week. Anyone being asked right now keeps their request."
     >
       <div className="max-h-72 space-y-1 overflow-y-auto">
         {active.map((i) => (
@@ -543,22 +543,27 @@ function QueueDialog({ weekIds, onDone }: { weekIds: string[]; onDone: () => voi
                 setOrder(e.target.checked ? [...order, i.id] : order.filter((x) => x !== i.id))
               }
             />
-            {order.includes(i.id) && <Badge tone="blue">{order.indexOf(i.id) + 1}</Badge>}
+            {order.includes(i.id) && <Badge tone="info">{order.indexOf(i.id) + 1}</Badge>}
             {i.full_name}
-            {!i.verified_at && <Badge tone="amber">Not verified</Badge>}
+            {!i.verified_at && <Badge tone="warning">Contact details not checked</Badge>}
           </label>
         ))}
       </div>
       <div className="mt-3 flex items-center gap-2 text-sm">
         When the list runs out:
-        <Select value={end} onChange={(e) => setEnd(e.target.value)} className="w-56">
-          <option value="Stop">Stop and alert me</option>
-          <option value="ContinueWithRanking">Continue with the ranking</option>
+        <Select
+          aria-label="When the list runs out"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+          className="w-64"
+        >
+          <option value="Stop">Stop and tell me</option>
+          <option value="ContinueWithRanking">Carry on with the instructor order</option>
         </Select>
       </div>
       <ErrorText error={err} />
       <div className="mt-3 flex justify-end gap-2">
-        <Button variant="outline" onClick={onDone}>
+        <Button variant="secondary" onClick={onDone}>
           Cancel
         </Button>
         <Button
@@ -573,7 +578,7 @@ function QueueDialog({ weekIds, onDone }: { weekIds: string[]; onDone: () => voi
                   p_end_behaviour: end,
                   p_decision: 'keep',
                 });
-            }, 'Instructors to ask saved');
+            }, 'Saved who to ask');
             onDone();
           }}
         >

@@ -67,7 +67,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       if (mode === 'weeks') {
         if (!first) throw new Error('Choose the first Sunday.');
         if (!isSunday(first))
-          throw new Error('The first date must be a Sunday (the start of the module week).');
+          throw new Error('The first date must be a Sunday (the start of the class week).');
         dates = weeklyDates(first, weeks);
       } else {
         const parsed = parseDateList(list);
@@ -162,7 +162,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           classes: w.classes,
         })),
       })) as { created: number };
-      toast.success(`Created ${res.created} module weeks`);
+      toast.success(`Created ${res.created} class week${res.created === 1 ? '' : 's'}`);
       await qc.invalidateQueries();
       onClose();
     } catch (e) {
@@ -177,12 +177,15 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       open
       onOpenChange={(o) => !o && onClose()}
       title="Plan classes"
-      description="All times are Pacific Time. Nothing is saved until you press Create classes."
+      description="Times are Pacific. Nothing is saved until you press Create."
       wide
     >
       {!rows ? (
         <div className="space-y-3">
-          <Field label="The rotation starts with">
+          <Field
+            label="Start with this module"
+            hint="The other modules follow in their usual order."
+          >
             <Select value={startModule} onChange={(e) => setStartModule(e.target.value)}>
               {active.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -194,7 +197,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-1">
               <input type="radio" checked={mode === 'weeks'} onChange={() => setMode('weeks')} />{' '}
-              First Sunday + number of weeks
+              First Sunday and number of weeks
             </label>
             <label className="flex items-center gap-1">
               <input type="radio" checked={mode === 'list'} onChange={() => setMode('list')} />{' '}
@@ -218,8 +221,8 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             </div>
           ) : (
             <Field
-              label="Sundays (the official date schedule)"
-              hint="One per line, e.g. 2027-01-03 or Jan 3, 2027"
+              label="Sundays from the official schedule"
+              hint="One per line, for example 1/3/2027 or Jan 3, 2027"
             >
               <Textarea
                 value={list}
@@ -229,31 +232,33 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             </Field>
           )}
           <Field
-            label="Cohort label (optional)"
+            label="Cohort name (optional)"
             hint="Only needed when two runs of the same module happen in the same week."
           >
             <Input value={cohort} onChange={(e) => setCohort(e.target.value)} />
           </Field>
           <ErrorText error={err} />
           <Button onClick={propose} disabled={active.length === 0}>
-            Propose classes
+            Show proposed classes
           </Button>
           {active.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Add active modules with a class pattern first (Modules tab).
+              First add a module that is in use and has class times (Setup, Modules).
             </p>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="max-h-[60vh] overflow-auto rounded border">
+          <div className="max-h-[60vh] overflow-auto rounded-lg border border-border">
             <table className="w-full">
-              <thead className="sticky top-0 bg-muted">
+              <thead className="sticky top-0 z-10 bg-muted">
                 <tr>
-                  <th className={th}>Week (Sunday)</th>
+                  <th className={th}>Week starting</th>
                   <th className={th}>Module</th>
-                  <th className={th}>Classes (PT)</th>
-                  <th className={th}></th>
+                  <th className={th}>Classes (Pacific)</th>
+                  <th className={th}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -263,20 +268,28 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                     <tr
                       key={wi}
                       className={
-                        holiday ? 'bg-warning-soft' : w.duplicate ? 'bg-danger-soft' : 'border-t'
+                        holiday
+                          ? 'border-t border-border bg-warning-soft'
+                          : w.duplicate
+                            ? 'border-t border-border bg-danger-soft'
+                            : 'border-t border-border'
                       }
                     >
                       <td className={td}>
                         {w.week_start_date}
-                        {w.duplicate && <Badge tone="red">Already planned</Badge>}
+                        {w.duplicate && <Badge tone="danger">Already planned</Badge>}
                         {w.holidays.map((h) => (
-                          <Badge key={h} tone="amber">
+                          <Badge key={h} tone="warning">
                             {h}
                           </Badge>
                         ))}
                       </td>
                       <td className={td}>
-                        <Select value={w.module_id} onChange={(e) => setModule(wi, e.target.value)}>
+                        <Select
+                          aria-label="Module"
+                          value={w.module_id}
+                          onChange={(e) => setModule(wi, e.target.value)}
+                        >
                           {active.map((m) => (
                             <option key={m.id} value={m.id}>
                               {m.name}
@@ -291,6 +304,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                               <span className="w-28">{c.class_type}</span>
                               <Input
                                 type="date"
+                                aria-label="Date"
                                 value={c.date}
                                 className="h-7 w-36"
                                 onChange={(e) =>
@@ -302,18 +316,20 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                               />
                               <Input
                                 type="time"
+                                aria-label="Start time"
                                 value={c.start_time}
                                 className="h-7 w-24"
                                 onChange={(e) => editClass(wi, ci, { start_time: e.target.value })}
                               />
-                              <span>–</span>
+                              <span className="text-muted-foreground">to</span>
                               <Input
                                 type="time"
+                                aria-label="End time"
                                 value={c.end_time}
                                 className="h-7 w-24"
                                 onChange={(e) => editClass(wi, ci, { end_time: e.target.value })}
                               />
-                              {c.holiday && <Badge tone="amber">Holiday: {c.holiday}</Badge>}
+                              {c.holiday && <Badge tone="warning">Holiday: {c.holiday}</Badge>}
                             </div>
                           ))}
                         </div>
@@ -322,11 +338,11 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                         <div className="flex flex-col gap-1">
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="secondary"
                             onClick={() => shiftFrom(wi)}
-                            title="Shift this and all later classes by 1 week"
+                            title="Move this and all later weeks one week later"
                           >
-                            Shift this + later 1 wk
+                            Move a week later
                           </Button>
                           <Button
                             size="sm"
@@ -345,7 +361,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           </div>
           <ErrorText error={err} />
           <div className="flex justify-between">
-            <Button variant="outline" onClick={() => setRows(null)}>
+            <Button variant="secondary" onClick={() => setRows(null)}>
               Back
             </Button>
             <Button
@@ -353,7 +369,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
               loading={saving}
               disabled={rows.some((w) => w.duplicate) || rows.length === 0}
             >
-              Create {rows.length} module weeks
+              Create {rows.length} class week{rows.length === 1 ? '' : 's'}
             </Button>
           </div>
           {rows.some((w) => w.duplicate) && (

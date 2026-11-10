@@ -9,7 +9,7 @@ export function friendlyError(e: unknown): string {
   const err = e as { message?: string; code?: string };
   const msg = err?.message ?? String(e);
   if (err?.code === '40001' || msg.includes('This changed'))
-    return 'This changed — reload. Someone else saved it after you opened it.';
+    return 'Someone else saved this after you opened it. Reload the page to see their changes, then try again.';
   if (msg.includes('module_name_per_domain'))
     return 'A module with this name already exists in this domain.';
   if (msg.includes('team_member_email')) return 'A team member with this email already exists.';

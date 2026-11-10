@@ -36,7 +36,7 @@ const TABS: { value: string; label: string; groups: string[]; description: strin
     value: 'before',
     label: 'Before class',
     groups: ['Check-ins', 'Checklist'],
-    description: 'Reminders before class and the class checklist for the operations team.',
+    description: 'Reminders before class and the class tasks for the operations team.',
   },
   {
     value: 'help',
@@ -60,7 +60,7 @@ export const GROUP_LABEL: Record<string, string> = {
   Windows: 'Waiting for answers',
   'Quiet hours': 'Quiet hours',
   'Check-ins': 'Reminders before class',
-  Checklist: 'Class checklist',
+  Checklist: 'Class tasks',
   Help: 'Help requests',
   Reminders: 'Reminders to the team',
   Planning: 'Planning',

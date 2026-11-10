@@ -1,0 +1,45 @@
+-- UI project, Milestone 6 (plain English). Display text only: setting labels and help are
+-- reworded to the team's words (docs/GLOSSARY.md). No keys, values, limits or logic change.
+update public.setting_definition d
+set label = v.label, help = v.help
+from (values
+  ('instructor_channels', 'Contact instructors by', 'Discord and email, Discord only, or email only.'),
+  ('team_channels', 'Send team reminders by', 'Discord, plus email for team members who chose email.'),
+  ('default_outreach_mode', 'Who to ask by default', 'Instructor order asks the primary instructor first, then each backup in turn. A chosen list asks only the instructors you pick.'),
+  ('outreach_days', 'Start asking instructors (days before the class)', null),
+  ('readiness_days', 'Run the setup check (days before the class)', 'Must be at least 5 days earlier than the day we start asking instructors.'),
+  ('manual_end_behaviour', 'When a chosen list runs out', null),
+  ('window_long_reminder_h', 'More than 10 days away: send a reminder after (hours)', null),
+  ('window_long_move_h', 'More than 10 days away: ask the next instructor after (hours)', null),
+  ('window_mid_reminder_h', '3 to 10 days away: send a reminder after (hours)', null),
+  ('window_mid_move_h', '3 to 10 days away: ask the next instructor after (hours)', null),
+  ('window_short_reminder_h', 'Under 3 days away: send a reminder after (hours)', null),
+  ('window_short_move_h', 'Under 3 days away: ask the next instructor after (hours)', null),
+  ('urgent_band_days', 'The urgent period starts (days before the class)', null),
+  ('short_notice_days', 'Treat problems as urgent when the class is fewer than this many days away', 'Also where the middle reply time starts.'),
+  ('instructor_quiet_start', 'Instructors: no messages from (Pacific)', 'The quiet time can be up to 12 hours.'),
+  ('instructor_quiet_end', 'Instructors: messages allowed again at (Pacific)', null),
+  ('instructor_urgent_quiet_start', 'Instructors in the urgent period: no messages from (Pacific)', null),
+  ('instructor_urgent_quiet_end', 'Instructors in the urgent period: messages allowed again at (Pacific)', null),
+  ('team_quiet_start', 'Team, tasks that are not urgent: no reminders from (IST)', 'The quiet time can be up to 14 hours.'),
+  ('team_quiet_end', 'Team, tasks that are not urgent: reminders allowed again at (IST)', null),
+  ('checkin_days', 'Reminders before class (days before the class)', 'The smallest number is the last reminder before class.'),
+  ('checkin_14_enabled', 'Extra reminder before class, 14 days before', null),
+  ('owner_checkin_days', 'Ask the module owner if everything is ready (days before the class)', null),
+  ('last_checkin_no_reply', 'No answer to the last reminder before class', 'Tell the operations team and keep the instructor, or release the instructor.'),
+  ('checklist_items', 'Default tasks for each class', null),
+  ('checklist_nudge_days', 'Remind the operations team about tasks (days after an instructor confirms)', null),
+  ('checklist_due_days', 'Tasks must be done (days before the class)', null),
+  ('help_target_norush_h', 'Help requests marked "no rush": answer within (hours)', null),
+  ('help_target_24h_h', 'Help requests marked "within 24 hours": answer within (hours)', null),
+  ('help_target_urgent_h', 'Help requests marked "urgent": answer within (hours)', null),
+  ('help_routing', 'Who gets each type of help request', null),
+  ('reminder_r2_normal_h', 'Remind the team again about a task after (hours)', null),
+  ('reminder_r2_urgent_h', 'Repeat reminders for urgent tasks every (hours)', null),
+  ('reminder_escalate_normal_h', 'Tell the leads about a task still open after (hours)', null),
+  ('reminder_escalate_urgent_h', 'Tell the leads about an urgent task still open after (hours)', null),
+  ('digest_time_ist', 'Daily summary time (IST)', null),
+  ('schedule_low_weeks', 'Warn when fewer than this many weeks of classes are planned', null),
+  ('min_active_instructors', 'Fewest instructors in use in each instructor order', null)
+) as v(key, label, help)
+where d.key = v.key;

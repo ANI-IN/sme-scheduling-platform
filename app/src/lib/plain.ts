@@ -27,7 +27,7 @@ export const messageName: Record<string, string> = {
   T5: 'class at risk alert',
   T7: 'help request alert',
   T8: 'setup check alert',
-  T9: 'checklist alert',
+  T9: 'task alert',
   T11: 'owner summary',
   T12: 'daily summary',
   T13: 'alert to the leads',
@@ -51,8 +51,8 @@ const REPLACEMENTS: [RegExp, string][] = [
   [/\bThin bench: /g, 'Not enough instructors: '],
   [/\bactive instructors? \(minimum (\d+)\)/g, 'available (at least $1 needed)'],
   [/\bUnder (\d+) days and no instructor yet: /g, 'Less than $1 days left and no instructor yet: '],
-  [/\bChecklist overdue: /g, 'Class checklist overdue: '],
-  [/\bChecklist pending: /g, 'Class checklist not finished: '],
+  [/\bChecklist overdue: /g, 'Class tasks overdue: '],
+  [/\bChecklist pending: /g, 'Class tasks not finished: '],
   [/\bNeed help: /g, 'Help requested: '],
   [/\bTyped reply from /g, 'Written reply from '],
   [/\bLate "Yes" from /g, 'Late yes from '],
@@ -67,6 +67,7 @@ const REPLACEMENTS: [RegExp, string][] = [
     (m: string) => (m.toLowerCase().endsWith('s') ? 'class weeks' : 'class week'),
   ] as never,
   [/\branking\b/gi, 'instructor order'],
+  [/\bchecklist( items?)?\b/gi, (m: string) => (m[0] === 'C' ? 'Tasks' : 'tasks')] as never,
   [/\bHourly check\b/g, 'Automatic check'],
   [/\bhourly check\b/g, 'automatic check'],
   [/\bkill switch\b/gi, 'pause on all messages'],
@@ -90,4 +91,10 @@ export function plain(text: string | null | undefined): string {
 /** "Sun Jan 31 + Thu Feb 4" style labels read better with "and". */
 export function plainLabel(text: string | null | undefined): string {
   return plain(text).replace(/ \+ /g, ' and ');
+}
+
+/** A message's name for a label or badge: "Reminder before class". */
+export function messageTitle(id: string | null | undefined): string {
+  const n = (id && messageName[id]) || 'message';
+  return n.charAt(0).toUpperCase() + n.slice(1);
 }

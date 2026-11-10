@@ -6,7 +6,7 @@ import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useMe, useTeam, useWeeks, type AttentionItem } from '@/lib/data';
 import { ago, fmtLocal, fmtPT } from '@/lib/time';
-import { messageName, plain, plainLabel } from '@/lib/plain';
+import { messageTitle, plain, plainLabel } from '@/lib/plain';
 import { attentionTypeLabel, helpCategories, helpStatusLabel } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -406,7 +406,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                   <strong>
                     {m.direction === 'Inbound'
                       ? `From ${m.recipient_label}`
-                      : `${messageName[m.template_id] ?? 'Message'} to ${m.recipient_label} (${m.channel})`}
+                      : `${messageTitle(m.template_id)} to ${m.recipient_label} (${m.channel})`}
                   </strong>{' '}
                   · {fmtLocal(m.created_at)}
                   <div className="whitespace-pre-line">{m.body_text}</div>

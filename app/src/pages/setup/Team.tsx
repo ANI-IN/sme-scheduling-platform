@@ -79,7 +79,7 @@ export default function Team() {
                   <td className={td}>
                     <span className="font-medium">{t.name}</span>{' '}
                     {t.is_placeholder && <Badge tone="warning">Needs real details</Badge>}
-                    {!t.active && <Badge>Inactive</Badge>}
+                    {!t.active && <Badge>Not in use</Badge>}
                   </td>
                   <td className={td}>{ROLE_LABEL[t.label] ?? t.label}</td>
                   <td className={`${td} text-muted-foreground`}>{t.email}</td>
@@ -261,7 +261,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
         </div>
         <Checkbox
           label="Active"
-          hint="Inactive people are not tagged or reminded."
+          hint="People who are not in use are not tagged or reminded."
           checked={f.active}
           onChange={(c) => setF({ ...f, active: c })}
         />
