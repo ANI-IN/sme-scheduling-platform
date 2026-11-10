@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Send, Trash2 } from 'lucide-react';
+import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useInstructors, useSystem, type Instructor } from '@/lib/data';
-import { ago, fmtPT } from '@/lib/time';
+import { ago, fmtLocal, fmtPT } from '@/lib/time';
 import { isDiscordId, isEmail, parseChannelLink } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
@@ -17,19 +18,25 @@ import {
   Empty,
   ErrorText,
   Field,
+  HelpTip,
   Input,
   Modal,
+  Notice,
   PageHeader,
   Select,
-  Spinner,
+  SkeletonRows,
   Textarea,
+  Toolbar,
+  tableWrap,
   td,
   th,
+  thead,
+  trowClick,
 } from '@/components/ui';
 
-type InstructorRow = NonNullable<ReturnType<typeof useInstructors>['data']>[number];
+export type InstructorRow = NonNullable<ReturnType<typeof useInstructors>['data']>[number];
 
-/** Upcoming active bookings and ranking memberships across ALL domains (INS-6). */
+/** Upcoming confirmed classes and instructor order places, across ALL domains. */
 export function useInstructorContext() {
   return useQuery({
     queryKey: ['booking', 'instructor-context'],
@@ -50,13 +57,14 @@ export function useInstructorContext() {
       for (const x of bookings) {
         const w = x.module_week;
         if (!w?.first_class_at || new Date(w.first_class_at).getTime() < now) continue;
-        const label = `${w.module?.domain?.name} · ${w.module?.name} · ${fmtPT(w.first_class_at)}`;
+        const label = `${w.module?.name} (${w.module?.domain?.name}), ${fmtPT(w.first_class_at)}`;
         upcoming.set(x.instructor_id, [...(upcoming.get(x.instructor_id) ?? []), label]);
       }
       const ranked = new Map<string, string[]>();
       for (const x of rankings) {
         if (!x.module || x.module.status === 'Archived') continue;
-        const label = `${x.module.domain?.name} · ${x.module.name} (#${x.rank})`;
+        const place = x.rank === 1 ? 'Primary' : `Backup ${x.rank - 1}`;
+        const label = `${x.module.name} (${x.module.domain?.name}): ${place}`;
         ranked.set(x.instructor_id, [...(ranked.get(x.instructor_id) ?? []), label]);
       }
       return { upcoming, ranked };
@@ -64,97 +72,146 @@ export function useInstructorContext() {
   });
 }
 
+const FILTERS: { value: string; label: string; test: (i: InstructorRow) => boolean }[] = [
+  { value: 'active', label: 'Active', test: (i) => i.status === 'Active' },
+  {
+    value: 'unchecked',
+    label: 'Contact details not checked',
+    test: (i) => i.status === 'Active' && !i.verified_at && !i.is_test,
+  },
+  {
+    value: 'problems',
+    label: 'Messages failing',
+    test: (i) => !!i.email_bounced_at || !!i.discord_failed_at,
+  },
+  { value: 'test', label: 'Test instructors', test: (i) => i.is_test },
+  { value: 'Inactive', label: 'Inactive', test: (i) => i.status === 'Inactive' },
+  { value: 'Archived', label: 'Archived', test: (i) => i.status === 'Archived' },
+  { value: 'all', label: 'Everyone', test: () => true },
+];
+
 export default function Instructors() {
   const { data, isLoading, error } = useInstructors();
   const ctx = useInstructorContext();
+  const [params, setParams] = useSearchParams();
+  const filter = params.get('show') ?? 'active';
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState('Active');
   const [editing, setEditing] = useState<InstructorRow | 'new' | null>(null);
+  const test = FILTERS.find((f) => f.value === filter)?.test ?? FILTERS[0]!.test;
 
   const rows = useMemo(
     () =>
       (data ?? []).filter(
         (i) =>
-          (status === 'All' || i.status === status) &&
+          test(i) &&
           `${i.full_name} ${i.primary_email} ${i.instructor_email.map((e) => e.email).join(' ')}`
             .toLowerCase()
             .includes(q.toLowerCase()),
       ),
-    [data, q, status],
+    [data, q, test],
   );
+  const unchecked = (data ?? []).filter(FILTERS[1]!.test).length;
 
   return (
     <div>
       <PageHeader title="Instructors" description="Each real person once, shared by every domain.">
-        <Input
-          placeholder="Search name or email"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-56"
-        />
-        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-36">
-          {['Active', 'Inactive', 'Archived', 'All'].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </Select>
         <Button onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" /> Add instructor
+          <Plus className="h-4 w-4" aria-hidden /> Add instructor
         </Button>
       </PageHeader>
+      {unchecked > 0 && filter !== 'unchecked' && (
+        <div className="mb-4">
+          <Notice tone="warning">
+            {unchecked} instructor{unchecked === 1 ? ' has' : 's have'} not had their contact
+            details checked. They are not asked once a domain is live.{' '}
+            <button
+              className="font-medium underline underline-offset-2"
+              onClick={() => setParams({ show: 'unchecked' })}
+            >
+              Show them
+            </button>
+          </Notice>
+        </div>
+      )}
+      <Toolbar>
+        <Input
+          placeholder="Search by name or email"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-64"
+          aria-label="Search"
+        />
+        <Select
+          value={filter}
+          onChange={(e) => setParams({ show: e.target.value })}
+          className="w-64"
+          aria-label="Show"
+        >
+          {FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </Select>
+        <span className="text-sm text-muted-foreground">{rows.length} shown</span>
+      </Toolbar>
       <ErrorText error={error} />
       {isLoading ? (
-        <Spinner />
+        <SkeletonRows />
       ) : rows.length === 0 ? (
-        <Empty title="No instructors here yet">
-          Add each real person once. Existing instructors are reused across domains.
+        <Empty
+          title={q || filter !== 'active' ? 'No instructors match' : 'No instructors yet'}
+          icon={<UserRound className="h-5 w-5" />}
+          action={<Button onClick={() => setEditing('new')}>Add instructor</Button>}
+        >
+          Add each real person once. The same record is used in every domain.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <div className={tableWrap}>
           <table className="w-full">
-            <thead className="border-b bg-muted">
+            <thead className={thead}>
               <tr>
                 <th className={th}>Name</th>
                 <th className={th}>Status</th>
-                <th className={th}>Modules ranked in</th>
-                <th className={th}>Upcoming bookings</th>
-                <th className={th}>Last response</th>
+                <th className={`${th} hidden lg:table-cell`}>Teaches</th>
+                <th className={`${th} hidden md:table-cell`}>Upcoming classes</th>
+                <th className={`${th} hidden md:table-cell`}>Last reply</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((i) => (
-                <tr
-                  key={i.id}
-                  className="cursor-pointer border-b last:border-0 hover:bg-muted"
-                  onClick={() => setEditing(i)}
-                >
-                  <td className={td}>
-                    <div className="font-medium">{i.full_name}</div>
-                    <div className="text-xs text-muted-foreground">{i.primary_email}</div>
-                  </td>
-                  <td className={td}>
-                    <div className="flex flex-wrap gap-1">
-                      <Badge tone={i.status === 'Active' ? 'green' : 'gray'}>{i.status}</Badge>
-                      {i.verified_at ? (
-                        <Badge tone="blue">✓ Verified</Badge>
+              {rows.map((i) => {
+                const ranked = ctx.data?.ranked.get(i.id) ?? [];
+                const upcoming = ctx.data?.upcoming.get(i.id) ?? [];
+                return (
+                  <tr key={i.id} className={trowClick} onClick={() => setEditing(i)}>
+                    <td className={td}>
+                      <div className="font-medium">{i.full_name}</div>
+                      <div className="text-xs text-muted-foreground">{i.primary_email}</div>
+                    </td>
+                    <td className={td}>
+                      <StatusBadges i={i} />
+                    </td>
+                    <td className={`${td} hidden lg:table-cell`}>
+                      {ranked.length ? (
+                        <span title={ranked.join('\n')}>
+                          {ranked.length} module{ranked.length === 1 ? '' : 's'}
+                        </span>
                       ) : (
-                        <Badge tone="amber">Not verified</Badge>
+                        <span className="text-muted-foreground">Not in any order</span>
                       )}
-                      {i.is_test && <Badge tone="purple">TEST</Badge>}
-                      {i.email_bounced_at && <Badge tone="red">Email bounced</Badge>}
-                      {i.discord_failed_at && <Badge tone="red">Discord failed</Badge>}
-                    </div>
-                  </td>
-                  <td className={`${td} text-xs`}>
-                    {(ctx.data?.ranked.get(i.id) ?? []).join(', ') || '—'}
-                  </td>
-                  <td className={`${td} text-xs`}>
-                    {(ctx.data?.upcoming.get(i.id) ?? []).join(', ') || '—'}
-                  </td>
-                  <td className={`${td} text-xs`}>
-                    {i.last_response_at ? `${ago(i.last_response_at)} ago` : '—'}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td
+                      className={`${td} hidden tabular-nums md:table-cell`}
+                      title={upcoming.join('\n')}
+                    >
+                      {upcoming.length || <span className="text-muted-foreground">None</span>}
+                    </td>
+                    <td className={`${td} hidden text-muted-foreground md:table-cell`}>
+                      {i.last_response_at ? `${ago(i.last_response_at)} ago` : 'Never'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -163,6 +220,7 @@ export default function Instructors() {
         <InstructorDrawer
           instructor={editing === 'new' ? null : editing}
           all={data ?? []}
+          ranked={editing === 'new' ? [] : (ctx.data?.ranked.get(editing.id) ?? [])}
           upcoming={editing === 'new' ? [] : (ctx.data?.upcoming.get(editing.id) ?? [])}
           onClose={() => setEditing(null)}
         />
@@ -171,16 +229,56 @@ export default function Instructors() {
   );
 }
 
-function InstructorDrawer({
+function StatusBadges({ i }: { i: InstructorRow }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {i.status !== 'Active' && <Badge>{i.status}</Badge>}
+      {i.verified_at ? (
+        <Badge tone="success">Contact checked</Badge>
+      ) : (
+        <Badge tone="warning">Not checked yet</Badge>
+      )}
+      {i.is_test && <Badge tone="accent">Test instructor</Badge>}
+      {i.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
+      {i.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
+    </div>
+  );
+}
+
+function Group({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3 border-b border-border pb-5 last:border-0">
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function InstructorDrawer({
   instructor,
   all,
-  upcoming,
+  ranked = [],
+  upcoming = [],
   onClose,
+  onSaved,
 }: {
   instructor: InstructorRow | null;
   all: InstructorRow[];
-  upcoming: string[];
+  ranked?: string[];
+  upcoming?: string[];
   onClose: () => void;
+  onSaved?: (id: string) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -204,21 +302,21 @@ function InstructorDrawer({
   const [decisions, setDecisions] = useState<Record<string, 'keep' | 'release'>>({});
 
   const errors: Record<string, string> = {};
-  if (!f.full_name.trim()) errors.full_name = 'Full name is required.';
+  if (!f.full_name.trim()) errors.full_name = 'Enter the full name.';
   if (!isEmail(f.primary_email)) errors.primary_email = 'Enter a valid email address.';
   if (f.discord_user_id && !isDiscordId(f.discord_user_id))
-    errors.discord_user_id = 'A Discord user ID is 17–20 digits.';
+    errors.discord_user_id = 'A Discord user ID is 17 to 20 digits.';
   if (f.discord_channel_link) {
     const p = parseChannelLink(f.discord_channel_link);
     if (!p)
-      errors.discord_channel_link =
-        'Use a link like https://discord.com/channels/<server>/<channel>.';
+      errors.discord_channel_link = 'Paste the link that starts with https://discord.com/channels/';
     else if (guild && p.serverId !== guild)
       errors.discord_channel_link = 'This channel is in a different Discord server.';
   }
   extras.forEach((e, idx) => {
     if (!isEmail(e)) errors[`extra${idx}`] = 'Enter a valid email address.';
   });
+  const v = useFormErrors(errors);
   const emails = [f.primary_email, ...extras].map((e) => e.trim().toLowerCase()).filter(Boolean);
   const dup = all.find(
     (o) =>
@@ -227,14 +325,12 @@ function InstructorDrawer({
         emails.includes(o.primary_email.toLowerCase()) ||
         (!!f.discord_user_id && o.discord_user_id === f.discord_user_id.trim())),
   );
-  const v = useFormErrors(errors);
   const channel = parseChannelLink(f.discord_channel_link);
   const contactChanged =
     !!instructor &&
     (instructor.primary_email !== f.primary_email.trim().toLowerCase() ||
       (instructor.discord_user_id ?? '') !== f.discord_user_id.trim() ||
       (instructor.discord_channel_id ?? '') !== (channel?.channelId ?? ''));
-
   const refresh = () => qc.invalidateQueries();
 
   async function save() {
@@ -268,18 +364,19 @@ function InstructorDrawer({
       }
       const current = instructor?.instructor_email.filter((e) => !e.is_primary) ?? [];
       const wanted = extras.map((e) => e.trim().toLowerCase()).filter(Boolean);
-      for (const e of current.filter((c) => !wanted.includes(c.email))) {
+      for (const e of current.filter((c) => !wanted.includes(c.email)))
         check(await supabase.from('instructor_email').delete().eq('id', e.id));
-      }
-      for (const e of wanted.filter((w) => !current.some((c) => c.email === w))) {
+      for (const e of wanted.filter((w) => !current.some((c) => c.email === w)))
         check(await supabase.from('instructor_email').insert({ instructor_id: id!, email: e }));
-      }
       toast.success(
         contactChanged
-          ? 'Saved. Contact details changed — send a new test message to re-verify.'
-          : 'Saved',
+          ? 'Saved. The contact details changed, so send a new contact check.'
+          : instructor
+            ? 'Changes saved'
+            : 'Instructor added',
       );
       await refresh();
+      onSaved?.(id!);
       onClose();
     } catch (e) {
       setErr(e);
@@ -316,7 +413,9 @@ function InstructorDrawer({
       return;
     }
     await poke();
-    toast.success(`${instructor.full_name} is now ${status.toLowerCase()}`);
+    toast.success(
+      `${instructor.full_name} is now ${status === 'Inactive' ? 'inactive' : 'archived'}`,
+    );
     setDeact(null);
     await refresh();
   }
@@ -326,174 +425,242 @@ function InstructorDrawer({
       open
       onOpenChange={(o) => !o && onClose()}
       title={instructor ? instructor.full_name : 'Add instructor'}
-    >
-      <div className="space-y-3">
-        {instructor && (
-          <div className="flex flex-wrap gap-2 rounded-md bg-muted p-3">
-            {instructor.verified_at ? (
-              <Badge tone="blue">✓ Verified {fmtPT(instructor.verified_at)}</Badge>
-            ) : (
-              <Badge tone="amber">Not verified — not asked in Live domains</Badge>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                act(
-                  () => rpc('send_test_message', { p_instructor_id: instructor.id }),
-                  'Test message queued (Discord + email)',
-                )
-              }
-            >
-              <Send className="h-3.5 w-3.5" /> Send test message
-            </Button>
-            {!instructor.verified_at && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  act(
-                    () => rpc('mark_verified_manually', { p_instructor_id: instructor.id }),
-                    'Marked as verified',
-                  )
-                }
-              >
-                Seen manually
-              </Button>
-            )}
-          </div>
-        )}
-        <Field label="Full name" error={v.show('full_name')}>
-          <Input
-            value={f.full_name}
-            onBlur={v.touch('full_name')}
-            onChange={(e) => setF({ ...f, full_name: e.target.value })}
-          />
-        </Field>
-        <Field label="Primary email" error={v.show('primary_email')}>
-          <Input
-            value={f.primary_email}
-            onBlur={v.touch('primary_email')}
-            onChange={(e) => setF({ ...f, primary_email: e.target.value })}
-          />
-        </Field>
-        <div className="space-y-2">
-          <span className="text-sm font-medium text-foreground">Extra emails (same person)</span>
-          {extras.map((e, idx) => (
-            <div key={idx} className="flex gap-2">
-              <Input
-                value={e}
-                onBlur={v.touch(`extra${idx}`)}
-                aria-invalid={!!v.show(`extra${idx}`)}
-                onChange={(ev) =>
-                  setExtras(extras.map((x, j) => (j === idx ? ev.target.value : x)))
-                }
-              />
-              <Button
-                variant="ghost"
-                aria-label="Remove email"
-                onClick={() => setExtras(extras.filter((_, j) => j !== idx))}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button size="sm" variant="outline" onClick={() => setExtras([...extras, ''])}>
-            Add email
+      description={
+        instructor
+          ? instructor.primary_email
+          : 'Add each real person once. They can then be used in any domain.'
+      }
+      footer={
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
+            {instructor ? 'Save changes' : 'Add instructor'}
           </Button>
-        </div>
-        <Field
-          label="Discord user ID"
-          hint="Right-click the person in Discord → Copy User ID (17–20 digits)."
-          error={v.show('discord_user_id')}
-        >
-          <Input
-            value={f.discord_user_id}
-            onBlur={v.touch('discord_user_id')}
-            onChange={(e) => setF({ ...f, discord_user_id: e.target.value })}
-          />
-        </Field>
-        <Field
-          label="Discord channel link"
-          hint={
-            channel
-              ? `Server ${channel.serverId} · channel ${channel.channelId}`
-              : 'Right-click their channel → Copy Link.'
-          }
-          error={v.show('discord_channel_link')}
-        >
-          <Input
-            value={f.discord_channel_link}
-            onBlur={v.touch('discord_channel_link')}
-            onChange={(e) => setF({ ...f, discord_channel_link: e.target.value })}
-          />
-        </Field>
-        <Field label="Phone">
-          <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-        </Field>
-        <Field label="Notes">
-          <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
-        </Field>
-        <Checkbox
-          label="Test instructor (never booked in Live domains)"
-          checked={f.is_test}
-          onChange={(v) => setF({ ...f, is_test: v })}
-        />
-        {dup && (
-          <p className="rounded bg-warning-soft p-2 text-sm text-warning-strong">
-            An instructor with this email or Discord ID already exists: {dup.full_name}
-          </p>
-        )}
-        {contactChanged && (
-          <p className="text-sm text-warning-strong">
-            Changing email or Discord details removes the Verified badge.
-          </p>
-        )}
-        <ErrorText error={err} />
-        <div className="flex gap-2">
-          <Button onClick={save} loading={saving} disabled={!!dup}>
-            Save
-          </Button>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
         </div>
+      }
+    >
+      <div className="space-y-5">
+        {dup && (
+          <Notice tone="warning">
+            An instructor with this email or Discord ID already exists: {dup.full_name}. Edit that
+            record instead.
+          </Notice>
+        )}
+
+        <Group title="Basic details">
+          <Field label="Full name" required error={v.show('full_name')}>
+            <Input
+              value={f.full_name}
+              onBlur={v.touch('full_name')}
+              onChange={(e) => setF({ ...f, full_name: e.target.value })}
+            />
+          </Field>
+          <Field
+            label="Email"
+            required
+            hint="Messages are sent to this address."
+            error={v.show('primary_email')}
+          >
+            <Input
+              value={f.primary_email}
+              onBlur={v.touch('primary_email')}
+              onChange={(e) => setF({ ...f, primary_email: e.target.value })}
+            />
+          </Field>
+          <div className="space-y-2">
+            <span className="block text-sm font-medium">
+              Other emails{' '}
+              <HelpTip>
+                Other addresses this person uses. Replies from them are matched to this instructor.
+              </HelpTip>
+            </span>
+            {extras.map((e, idx) => (
+              <div key={idx}>
+                <div className="flex gap-2">
+                  <Input
+                    value={e}
+                    aria-label={`Other email ${idx + 1}`}
+                    onBlur={v.touch(`extra${idx}`)}
+                    aria-invalid={!!v.show(`extra${idx}`)}
+                    onChange={(ev) =>
+                      setExtras(extras.map((x, j) => (j === idx ? ev.target.value : x)))
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Remove this email"
+                    onClick={() => setExtras(extras.filter((_, j) => j !== idx))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {v.show(`extra${idx}`) && (
+                  <span className="text-xs text-danger-strong">{v.show(`extra${idx}`)}</span>
+                )}
+              </div>
+            ))}
+            <Button size="sm" variant="secondary" onClick={() => setExtras([...extras, ''])}>
+              Add another email
+            </Button>
+          </div>
+          <Field label="Phone" hint="Only for the team, for example to call in an emergency.">
+            <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          </Field>
+          <Field label="Notes">
+            <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+          </Field>
+          <Checkbox
+            label="Test instructor"
+            hint="For trying things out. Test instructors are never booked in a live domain."
+            checked={f.is_test}
+            onChange={(c) => setF({ ...f, is_test: c })}
+          />
+        </Group>
+
+        <Group
+          title="Discord"
+          description={
+            <>
+              How to copy the details: in Discord, open User Settings, then Advanced, and turn on
+              Developer Mode. Then right click the person and choose Copy User ID, and right click
+              their channel and choose Copy Link.
+            </>
+          }
+        >
+          <Field
+            label="Discord user ID"
+            hint="17 to 20 digits. Used to tag them in their channel."
+            error={v.show('discord_user_id')}
+          >
+            <Input
+              value={f.discord_user_id}
+              onBlur={v.touch('discord_user_id')}
+              onChange={(e) => setF({ ...f, discord_user_id: e.target.value })}
+            />
+          </Field>
+          <Field
+            label="Their channel link"
+            hint={
+              channel ? 'Link recognised.' : 'For example https://discord.com/channels/123…/456…'
+            }
+            error={v.show('discord_channel_link')}
+          >
+            <Input
+              value={f.discord_channel_link}
+              onBlur={v.touch('discord_channel_link')}
+              onChange={(e) => setF({ ...f, discord_channel_link: e.target.value })}
+            />
+          </Field>
+        </Group>
 
         {instructor && (
-          <>
-            <div className="border-t pt-4">
-              <h3 className="mb-2 font-medium">Upcoming bookings (all domains)</h3>
+          <Group
+            title="Contact check"
+            description="A short message on Discord and by email that they confirm with one tap. Only checked instructors are asked in a live domain."
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {instructor.verified_at ? (
+                <Badge tone="success">Checked {fmtLocal(instructor.verified_at)}</Badge>
+              ) : (
+                <Badge tone="warning">Not checked yet</Badge>
+              )}
+              {instructor.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
+              {instructor.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
+            </div>
+            {contactChanged && (
+              <Notice tone="warning">
+                Saving new email or Discord details removes the check, so send a new one afterwards.
+              </Notice>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  act(
+                    () => rpc('send_test_message', { p_instructor_id: instructor.id }),
+                    'Contact check sent by Discord and email',
+                  )
+                }
+              >
+                <Send className="h-3.5 w-3.5" aria-hidden /> Send contact check
+              </Button>
+              {!instructor.verified_at && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    act(
+                      () => rpc('mark_verified_manually', { p_instructor_id: instructor.id }),
+                      'Marked as checked',
+                    )
+                  }
+                >
+                  <MailCheck className="h-3.5 w-3.5" aria-hidden /> Mark as checked
+                </Button>
+              )}
+            </div>
+          </Group>
+        )}
+
+        {instructor && (
+          <Group title="Availability">
+            <div className="text-sm">
+              <div className="mb-1 font-medium">Upcoming classes (every domain)</div>
               {upcoming.length ? (
-                <ul className="list-disc pl-5 text-sm">
+                <ul className="list-disc space-y-0.5 pl-5">
                   {upcoming.map((u) => (
                     <li key={u}>{u}</li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">None.</p>
+                <p className="text-muted-foreground">None.</p>
+              )}
+            </div>
+            <div className="text-sm">
+              <div className="mb-1 font-medium">Instructor order</div>
+              {ranked.length ? (
+                <ul className="list-disc space-y-0.5 pl-5">
+                  {ranked.map((u) => (
+                    <li key={u}>{u}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">Not in any module's order yet.</p>
               )}
             </div>
             <Unavailability instructor={instructor} />
-            <div className="flex flex-wrap gap-2 border-t pt-4">
+            <div className="flex flex-wrap gap-2 rounded-md border border-border p-3">
+              <div className="w-full text-sm text-muted-foreground">
+                {instructor.status === 'Active'
+                  ? 'Inactive instructors are not asked. If they are being asked now, the request is withdrawn politely and the next instructor is asked.'
+                  : `This instructor is ${instructor.status.toLowerCase()}.`}
+              </div>
               {instructor.status === 'Active' ? (
                 <Button
-                  variant="outline"
+                  variant="destructive"
+                  size="sm"
                   onClick={async () => {
                     if (
                       await confirm({
-                        title: `Deactivate ${instructor.full_name}?`,
-                        body: 'They will not be asked again. Any open request is withdrawn politely and the next instructor is asked.',
+                        title: `Make ${instructor.full_name} inactive?`,
+                        body: 'They will not be asked again. If they have confirmed classes, you will choose whether to keep each one.',
                         danger: true,
+                        confirmLabel: 'Make inactive',
                       })
                     )
                       await act(() => deactivate('Inactive'), 'Done');
                   }}
                 >
-                  Deactivate
+                  Make inactive
                 </Button>
               ) : (
                 <Button
-                  variant="outline"
+                  size="sm"
+                  variant="secondary"
                   onClick={() =>
                     act(
                       async () =>
@@ -504,22 +671,24 @@ function InstructorDrawer({
                             .eq('id', instructor.id)
                             .select(),
                         ),
-                      'Reactivated',
+                      'Active again',
                     )
                   }
                 >
-                  Reactivate
+                  Make active again
                 </Button>
               )}
               {instructor.status !== 'Archived' && (
                 <Button
+                  size="sm"
                   variant="ghost"
                   onClick={async () => {
                     if (
                       await confirm({
                         title: `Archive ${instructor.full_name}?`,
-                        body: 'Instructors with history are archived, never deleted.',
+                        body: 'Instructors with history are archived, never deleted. They no longer appear in lists.',
                         danger: true,
+                        confirmLabel: 'Archive',
                       })
                     )
                       await act(() => deactivate('Archived'), 'Archived');
@@ -529,20 +698,25 @@ function InstructorDrawer({
                 </Button>
               )}
             </div>
-          </>
+          </Group>
         )}
+        <ErrorText error={err} />
       </div>
       <Modal
         open={!!deact}
         onOpenChange={(o) => !o && setDeact(null)}
-        title={`Keep these ${deact?.length ?? 0} classes, or release them and find backups?`}
+        title={`Keep these ${deact?.length ?? 0} classes?`}
+        description="Choose for each class whether they still teach it, or release them and find someone else."
       >
         <div className="space-y-2">
           {deact?.map((b) => (
-            <div key={b.booking_id} className="flex items-center justify-between gap-2 text-sm">
+            <div
+              key={b.booking_id}
+              className="flex flex-wrap items-center justify-between gap-2 text-sm"
+            >
               <span>{b.label}</span>
               <Select
-                className="w-48"
+                className="w-56"
                 value={decisions[b.booking_id]}
                 onChange={(e) =>
                   setDecisions({
@@ -551,17 +725,20 @@ function InstructorDrawer({
                   })
                 }
               >
-                <option value="keep">Keep booking</option>
-                <option value="release">Release & find backup</option>
+                <option value="keep">Keep, they still teach it</option>
+                <option value="release">Release and find someone else</option>
               </Select>
             </div>
           ))}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDeact(null)}>
+            <Button variant="secondary" onClick={() => setDeact(null)}>
               Cancel
             </Button>
-            <Button onClick={() => act(() => deactivate('Inactive', decisions), 'Done')}>
-              Deactivate
+            <Button
+              variant="destructive"
+              onClick={() => act(() => deactivate('Inactive', decisions), 'Done')}
+            >
+              Make inactive
             </Button>
           </div>
         </div>
@@ -574,14 +751,25 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
   const qc = useQueryClient();
   const [r, setR] = useState({ from: '', to: '', reason: '' });
   const [err, setErr] = useState<unknown>(null);
+  const v = useFormErrors({
+    from: !r.from ? 'Choose the first day.' : undefined,
+    to: !r.to
+      ? 'Choose the last day.'
+      : r.from && r.to < r.from
+        ? 'The last day must be on or after the first day.'
+        : undefined,
+  });
   return (
-    <div className="border-t pt-4">
-      <h3 className="mb-2 font-medium">Unavailable dates</h3>
-      <ul className="mb-2 space-y-1 text-sm">
+    <div className="text-sm">
+      <div className="mb-1 font-medium">Dates they cannot teach</div>
+      <ul className="mb-2 space-y-1">
         {instructor.instructor_unavailability.map((u) => (
-          <li key={u.id} className="flex items-center justify-between">
+          <li
+            key={u.id}
+            className="flex items-center justify-between rounded-md border border-border px-3 py-1.5"
+          >
             <span>
-              {u.from_date} → {u.to_date}{' '}
+              {u.from_date} to {u.to_date}{' '}
               {u.reason && <span className="text-muted-foreground">({u.reason})</span>}
             </span>
             <Button
@@ -589,6 +777,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
               variant="ghost"
               onClick={async () => {
                 check(await supabase.from('instructor_unavailability').delete().eq('id', u.id));
+                toast.success('Dates removed');
                 await qc.invalidateQueries();
               }}
             >
@@ -600,27 +789,33 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
           <li className="text-muted-foreground">None.</li>
         )}
       </ul>
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="From">
+      <div className="flex flex-wrap items-start gap-2">
+        <Field label="First day" error={v.show('from')}>
           <Input
             type="date"
             value={r.from}
+            onBlur={v.touch('from')}
             onChange={(e) => setR({ ...r, from: e.target.value })}
           />
         </Field>
-        <Field label="To">
-          <Input type="date" value={r.to} onChange={(e) => setR({ ...r, to: e.target.value })} />
+        <Field label="Last day" error={v.show('to')}>
+          <Input
+            type="date"
+            value={r.to}
+            onBlur={v.touch('to')}
+            onChange={(e) => setR({ ...r, to: e.target.value })}
+          />
         </Field>
-        <Field label="Reason">
+        <Field label="Reason (optional)">
           <Input value={r.reason} onChange={(e) => setR({ ...r, reason: e.target.value })} />
         </Field>
         <Button
-          variant="outline"
-          disabled={!r.from || !r.to}
+          variant="secondary"
+          className="mt-6"
           onClick={async () => {
             setErr(null);
+            if (!v.submit()) return;
             try {
-              if (r.to < r.from) throw new Error('"To" must be on or after "From".');
               check(
                 await supabase.from('instructor_unavailability').insert({
                   instructor_id: instructor.id,
@@ -630,13 +825,15 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
                 }),
               );
               setR({ from: '', to: '', reason: '' });
+              v.reset();
+              toast.success('Dates added');
               await qc.invalidateQueries();
             } catch (e) {
               setErr(e);
             }
           }}
         >
-          Add
+          Add dates
         </Button>
       </div>
       <ErrorText error={err} />

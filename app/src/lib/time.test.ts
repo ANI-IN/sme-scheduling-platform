@@ -12,7 +12,7 @@ describe('Pacific time display (PRD §12)', () => {
   });
   it('formats ranges', () => {
     expect(fmtPTRange('2027-02-05T02:00:00Z', '2027-02-05T04:00:00Z')).toBe(
-      'Thu Feb 4, 6:00 PM – 8:00 PM PST',
+      'Thu Feb 4, 6:00 PM to 8:00 PM PST',
     );
   });
   it('extracts PT date/time for editing', () => {

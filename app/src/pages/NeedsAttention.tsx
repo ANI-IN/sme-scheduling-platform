@@ -6,7 +6,7 @@ import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useMe, useTeam, useWeeks, type AttentionItem } from '@/lib/data';
 import { ago, fmtLocal, fmtPT } from '@/lib/time';
-import { plain, plainLabel } from '@/lib/plain';
+import { messageName, plain, plainLabel } from '@/lib/plain';
 import { attentionTypeLabel, helpCategories, helpStatusLabel } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -19,8 +19,9 @@ import {
   Input,
   Modal,
   Select,
-  Spinner,
+  SkeletonRows,
   Textarea,
+  Toolbar,
 } from '@/components/ui';
 import { ClassDrawer, useRun } from './ClassDrawer';
 
@@ -88,11 +89,12 @@ export function TaskList() {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
+      <Toolbar>
         <Select
+          aria-label="Type of task"
           value={f.type}
           onChange={(e) => setF({ ...f, type: e.target.value })}
-          className="w-56"
+          className="w-60"
         >
           <option value="">All types</option>
           {Object.entries(attentionTypeLabel).map(([k, v]) => (
@@ -102,9 +104,10 @@ export function TaskList() {
           ))}
         </Select>
         <Select
+          aria-label="Assigned to"
           value={f.assigned}
           onChange={(e) => setF({ ...f, assigned: e.target.value })}
-          className="w-44"
+          className="w-60"
         >
           <option value="">Assigned to anyone</option>
           {(team.data ?? []).map((t) => (
@@ -120,17 +123,19 @@ export function TaskList() {
         />
         <Checkbox label="Mine only" checked={f.mine} onChange={(v) => setF({ ...f, mine: v })} />
         <Checkbox
-          label="Show done (last 7 days)"
+          label="Show done in the last 7 days"
           checked={f.done}
           onChange={(v) => setF({ ...f, done: v })}
         />
-      </div>
+      </Toolbar>
       <ErrorText error={err} />
       {items.isLoading ? (
-        <Spinner />
+        <SkeletonRows rows={4} />
       ) : rows.length === 0 ? (
-        <Empty title="Nothing needs attention">
-          The system will add items here when a person needs to act.
+        <Empty title={f.done ? 'Nothing done in the last 7 days' : 'Nothing needs your attention'}>
+          {f.type || f.assigned || f.urgent || f.mine
+            ? 'No tasks match these filters.'
+            : 'Tasks appear here when the automation needs a person to act.'}
         </Empty>
       ) : (
         <ul className="space-y-2">
@@ -142,15 +147,15 @@ export function TaskList() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-1">
-                    {a.severity === 'Urgent' && <Badge tone="red">Urgent</Badge>}
-                    <Badge tone="blue">{attentionTypeLabel[a.type] ?? a.type}</Badge>
+                    {a.severity === 'Urgent' && <Badge tone="danger">Urgent</Badge>}
+                    <Badge tone="info">{attentionTypeLabel[a.type] ?? a.type}</Badge>
                     {a.status === 'Acknowledged' && (
-                      <Badge tone="purple">
+                      <Badge tone="accent">
                         On it{a.assigned_to ? `: ${teamNames.get(a.assigned_to)}` : ''}
                       </Badge>
                     )}
-                    {a.is_test && <Badge tone="amber">TEST</Badge>}
-                    {a.escalated_at && <Badge tone="red">Escalated</Badge>}
+                    {a.is_test && <Badge tone="warning">Test</Badge>}
+                    {a.escalated_at && <Badge tone="danger">Escalated</Badge>}
                   </div>
                   <div className="font-medium">{plainLabel(a.title)}</div>
                   {a.detail && (
@@ -159,7 +164,7 @@ export function TaskList() {
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground">
-                    Waiting {ago(a.created_at)} · raised {fmtLocal(a.created_at)}
+                    Waiting {ago(a.created_at)} · added {fmtLocal(a.created_at)}
                     {a.assigned_to
                       ? ` · assigned to ${teamNames.get(a.assigned_to)}`
                       : a.recipients.length
@@ -184,7 +189,8 @@ export function TaskList() {
                       </Button>
                     )}
                     <Select
-                      className="h-8 w-36"
+                      aria-label="Assign to a team member"
+                      className="h-8 w-40"
                       value=""
                       onChange={(e) =>
                         e.target.value &&
@@ -198,7 +204,7 @@ export function TaskList() {
                         )
                       }
                     >
-                      <option value="">Assign to…</option>
+                      <option value="">Assign to</option>
                       {(team.data ?? [])
                         .filter((t) => t.active)
                         .map((t) => (
@@ -210,21 +216,21 @@ export function TaskList() {
                     {a.module_week_id && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => setDrawer(a.module_week_id)}
                       >
                         {['RankingExhausted', 'ClassAtRisk', 'LateReply'].includes(a.type)
-                          ? 'Assign instructor'
+                          ? 'Assign an instructor'
                           : 'Open class'}
                       </Button>
                     )}
                     {a.help_request_id && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => setHelp(a.help_request_id)}
                       >
-                        Reply / handle
+                        Open help request
                       </Button>
                     )}
                     {a.type === 'TypedReply' &&
@@ -234,13 +240,14 @@ export function TaskList() {
                         ?.booking.some((b) => b.status === 'Active') && (
                         <Button
                           size="sm"
-                          variant="danger"
+                          variant="destructive"
                           onClick={async () => {
                             if (
                               await confirm({
                                 title: 'Release and find a replacement?',
-                                body: 'Only do this if the message really is a cancellation. The instructor is told and outreach restarts.',
+                                body: 'Only do this if the message really is a cancellation. The instructor is told, and we start asking other instructors.',
                                 danger: true,
+                                confirmLabel: 'Release and find a replacement',
                               })
                             )
                               await run(async () => {
@@ -252,16 +259,16 @@ export function TaskList() {
                                   p_item_id: a.id,
                                   p_note: 'Released after typed cancellation',
                                 });
-                              }, 'Released');
+                              }, 'Instructor released');
                           }}
                         >
-                          Release & find replacement
+                          Release and find a replacement
                         </Button>
                       )}
                     {a.instructor_id && !a.help_request_id && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => (setReplyText(''), setReplyFor(a))}
                       >
                         Reply
@@ -286,7 +293,7 @@ export function TaskList() {
             onClick={() => (
               void run(
                 () => rpc('attention_done', { p_item_id: doneFor!.id, p_note: note || undefined }),
-                'Done',
+                'Marked done',
               ),
               setDoneFor(null)
             )}
@@ -301,7 +308,11 @@ export function TaskList() {
         title={`Reply to ${replyFor?.instructor_id ? names.get(replyFor.instructor_id) : ''}`}
         description="Sent in their Discord channel and by email. Nothing about the booking changes."
       >
-        <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} />
+        <Textarea
+          aria-label="Your reply"
+          value={replyText}
+          onChange={(e) => setReplyText(e.target.value)}
+        />
         <div className="mt-3 flex justify-end">
           <Button
             disabled={!replyText.trim()}
@@ -353,19 +364,19 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
   return (
     <Modal open onOpenChange={(o) => !o && onClose()} title="Help request" wide>
       {!req ? (
-        <Spinner />
+        <SkeletonRows rows={4} />
       ) : (
         <div className="space-y-4 text-sm">
           <div className="flex flex-wrap gap-2">
-            <Badge tone={req.severity === 'Urgent' ? 'red' : 'gray'}>{req.severity}</Badge>
-            <Badge tone="blue">{helpStatusLabel[req.status]}</Badge>
+            <Badge tone={req.severity === 'Urgent' ? 'danger' : 'neutral'}>{req.severity}</Badge>
+            <Badge tone="info">{helpStatusLabel[req.status]}</Badge>
             <span>
               From{' '}
               <strong>
                 {(req.instructor as { full_name: string } | null)?.full_name ??
                   (req.requester_team_member_id
                     ? teamNames.get(req.requester_team_member_id)
-                    : 'ops')}
+                    : 'the operations team')}
               </strong>{' '}
               · {(req.module_week as { module: { name: string } | null } | null)?.module?.name} ·
               class{' '}
@@ -380,8 +391,8 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
             {req.details && <p className="mt-1 whitespace-pre-line">{req.details}</p>}
           </div>
           <div className="text-muted-foreground">
-            Urgency: {req.urgency} · reply by {req.reply_channel} · target{' '}
-            {fmtLocal(req.response_target_at)} ({fmtPT(req.response_target_at)}) · routed to{' '}
+            Urgency: {req.urgency} · reply by {req.reply_channel} · answer by{' '}
+            {fmtLocal(req.response_target_at)} ({fmtPT(req.response_target_at)}) · sent to{' '}
             {req.routed_to.map((r) => teamNames.get(r)).join(', ')}
             {req.assigned_to && ` · taken by ${teamNames.get(req.assigned_to)}`}
           </div>
@@ -395,7 +406,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                   <strong>
                     {m.direction === 'Inbound'
                       ? `From ${m.recipient_label}`
-                      : `${m.template_id} to ${m.recipient_label} (${m.channel})`}
+                      : `${messageName[m.template_id] ?? 'Message'} to ${m.recipient_label} (${m.channel})`}
                   </strong>{' '}
                   · {fmtLocal(m.created_at)}
                   <div className="whitespace-pre-line">{m.body_text}</div>
@@ -415,7 +426,8 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                   </Button>
                 )}
                 <Select
-                  className="h-8 w-44"
+                  aria-label="Reassign to a team member"
+                  className="h-8 w-48"
                   value=""
                   onChange={(e) =>
                     e.target.value &&
@@ -426,7 +438,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                     )
                   }
                 >
-                  <option value="">Reassign to…</option>
+                  <option value="">Reassign to</option>
                   {(team.data ?? []).map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -435,22 +447,23 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                 </Select>
                 <Button
                   size="sm"
-                  variant="danger"
+                  variant="destructive"
                   onClick={async () => {
                     if (
                       await confirm({
-                        title: 'Convert to cancellation?',
-                        body: 'Use this when the help request really means “I can’t teach”. The booking is released and outreach restarts.',
+                        title: 'Treat this as a cancellation?',
+                        body: 'Use this when the help request really means “I can’t teach”. The instructor is released and we start asking other instructors.',
                         danger: true,
+                        confirmLabel: 'Treat as a cancellation',
                       })
                     )
                       await run(
                         () => rpc('help_convert_to_cancellation', { p_help_id: id }),
-                        'Converted to cancellation',
+                        'Treated as a cancellation',
                       );
                   }}
                 >
-                  Convert to cancellation
+                  Treat as a cancellation
                 </Button>
               </div>
               <Field label="Reply to the instructor (sent by their chosen channel)">
@@ -476,7 +489,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                   <Input value={note} onChange={(e) => setNote(e.target.value)} className="w-80" />
                 </Field>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   disabled={!note.trim()}
                   onClick={() =>
                     run(

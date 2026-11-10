@@ -34,10 +34,14 @@ import {
   Modal,
   PageHeader,
   Select,
-  Spinner,
+  Skeleton,
+  SkeletonRows,
   Stat,
+  tableWrap,
   td,
   th,
+  thead,
+  trow,
 } from '@/components/ui';
 import { ClassDrawer, useRun } from './ClassDrawer';
 
@@ -131,12 +135,13 @@ export default function Outreach() {
     .sort((a, b) => b - a);
 
   const statusOf = (w: WeekRow, p?: Preview) => {
-    if (w.paused) return <Badge tone="purple">Paused</Badge>;
-    if (w.status === 'NeedsInstructor') return <Badge tone="red">Needs instructor</Badge>;
-    if (['Planned', 'NotReady'].includes(w.status)) return <Badge tone="amber">Not ready</Badge>;
-    if (p?.asking && !p.next) return <Badge tone="amber">Last option</Badge>;
-    if (p?.asking) return <Badge tone="blue">Waiting</Badge>;
-    return <Badge tone="gray">{w.at_risk ? 'At risk' : 'Ready'}</Badge>;
+    if (w.paused) return <Badge tone="accent">Requests paused</Badge>;
+    if (w.status === 'NeedsInstructor') return <Badge tone="danger">Needs an instructor</Badge>;
+    if (['Planned', 'NotReady'].includes(w.status))
+      return <Badge tone="warning">Setup not finished</Badge>;
+    if (p?.asking && !p.next) return <Badge tone="warning">Last person to ask</Badge>;
+    if (p?.asking) return <Badge tone="info">Waiting for a reply</Badge>;
+    return <Badge tone="neutral">{w.at_risk ? 'At risk' : 'Ready to ask'}</Badge>;
   };
 
   return (
@@ -147,46 +152,55 @@ export default function Outreach() {
       />
       <div className="flex flex-wrap gap-3">
         <Stat
-          label="Asking"
+          label="Asking now"
           value={
             finding.filter((w) =>
               w.request.some((r) => r.kind === 'Outreach' && OPEN.includes(r.status)),
             ).length
           }
-          tone="blue"
+          tone="info"
         />
-        <Stat label="Confirmed" value={confirmed.length} tone="green" />
-        <Stat label="At risk" value={upcoming.filter((w) => w.at_risk).length} tone="amber" />
+        <Stat label="Confirmed" value={confirmed.length} tone="success" />
+        <Stat label="At risk" value={upcoming.filter((w) => w.at_risk).length} tone="warning" />
         <Stat
-          label="Needs instructor"
+          label="Need an instructor"
           value={upcoming.filter((w) => w.status === 'NeedsInstructor').length}
-          tone="red"
+          tone="danger"
         />
-        <Stat label="Help open" value={helpOpen} tone="purple" />
+        <Stat label="Open help requests" value={helpOpen} tone="accent" />
       </div>
       <ErrorText error={err} />
 
       <section>
-        <h2 className="mb-2 font-semibold">A. Finding instructors</h2>
+        <div className="mb-3">
+          <h2 className="text-base font-semibold">Still looking for an instructor</h2>
+          <p className="text-sm text-muted-foreground">
+            Instructors are asked one at a time. Open a row to see everyone asked so far.
+          </p>
+        </div>
         {weeks.isLoading ? (
-          <Spinner />
+          <SkeletonRows rows={4} />
         ) : finding.length === 0 ? (
-          <Empty title="Every upcoming module week has an instructor">
-            Nothing to chase right now.
+          <Empty title="Every upcoming class week has an instructor">
+            Nothing to follow up right now.
           </Empty>
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className={tableWrap}>
             <table className="w-full">
-              <thead className="border-b bg-muted">
+              <thead className={thead}>
                 <tr>
-                  <th className={th}></th>
-                  <th className={th}>Module week</th>
-                  <th className={th}>Mode</th>
-                  <th className={th}>Now asking</th>
-                  <th className={th}>Deadline</th>
-                  <th className={th}>Next in line</th>
+                  <th className={th}>
+                    <span className="sr-only">Show everyone asked</span>
+                  </th>
+                  <th className={th}>Class week</th>
+                  <th className={th}>Who to ask</th>
+                  <th className={th}>Asking now</th>
+                  <th className={th}>Moves on</th>
+                  <th className={th}>Next to ask</th>
                   <th className={th}>Status</th>
-                  <th className={th}>Actions</th>
+                  <th className={th}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -198,10 +212,12 @@ export default function Outreach() {
                     .sort((a, b) => a.created_at.localeCompare(b.created_at));
                   return (
                     <Fragment key={w.id}>
-                      <tr className="border-b">
+                      <tr className={trow}>
                         <td className={td}>
                           <button
-                            aria-label="Show everyone asked"
+                            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-expanded={open}
+                            aria-label={open ? 'Hide everyone asked' : 'Show everyone asked'}
                             onClick={() => {
                               const n = new Set(expanded);
                               if (open) n.delete(w.id);
@@ -229,7 +245,9 @@ export default function Outreach() {
                             </div>
                           )}
                         </td>
-                        <td className={td}>{w.outreach_mode}</td>
+                        <td className={`${td} text-xs`}>
+                          {w.outreach_mode === 'Manual' ? 'Chosen list' : 'Instructor order'}
+                        </td>
                         <td className={td}>
                           {p?.asking ? (
                             <>
@@ -240,17 +258,21 @@ export default function Outreach() {
                               </div>
                             </>
                           ) : (
-                            '—'
+                            <span className="text-muted-foreground">Nobody yet</span>
                           )}
                         </td>
                         <td className={`${td} text-xs`}>
-                          {p?.asking ? `Moves on at ${fmtPT(p.asking.deadline_at)}` : '—'}
+                          {p?.asking ? (
+                            fmtPT(p.asking.deadline_at)
+                          ) : (
+                            <span className="text-muted-foreground">Not yet</span>
+                          )}
                         </td>
                         <td className={td}>
                           {p ? (
                             (p.next ?? <span className="text-danger-strong">Nobody left</span>)
                           ) : (
-                            <Spinner />
+                            <Skeleton className="h-4 w-24" />
                           )}
                         </td>
                         <td className={td}>{statusOf(w, p)}</td>
@@ -258,13 +280,14 @@ export default function Outreach() {
                           <div className="flex flex-wrap gap-1">
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="secondary"
                               disabled={!p?.asking}
                               onClick={async () => {
                                 if (
                                   await confirm({
                                     title: `Skip ${p?.asking?.name}?`,
-                                    body: 'Their request is withdrawn politely and the next instructor is asked.',
+                                    body: 'Their request is withdrawn politely and the next instructor in line is asked.',
+                                    confirmLabel: 'Ask the next instructor',
                                   })
                                 )
                                   await run(
@@ -273,13 +296,13 @@ export default function Outreach() {
                                   );
                               }}
                             >
-                              Skip to next
+                              Ask the next instructor
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => setManualFor(w)}>
-                              Change mode
+                            <Button size="sm" variant="secondary" onClick={() => setManualFor(w)}>
+                              Choose who to ask
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => setDrawer(w.id)}>
-                              Assign manually
+                            <Button size="sm" variant="secondary" onClick={() => setDrawer(w.id)}>
+                              Assign an instructor
                             </Button>
                             <Button
                               size="sm"
@@ -291,17 +314,17 @@ export default function Outreach() {
                                       p_module_week_id: w.id,
                                       p_paused: !w.paused,
                                     }),
-                                  w.paused ? 'Resumed' : 'Paused',
+                                  w.paused ? 'Requests resumed' : 'Requests paused',
                                 )
                               }
                             >
-                              {w.paused ? 'Resume' : 'Pause'}
+                              {w.paused ? 'Resume requests' : 'Pause requests'}
                             </Button>
                           </div>
                         </td>
                       </tr>
                       {open && (
-                        <tr className="border-b bg-muted">
+                        <tr className="border-b border-border bg-muted/40">
                           <td></td>
                           <td colSpan={7} className="px-2 py-2 text-sm">
                             {asked.length === 0 ? (
@@ -310,7 +333,7 @@ export default function Outreach() {
                               <ol className="list-decimal space-y-0.5 pl-5">
                                 {asked.map((r) => (
                                   <li key={r.id}>
-                                    <strong>{names.get(r.instructor_id ?? '')}</strong> — asked{' '}
+                                    <strong>{names.get(r.instructor_id ?? '')}</strong>: asked{' '}
                                     {fmtLocal(r.sent_at)} ·{' '}
                                     {r.status === 'Accepted'
                                       ? 'said yes'
@@ -329,7 +352,7 @@ export default function Outreach() {
                             )}
                             {p && (
                               <div className="mt-2 text-xs text-muted-foreground">
-                                Line:{' '}
+                                Order for this week:{' '}
                                 {p.line.map((l) => (
                                   <span
                                     key={l.instructor_id}
@@ -354,22 +377,32 @@ export default function Outreach() {
       </section>
 
       <section>
-        <h2 className="mb-2 font-semibold">B. Confirmed and check-ins</h2>
-        {confirmed.length === 0 ? (
-          <Empty title="No confirmed module weeks coming up" />
+        <div className="mb-3">
+          <h2 className="text-base font-semibold">Confirmed classes</h2>
+          <p className="text-sm text-muted-foreground">
+            Confirmed instructors get a reminder before class and can say they are all set or need
+            help.
+          </p>
+        </div>
+        {weeks.isLoading ? (
+          <SkeletonRows rows={3} />
+        ) : confirmed.length === 0 ? (
+          <Empty title="No confirmed class weeks coming up" />
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className={tableWrap}>
             <table className="w-full">
-              <thead className="border-b bg-muted">
+              <thead className={thead}>
                 <tr>
-                  <th className={th}>Module week</th>
+                  <th className={th}>Class week</th>
                   <th className={th}>Instructor</th>
                   {checkinDays.map((d) => (
                     <th key={d} className={th}>
-                      {d}-day check-in
+                      Reminder {d} day{d === 1 ? '' : 's'} before
                     </th>
                   ))}
-                  <th className={th}>Actions</th>
+                  <th className={th}>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -378,7 +411,7 @@ export default function Outreach() {
                   const booking = w.booking.find((b) => b.status === 'Active')!;
                   const lastCheckin = checkinMsgs.data?.find((m) => m.module_week_id === w.id);
                   return (
-                    <tr key={w.id} className="border-b last:border-0">
+                    <tr key={w.id} className={trow}>
                       <td className={td}>
                         <button
                           className="text-left font-medium text-link hover:underline"
@@ -401,45 +434,25 @@ export default function Outreach() {
                             x.booking_id === booking.id,
                         );
                         const v = !r
-                          ? ['—', 'gray']
+                          ? ['Not sent yet', 'neutral']
                           : r.answer === 'AllSet'
-                            ? ['All set', 'green']
+                            ? ['All set', 'success']
                             : r.answer === 'NeedHelp'
-                              ? ['Need help', 'amber']
+                              ? ['Needs help', 'warning']
                               : r.status === 'Expired'
-                                ? ['No reply', 'red']
+                                ? ['No reply', 'danger']
                                 : r.status === 'Superseded'
-                                  ? ['Skipped', 'gray']
-                                  : [r.status === 'Reminded' ? 'Sent, reminded' : 'Sent', 'blue'];
+                                  ? ['Skipped', 'neutral']
+                                  : [r.status === 'Reminded' ? 'Sent twice' : 'Sent', 'info'];
                         return (
                           <td key={d} className={td}>
-                            <Badge tone={v[1] as 'gray'}>{v[0]}</Badge>
+                            <Badge tone={v[1] as 'neutral'}>{v[0]}</Badge>
                           </td>
                         );
                       })}
                       <td className={td}>
                         <div className="flex flex-wrap gap-1">
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={async () => {
-                              if (
-                                await confirm({
-                                  title: 'Release this booking?',
-                                  body: 'The instructor is told politely and outreach restarts.',
-                                  danger: true,
-                                  confirmLabel: 'Release & find replacement',
-                                })
-                              )
-                                await run(
-                                  () => rpc('release_booking', { p_module_week_id: w.id }),
-                                  'Released',
-                                );
-                            }}
-                          >
-                            Release
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setDrawer(w.id)}>
+                          <Button size="sm" variant="secondary" onClick={() => setDrawer(w.id)}>
                             Change instructor
                           </Button>
                           <Button
@@ -449,11 +462,31 @@ export default function Outreach() {
                             onClick={() =>
                               run(
                                 () => rpc('resend_message', { p_message_id: lastCheckin!.id }),
-                                'Check-in resent',
+                                'Reminder sent again',
                               )
                             }
                           >
-                            Resend check-in
+                            Send reminder again
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={async () => {
+                              if (
+                                await confirm({
+                                  title: `Release ${st.confirmed ?? 'this instructor'}?`,
+                                  body: 'The instructor is told politely, and we start asking other instructors for this class week.',
+                                  danger: true,
+                                  confirmLabel: 'Release and find a replacement',
+                                })
+                              )
+                                await run(
+                                  () => rpc('release_booking', { p_module_week_id: w.id }),
+                                  'Instructor released',
+                                );
+                            }}
+                          >
+                            Release
                           </Button>
                         </div>
                       </td>
@@ -548,7 +581,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
       wide
     >
       {list.isLoading ? (
-        <Spinner />
+        <SkeletonRows rows={5} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           <div className="max-h-96 space-y-1 overflow-y-auto">
@@ -575,19 +608,19 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
                   {i.rank ? (
                     <span className="text-xs text-muted-foreground">#{i.rank}</span>
                   ) : (
-                    <Badge>Not in this module’s list</Badge>
+                    <Badge>Not in this module's instructor order</Badge>
                   )}
-                  {i.is_test && <Badge tone="purple">TEST</Badge>}
+                  {i.is_test && <Badge tone="accent">Test</Badge>}
                   {i.reason && <div className="text-xs">{i.reason}</div>}
                   {!i.reason && i.warning && (
-                    <div className="text-xs text-warning-strong">⚠ {i.warning}</div>
+                    <div className="text-xs text-warning-strong">{i.warning}</div>
                   )}
                 </span>
               </label>
             ))}
           </div>
           <div>
-            <h3 className="mb-1 text-sm font-medium">Order (drag to change)</h3>
+            <h3 className="mb-1 text-sm font-medium">Order to ask (drag to change)</h3>
             {order.length === 0 ? (
               <p className="text-sm text-muted-foreground">Tick instructors on the left.</p>
             ) : (
@@ -615,18 +648,23 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
             )}
             <div className="mt-3 flex items-center gap-2 text-sm">
               When the list runs out:
-              <Select value={end} onChange={(e) => setEnd(e.target.value)} className="w-56">
-                <option value="Stop">Stop and alert me</option>
-                <option value="ContinueWithRanking">Continue with the ranking</option>
+              <Select
+                aria-label="When the list runs out"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className="w-64"
+              >
+                <option value="Stop">Stop and tell me</option>
+                <option value="ContinueWithRanking">Carry on with the instructor order</option>
               </Select>
             </div>
             <ErrorText error={err} />
             <div className="mt-3 flex flex-wrap gap-2">
               <Button disabled={order.length === 0} onClick={() => void submit('Manual')}>
-                Start outreach
+                Start asking
               </Button>
-              <Button variant="outline" onClick={() => void submit('Sequential')}>
-                Use the ranking (sequential) instead
+              <Button variant="secondary" onClick={() => void submit('Sequential')}>
+                Use the instructor order instead
               </Button>
             </div>
           </div>
@@ -643,13 +681,13 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
         </p>
         <div className="flex justify-end gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => (setDecision(null), void submit(decision!.mode, 'keep'))}
           >
             Keep waiting
           </Button>
           <Button onClick={() => (setDecision(null), void submit(decision!.mode, 'withdraw'))}>
-            Withdraw and start
+            Withdraw and start the new list
           </Button>
         </div>
       </Modal>

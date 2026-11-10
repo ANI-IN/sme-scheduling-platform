@@ -20,7 +20,8 @@ import {
   Input,
   PageHeader,
   Select,
-  Spinner,
+  SkeletonRows,
+  Toolbar,
   td,
   th,
 } from '@/components/ui';
@@ -125,11 +126,11 @@ export default function History() {
         title="Activity history"
         description="Everything that happened: changes, messages, answers and automatic checks. It cannot be edited or deleted."
       >
-        <Button variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
-          Export CSV
+        <Button variant="secondary" onClick={exportCsv} disabled={rows.length === 0}>
+          Download as spreadsheet
         </Button>
       </PageHeader>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <Toolbar>
         <Select
           value={f.scope}
           onChange={(e) => setF({ ...f, scope: e.target.value })}
@@ -190,6 +191,7 @@ export default function History() {
           onChange={(e) => setF({ ...f, from: e.target.value })}
           className="w-40"
           title="From"
+          aria-label="From date"
         />
         <Input
           type="date"
@@ -197,17 +199,19 @@ export default function History() {
           onChange={(e) => setF({ ...f, to: e.target.value })}
           className="w-40"
           title="To"
+          aria-label="To date"
         />
         <Input
           placeholder="Search"
           value={f.q}
           onChange={(e) => setF({ ...f, q: e.target.value })}
           className="w-48"
+          aria-label="Search activity"
         />
-      </div>
+      </Toolbar>
       <ErrorText error={err ?? events.error} />
       {events.isLoading ? (
-        <Spinner />
+        <SkeletonRows rows={8} />
       ) : rows.length === 0 ? (
         <Empty title="Nothing here yet">
           Every change, message and decision appears here. History can’t be edited or deleted.

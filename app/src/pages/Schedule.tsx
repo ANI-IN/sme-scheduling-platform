@@ -8,13 +8,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { DateTime } from 'luxon';
-import { Download, LifeBuoy, Plus } from 'lucide-react';
+import { CalendarDays, Download, LifeBuoy, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
 import { fmtPTRange, PT } from '@/lib/time';
 import { weekState } from '@/lib/status';
+import { plain } from '@/lib/plain';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -27,7 +28,10 @@ import {
   Modal,
   PageHeader,
   Select,
-  Spinner,
+  SkeletonRows,
+  Toolbar,
+  tableWrap,
+  thead,
   td,
   th,
 } from '@/components/ui';
@@ -123,7 +127,7 @@ export default function Schedule() {
           row.original.first ? (
             <input
               type="checkbox"
-              aria-label="Select module week"
+              aria-label="Select this class week"
               checked={selected.has(row.original.week.id)}
               onChange={(e) => {
                 const next = new Set(selected);
@@ -136,29 +140,47 @@ export default function Schedule() {
       }),
       col.accessor((r) => fmtPTRange(r.cls.starts_at, r.cls.ends_at), {
         id: 'when',
-        header: 'Date, time (PT)',
+        header: 'When (Pacific)',
         cell: ({ row, getValue }) => (
           <span
             className={
-              row.original.cls.status === 'Cancelled' ? 'text-muted-foreground line-through' : ''
+              row.original.cls.status === 'Cancelled'
+                ? 'whitespace-nowrap text-muted-foreground line-through'
+                : 'whitespace-nowrap'
             }
           >
-            {getValue()}
+            {plain(getValue())}
             {row.original.holiday && (
-              <span className="ml-1">
-                <Badge tone="amber">Holiday: {row.original.holiday}</Badge>
+              <span className="mt-0.5 block">
+                <Badge tone="warning">Holiday: {row.original.holiday}</Badge>
               </span>
             )}
           </span>
         ),
       }),
-      col.accessor((r) => r.week.module?.name ?? '', { id: 'module', header: 'Module' }),
-      col.accessor((r) => r.cls.class_type, { id: 'type', header: 'Class type' }),
-      col.accessor((r) => r.cls.title, { id: 'title', header: 'Title' }),
-      col.accessor((r) => r.week.cohort, { id: 'cohort', header: 'Cohort' }),
+      col.accessor(
+        (r) => `${r.week.module?.name ?? ''} ${r.cls.class_type} ${r.cls.title} ${r.week.cohort}`,
+        {
+          id: 'class',
+          header: 'Class',
+          cell: ({ row }) => (
+            <div>
+              <div className="font-medium">
+                {row.original.first ? row.original.week.module?.name : ''}
+                {row.original.first && row.original.week.cohort && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    Cohort {row.original.week.cohort}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">{row.original.cls.class_type}</div>
+            </div>
+          ),
+        },
+      ),
       col.accessor((r) => weekState(r.week, names).label, {
         id: 'status',
-        header: 'Outreach status',
+        header: 'Status',
         cell: ({ row }) => {
           if (!row.original.first) return null;
           const s = weekState(row.original.week, names);
@@ -167,7 +189,7 @@ export default function Schedule() {
       }),
       col.accessor((r) => weekState(r.week, names).confirmed ?? '', {
         id: 'confirmed',
-        header: 'Confirmed instructor',
+        header: 'Instructor',
         cell: ({ row, getValue }) => (row.original.first ? getValue() : null),
       }),
       col.accessor(
@@ -177,20 +199,20 @@ export default function Schedule() {
                 .filter((q) => !q.asked_request_id)
                 .sort((a, b) => a.position - b.position)
                 .map((q) => names.get(q.instructor_id))
-                .join(' → ') || 'Manual list empty'
-            : 'From ranking',
+                .join(', ') || 'Chosen list is empty'
+            : 'Instructor order',
         {
           id: 'toask',
-          header: 'Instructors to ask',
+          header: 'Who to ask',
           cell: ({ row, getValue }) =>
-            row.original.first ? <span className="text-xs">{getValue()}</span> : null,
+            row.original.first ? (
+              <span className="line-clamp-2 text-xs text-muted-foreground" title={getValue()}>
+                {row.original.week.outreach_mode === 'Manual' ? 'Chosen list: ' : ''}
+                {getValue()}
+              </span>
+            ) : null,
         },
       ),
-      col.accessor((r) => r.week.outreach_mode, {
-        id: 'mode',
-        header: 'Mode',
-        cell: ({ row, getValue }) => (row.original.first ? getValue() : null),
-      }),
       col.accessor(
         (r) => {
           const c = checklistByWeek.get(r.week.id);
@@ -267,18 +289,28 @@ export default function Schedule() {
     <div>
       <PageHeader
         title="Upcoming classes"
-        description="Every planned class, grouped by class week. Times are Pacific."
+        description="Every planned class, grouped by class week. Times are Pacific. Select a row for details and actions."
       >
+        <Button variant="secondary" onClick={exportCsv} disabled={rows.length === 0}>
+          <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
+        </Button>
+        <Button onClick={() => setPlanning(true)} disabled={!domain}>
+          <Plus className="h-4 w-4" aria-hidden /> Plan classes
+        </Button>
+      </PageHeader>
+      <Toolbar>
         <Input
-          placeholder="Search"
+          placeholder="Search classes"
+          aria-label="Search classes"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-44"
+          className="w-56"
         />
         <Select
+          aria-label="Module"
           value={moduleFilter}
           onChange={(e) => setModuleFilter(e.target.value)}
-          className="w-44"
+          className="w-52"
         >
           <option value="">All modules</option>
           {(modules.data ?? []).map((m) => (
@@ -287,20 +319,16 @@ export default function Schedule() {
             </option>
           ))}
         </Select>
-        <Checkbox label="Show past & cancelled" checked={showPast} onChange={setShowPast} />
-        <Button variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
-          <Download className="h-4 w-4" /> Download as sheet
-        </Button>
-        <Button onClick={() => setPlanning(true)} disabled={!domain}>
-          <Plus className="h-4 w-4" /> Plan classes
-        </Button>
-      </PageHeader>
+        <Checkbox label="Show past and cancelled" checked={showPast} onChange={setShowPast} />
+      </Toolbar>
 
       {selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary bg-info-soft p-2 text-sm">
-          <strong>{selected.size} module week(s) selected:</strong>
-          <Button size="sm" variant="outline" onClick={() => setQueueFor([...selected])}>
-            Set instructors to ask
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary-soft p-2 text-sm">
+          <strong className="px-1">
+            {selected.size} class week{selected.size === 1 ? '' : 's'} selected
+          </strong>
+          <Button size="sm" variant="secondary" onClick={() => setQueueFor([...selected])}>
+            Choose who to ask
           </Button>
           <Button
             size="sm"
@@ -313,11 +341,11 @@ export default function Schedule() {
                     p_mode: 'Sequential',
                     p_decision: 'keep',
                   }),
-                'Filled from rankings',
+                'Using the instructor order',
               )
             }
           >
-            Fill from rankings
+            Use the instructor order
           </Button>
           <Button
             size="sm"
@@ -334,11 +362,11 @@ export default function Schedule() {
                       .map((q) => q.instructor_id),
                     p_decision: 'keep',
                   }),
-                'Mode set to Manual',
+                'Using a chosen list',
               )
             }
           >
-            Set mode: Manual
+            Use a chosen list
           </Button>
           <Button
             size="sm"
@@ -346,11 +374,11 @@ export default function Schedule() {
             onClick={() =>
               forEachWeek(
                 (w) => rpc('pause_outreach', { p_module_week_id: w.id, p_paused: true }),
-                'Paused',
+                'Requests paused',
               )
             }
           >
-            Pause
+            Pause requests
           </Button>
           <Button
             size="sm"
@@ -358,15 +386,16 @@ export default function Schedule() {
             onClick={() =>
               forEachWeek(
                 (w) => rpc('pause_outreach', { p_module_week_id: w.id, p_paused: false }),
-                'Resumed',
+                'Requests resumed',
               )
             }
           >
-            Resume
+            Resume requests
           </Button>
           <span className="flex items-center gap-1">
             <Input
               type="number"
+              aria-label="Weeks to move"
               value={shiftN}
               onChange={(e) => setShiftN(Number(e.target.value))}
               className="h-8 w-16"
@@ -377,8 +406,8 @@ export default function Schedule() {
               onClick={async () => {
                 if (
                   !(await confirm({
-                    title: `Shift ${selected.size} module week(s) by ${shiftN} week(s)?`,
-                    body: 'Only the selected weeks move. Confirmed instructors are asked to confirm the new time.',
+                    title: `Move ${selected.size} class week${selected.size === 1 ? '' : 's'} by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
+                    body: 'Only the selected weeks move, and they keep their Pacific times. Confirmed instructors are asked to confirm the new dates.',
                   }))
                 )
                   return;
@@ -394,50 +423,59 @@ export default function Schedule() {
                       p_weeks: shiftN,
                       p_include_later: false,
                     });
-                }, 'Shifted');
+                }, 'Dates moved');
                 setSelected(new Set());
               }}
             >
-              Shift dates
+              Move by weeks
             </Button>
           </span>
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </Button>
           <Button
             size="sm"
-            variant="danger"
+            variant="destructive"
+            className="ml-auto"
             onClick={async () => {
               if (
                 await confirm({
-                  title: `Cancel ${selected.size} module week(s)?`,
-                  body: 'Requests are withdrawn and confirmed instructors are told.',
+                  title: `Cancel ${selected.size} class week${selected.size === 1 ? '' : 's'}?`,
+                  body: 'Open requests are withdrawn politely and confirmed instructors are told that the class is cancelled. This cannot be undone.',
                   danger: true,
-                  confirmLabel: 'Cancel classes',
+                  confirmLabel: 'Cancel the classes',
                 })
               )
                 await forEachWeek(
                   (w) => rpc('cancel_module_week', { p_module_week_id: w.id }),
-                  'Cancelled',
+                  'Classes cancelled',
                 );
             }}
           >
             Cancel classes
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-            Clear
           </Button>
         </div>
       )}
       <ErrorText error={err} />
 
       {weeks.isLoading ? (
-        <Spinner />
+        <SkeletonRows rows={8} />
       ) : rows.length === 0 ? (
-        <Empty title="No classes planned">
-          Use “Plan classes” to create module weeks from the class pattern.
+        <Empty
+          title={search || moduleFilter ? 'No classes match' : 'No classes planned yet'}
+          icon={<CalendarDays className="h-5 w-5" />}
+          action={
+            <Button onClick={() => setPlanning(true)} disabled={!domain}>
+              Plan classes
+            </Button>
+          }
+        >
+          Plan classes creates class weeks from each module's class times.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-card">
+        <div className={tableWrap}>
           <table className="w-full">
-            <thead className="border-b bg-muted">
+            <thead className={thead}>
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id}>
                   {hg.headers.map((h) => (

@@ -14,7 +14,7 @@ export function fmtPT(iso: string | null | undefined): string {
 export function fmtPTRange(startIso: string, endIso: string): string {
   const s = toDt(startIso, PT);
   const e = toDt(endIso, PT);
-  return `${s.toFormat('ccc LLL d, h:mm a')} – ${e.toFormat('h:mm a ZZZZ')}`;
+  return `${s.toFormat('ccc LLL d, h:mm a')} to ${e.toFormat('h:mm a ZZZZ')}`;
 }
 
 /** Date and wall-clock parts in PT, for editing. */

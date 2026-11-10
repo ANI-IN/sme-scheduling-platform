@@ -18,6 +18,11 @@ export function useFormErrors(errors: Record<string, string | undefined>) {
       setSubmitted(true);
       return !hasErrors;
     },
+    /** Forget touched fields after a successful save of a form that stays open. */
+    reset: () => {
+      setTouched({});
+      setSubmitted(false);
+    },
     hasErrors,
   };
 }

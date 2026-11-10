@@ -20,6 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
@@ -38,6 +39,7 @@ import {
   th,
 } from '@/components/ui';
 import { useInstructorContext } from '../Instructors';
+import { useFormErrors } from '@/lib/useFormErrors';
 
 export type ModuleRow = NonNullable<ReturnType<typeof useModules>['data']>[number];
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -54,41 +56,56 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
   const items = [...m.class_pattern_item].sort(
     (a, b) => a.weekday_offset - b.weekday_offset || a.start_time_pt.localeCompare(b.start_time_pt),
   );
-  const dayLabel = (o: number) => `${WEEKDAYS[o % 7]}${o >= 7 ? ' (wk 2)' : ''}`;
+  const dayLabel = (o: number) => `${WEEKDAYS[o % 7]}${o >= 7 ? ' of the next week' : ''}`;
+  const time = (t: string) => DateTime.fromFormat(t.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   return (
     <section>
-      <h3 className="mb-1 font-medium">Class pattern (Pacific Time)</h3>
-      <table className="mb-2 w-full text-sm">
-        <tbody>
-          {items.map((p) => (
-            <tr key={p.id} className="border-b">
-              <td className="py-1">{p.class_type}</td>
-              <td>{dayLabel(p.weekday_offset)}</td>
-              <td>{p.start_time_pt.slice(0, 5)} PT</td>
-              <td>{p.duration_minutes} min</td>
-              <td className="text-right">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Remove"
-                  onClick={() =>
-                    run(async () =>
-                      check(await supabase.from('class_pattern_item').delete().eq('id', p.id)),
-                    )
-                  }
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </td>
+      {items.length === 0 ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          No classes yet. Add the live class and its review, for example Sunday 9:00 AM for 240
+          minutes and Thursday 6:00 PM for 120 minutes.
+        </p>
+      ) : (
+        <table className="mb-4 w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className={th}>Class</th>
+              <th className={th}>Day</th>
+              <th className={th}>Starts (Pacific)</th>
+              <th className={th}>Length</th>
+              <th className={th}>
+                <span className="sr-only">Remove</span>
+              </th>
             </tr>
-          ))}
-          {items.length === 0 && (
-            <tr>
-              <td className="py-1 text-muted-foreground">No classes in the pattern yet.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((p) => (
+              <tr key={p.id} className="border-b border-border last:border-0">
+                <td className={td}>{p.class_type}</td>
+                <td className={td}>{dayLabel(p.weekday_offset)}</td>
+                <td className={td}>{time(p.start_time_pt)}</td>
+                <td className={td}>{p.duration_minutes} minutes</td>
+                <td className={`${td} text-right`}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Remove the ${p.class_type.toLowerCase()}`}
+                    onClick={() =>
+                      run(
+                        async () =>
+                          check(await supabase.from('class_pattern_item').delete().eq('id', p.id)),
+                        'Class removed',
+                      )
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Class type">
           <Select value={n.class_type} onChange={(e) => setN({ ...n, class_type: e.target.value })}>
@@ -97,7 +114,7 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
             ))}
           </Select>
         </Field>
-        <Field label="Day" hint="Relative to the week's Sunday">
+        <Field label="Day" hint="Class weeks start on Sunday.">
           <Select
             value={n.weekday_offset}
             onChange={(e) => setN({ ...n, weekday_offset: Number(e.target.value) })}
@@ -109,14 +126,14 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
             ))}
           </Select>
         </Field>
-        <Field label="Start (PT)">
+        <Field label="Starts (Pacific)">
           <Input
             type="time"
             value={n.start_time_pt}
             onChange={(e) => setN({ ...n, start_time_pt: e.target.value })}
           />
         </Field>
-        <Field label="Minutes">
+        <Field label="Length in minutes">
           <Input
             type="number"
             min={15}
@@ -127,14 +144,14 @@ export function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run 
           />
         </Field>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() =>
             run(async () =>
               check(
                 await supabase.from('class_pattern_item').insert({
                   module_id: m.id,
                   ...n,
-                  title_template: '{module} — {class_type}',
+                  title_template: '{module}: {class_type}',
                   sort_order: items.length + 1,
                 }),
               ),
@@ -170,7 +187,16 @@ export function SortableRow({ id, children }: { id: string; children: React.Reac
 }
 
 // RANK-1..3: dropdown to add, drag to order, impact preview before saving.
-export function RankingEditor({ module: m }: { module: ModuleRow }) {
+export function RankingEditor({
+  module: m,
+  initialExtra = [],
+  footer,
+}: {
+  module: ModuleRow;
+  /** Instructors to add to the end of the order straight away (for example one just created). */
+  initialExtra?: string[];
+  footer?: React.ReactNode;
+}) {
   const qc = useQueryClient();
   const instructors = useInstructors();
   const ctx = useInstructorContext();
@@ -178,7 +204,10 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
     () => [...m.module_ranking].sort((a, b) => a.rank - b.rank).map((r) => r.instructor_id),
     [m.module_ranking],
   );
-  const [order, setOrder] = useState<string[]>(saved);
+  const [order, setOrder] = useState<string[]>(() => [
+    ...saved,
+    ...initialExtra.filter((x) => !saved.includes(x)),
+  ]);
   const [add, setAdd] = useState('');
   const [impact, setImpact] = useState<{
     affected_weeks: number;
@@ -201,10 +230,9 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
 
   return (
     <section>
-      <h3 className="mb-1 font-medium">Ranking</h3>
-      <p className="mb-2 text-xs text-muted-foreground">
-        Rank 1 = Primary, then Backup 1, 2, … Changes apply to the next person asked, never to a
-        request already sent.
+      <p className="mb-3 text-sm text-muted-foreground">
+        Drag to change the order. Changes apply to the next person we ask, never to a request
+        already sent.
       </p>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
@@ -214,21 +242,28 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
               const greyed = !i || i.status !== 'Active' || !i.verified_at;
               return (
                 <SortableRow key={id} id={id}>
-                  <span className="w-20 text-xs text-muted-foreground">
-                    {idx === 0 ? 'Primary' : `Backup ${idx}`}
+                  <span className="w-32 text-xs text-muted-foreground">
+                    {idx === 0 ? 'Primary instructor' : `Backup ${idx}`}
                   </span>
                   <span className={greyed ? 'text-muted-foreground' : 'font-medium'}>
                     {i?.full_name ?? 'Unknown'}
                   </span>
                   {i && i.status !== 'Active' && <Badge>{i.status}</Badge>}
-                  {i && !i.verified_at && <Badge tone="amber">Not verified</Badge>}
-                  {i?.is_test && <Badge tone="purple">TEST</Badge>}
-                  <span className="ml-2 truncate text-xs text-muted-foreground">
-                    {(ctx.data?.upcoming.get(id) ?? []).slice(0, 2).join(' · ')}
+                  {i && !i.verified_at && !i.is_test && (
+                    <Badge tone="warning">Not checked yet</Badge>
+                  )}
+                  {i?.is_test && <Badge tone="accent">Test instructor</Badge>}
+                  <span
+                    className="ml-2 hidden truncate text-xs text-muted-foreground sm:inline"
+                    title={(ctx.data?.upcoming.get(id) ?? []).join('\n')}
+                  >
+                    {(ctx.data?.upcoming.get(id) ?? []).length
+                      ? `${(ctx.data?.upcoming.get(id) ?? []).length} upcoming classes`
+                      : ''}
                   </span>
                   <button
                     className="ml-auto text-muted-foreground hover:text-danger-strong"
-                    aria-label="Remove from ranking"
+                    aria-label="Remove from the instructor order"
                     onClick={() => setOrder(order.filter((x) => x !== id))}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -241,24 +276,25 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
       </DndContext>
       <div className="mt-2 flex flex-wrap gap-2">
         <Select value={add} onChange={(e) => setAdd(e.target.value)} className="w-64">
-          <option value="">Add an instructor…</option>
+          <option value="">Choose an instructor to add</option>
           {(instructors.data ?? [])
             .filter((i) => i.status !== 'Archived' && !order.includes(i.id))
             .map((i) => (
               <option key={i.id} value={i.id}>
                 {i.full_name}
-                {i.status !== 'Active' ? ` (${i.status})` : ''}
-                {!i.verified_at ? ' (not verified)' : ''}
+                {i.status !== 'Active' ? ` (${i.status.toLowerCase()})` : ''}
+                {!i.verified_at && !i.is_test ? ' (contact not checked)' : ''}
               </option>
             ))}
         </Select>
         <Button
-          variant="outline"
+          variant="secondary"
           disabled={!add}
           onClick={() => (setOrder([...order, add]), setAdd(''))}
         >
           Add
         </Button>
+        {footer}
         <Button
           disabled={!dirty}
           onClick={async () => {
@@ -275,7 +311,7 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
             }
           }}
         >
-          Review & save ranking
+          Review and save
         </Button>
         {dirty && (
           <Button variant="ghost" onClick={() => setOrder(saved)}>
@@ -284,20 +320,24 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
         )}
       </div>
       <ErrorText error={err} />
-      <Modal open={!!impact} onOpenChange={(o) => !o && setImpact(null)} title="Save this ranking?">
+      <Modal
+        open={!!impact}
+        onOpenChange={(o) => !o && setImpact(null)}
+        title="Save this instructor order?"
+      >
         {impact && (
           <div className="space-y-3 text-sm">
             <p>
-              Affects <strong>{impact.affected_weeks}</strong> upcoming unconfirmed module week
-              {impact.affected_weeks === 1 ? '' : 's'}. Confirmed ones ({impact.confirmed_weeks})
-              stay as they are.
+              This changes who we ask next for <strong>{impact.affected_weeks}</strong> upcoming
+              class week{impact.affected_weeks === 1 ? '' : 's'} without an instructor. Confirmed
+              class weeks ({impact.confirmed_weeks}) stay as they are.
             </p>
             {impact.weeks.length > 0 && (
               <table className="w-full">
                 <thead>
                   <tr>
-                    <th className={th}>Module week</th>
-                    <th className={th}>Next asked now</th>
+                    <th className={th}>Class week</th>
+                    <th className={th}>Asked next now</th>
                     <th className={th}>After saving</th>
                   </tr>
                 </thead>
@@ -305,15 +345,15 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
                   {impact.weeks.map((w) => (
                     <tr key={w.label} className="border-t">
                       <td className={td}>{w.label}</td>
-                      <td className={td}>{w.next_now ?? '—'}</td>
-                      <td className={td}>{w.next_after ?? '—'}</td>
+                      <td className={td}>{w.next_now ?? 'Nobody'}</td>
+                      <td className={td}>{w.next_after ?? 'Nobody'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setImpact(null)}>
+              <Button variant="secondary" onClick={() => setImpact(null)}>
                 Cancel
               </Button>
               <Button
@@ -324,7 +364,7 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
                       p_instructor_ids: order,
                       p_expected_ids: saved,
                     });
-                    toast.success('Ranking saved');
+                    toast.success('Instructor order saved');
                     setImpact(null);
                     await qc.invalidateQueries();
                   } catch (e) {
@@ -333,7 +373,7 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
                   }
                 }}
               >
-                Save ranking
+                Save order
               </Button>
             </div>
           </div>
@@ -346,62 +386,84 @@ export function RankingEditor({ module: m }: { module: ModuleRow }) {
 export function Resources({ module: m, run }: { module: ModuleRow; run: Run }) {
   const [r, setR] = useState({ title: '', url: '' });
   const items = [...m.module_resource].sort((a, b) => a.sort_order - b.sort_order);
+  const v = useFormErrors({
+    title: !r.title.trim() ? 'Give the link a short name.' : undefined,
+    url: !/^https?:\/\//i.test(r.url) ? 'Paste a full link that starts with https://' : undefined,
+  });
   return (
     <section>
-      <h3 className="mb-1 font-medium">Resources</h3>
-      <ul className="mb-2 space-y-1 text-sm">
-        {items.map((x) => (
-          <li key={x.id} className="flex flex-wrap items-center gap-3">
-            <a href={x.url} target="_blank" rel="noreferrer" className="text-link hover:underline">
-              {x.title}
-            </a>
-            <Checkbox
-              label="Include in confirmation"
-              checked={x.include_in_confirmation}
-              onChange={(v) =>
-                run(async () =>
-                  check(
-                    await supabase
-                      .from('module_resource')
-                      .update({ include_in_confirmation: v, version: x.version })
-                      .eq('id', x.id)
-                      .select(),
-                  ),
-                )
-              }
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                run(async () =>
-                  check(await supabase.from('module_resource').delete().eq('id', x.id)),
-                )
-              }
-            >
-              Remove
-            </Button>
-          </li>
-        ))}
-        {items.length === 0 && <li className="text-muted-foreground">No resources yet.</li>}
-      </ul>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder="Title"
-          value={r.title}
-          onChange={(e) => setR({ ...r, title: e.target.value })}
-          className="w-48"
-        />
-        <Input
-          placeholder="https://…"
-          value={r.url}
-          onChange={(e) => setR({ ...r, url: e.target.value })}
-          className="w-72"
-        />
+      {items.length === 0 ? (
+        <p className="mb-3 text-sm text-muted-foreground">
+          No materials yet. Add links such as the module page, slides or the assignment.
+        </p>
+      ) : (
+        <ul className="mb-4 divide-y divide-border rounded-md border border-border text-sm">
+          {items.map((x) => (
+            <li key={x.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
+              <a
+                href={x.url}
+                target="_blank"
+                rel="noreferrer"
+                className="min-w-0 flex-1 truncate font-medium text-link hover:underline"
+              >
+                {x.title}
+              </a>
+              <Checkbox
+                label="Send in the confirmation"
+                checked={x.include_in_confirmation}
+                onChange={(c) =>
+                  run(async () =>
+                    check(
+                      await supabase
+                        .from('module_resource')
+                        .update({ include_in_confirmation: c, version: x.version })
+                        .eq('id', x.id)
+                        .select(),
+                    ),
+                  )
+                }
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  run(
+                    async () =>
+                      check(await supabase.from('module_resource').delete().eq('id', x.id)),
+                    'Link removed',
+                  )
+                }
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-start gap-2">
+        <Field label="Name" error={v.show('title')}>
+          <Input
+            placeholder="Module page"
+            value={r.title}
+            onBlur={v.touch('title')}
+            onChange={(e) => setR({ ...r, title: e.target.value })}
+            className="w-56"
+          />
+        </Field>
+        <Field label="Link" error={v.show('url')}>
+          <Input
+            placeholder="https://"
+            value={r.url}
+            onBlur={v.touch('url')}
+            onChange={(e) => setR({ ...r, url: e.target.value })}
+            className="w-80"
+          />
+        </Field>
         <Button
-          variant="outline"
-          disabled={!r.title.trim() || !/^https?:\/\//i.test(r.url)}
+          variant="secondary"
+          className="mt-6"
           onClick={() =>
+            v.submit() &&
             run(async () => {
               check(
                 await supabase.from('module_resource').insert({
@@ -412,17 +474,18 @@ export function Resources({ module: m, run }: { module: ModuleRow; run: Run }) {
                 }),
               );
               setR({ title: '', url: '' });
-            })
+              v.reset();
+            }, 'Link added')
           }
         >
-          Add resource
+          Add link
         </Button>
       </div>
     </section>
   );
 }
 
-// RANK-4: "Who will be asked next" for each upcoming module week — same function the engine uses.
+// Who we ask next for each upcoming class week: the same function the automation uses.
 export function WhoIsNext({ moduleId }: { moduleId: string }) {
   const { domain } = useDomain();
   const weeks = useWeeks(domain?.id);
@@ -449,21 +512,29 @@ export function WhoIsNext({ moduleId }: { moduleId: string }) {
   });
   return (
     <section>
-      <h3 className="mb-1 font-medium">Who will be asked next</h3>
       {upcoming.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No upcoming unconfirmed module weeks.</p>
+        <p className="text-sm text-muted-foreground">
+          Every upcoming class week of this module already has an instructor, or none is planned
+          yet.
+        </p>
       ) : (
-        <ul className="space-y-1 text-sm">
+        <ul className="divide-y divide-border rounded-md border border-border text-sm">
           {(previews.data ?? []).map(({ w, p }) => (
-            <li key={w.id}>
-              {fmtPT(w.first_class_at)}
-              {w.cohort && ` (${w.cohort})`}:{' '}
-              {p.asking ? (
-                <>
-                  asking <strong>{p.asking.name}</strong>, then{' '}
-                </>
-              ) : null}
-              <strong>{p.next ?? 'nobody left in line'}</strong>
+            <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+              <span>
+                Class week of {fmtPT(w.first_class_at)}
+                {w.cohort && ` (${w.cohort})`}
+              </span>
+              <span>
+                {p.asking ? (
+                  <>
+                    Asking <strong>{p.asking.name}</strong> now, then{' '}
+                  </>
+                ) : (
+                  'Next: '
+                )}
+                <strong>{p.next ?? 'nobody left to ask'}</strong>
+              </span>
             </li>
           ))}
         </ul>

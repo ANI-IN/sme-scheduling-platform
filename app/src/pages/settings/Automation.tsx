@@ -318,6 +318,7 @@ function Holidays() {
     try {
       check(await supabase.from('holiday').insert({ date: h.date, name: h.name.trim() }));
       setH({ date: '', name: '' });
+      v.reset();
       toast.success('Holiday added');
       await qc.invalidateQueries({ queryKey: ['holiday'] });
     } catch (e) {
