@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { rpc } from '@/lib/rpc';
+import { plain } from '@/lib/plain';
 import { useCohorts, useModules, type Domain } from '@/lib/data';
 import { parseDateList } from '@/lib/time';
 import {
@@ -78,7 +79,8 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       p_domain_id: domain.id,
       p_first_date: first || DateTime.now().toISODate()!,
     }).then(
-      (n) => setNewCohort(String(n)),
+      // The answer can arrive after the person started typing: never replace their own name.
+      (n) => setNewCohort((typed) => typed || String(n)),
       () => {},
     );
   }, [cohortChoice, first, newCohort, domain.id]);
@@ -367,7 +369,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
               <div className="mb-1 font-medium">Please check before creating:</div>
               <ul className="list-disc space-y-0.5 pl-5">
                 {summary.warnings.slice(0, 8).map((x, i) => (
-                  <li key={i}>{x.text}</li>
+                  <li key={i}>{plain(x.text)}</li>
                 ))}
               </ul>
               {summary.warnings.length > 8 && <div>and {summary.warnings.length - 8} more.</div>}
@@ -510,7 +512,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       >
         <ul className="mb-3 list-disc space-y-1 pl-5 text-sm">
           {(pending ?? []).map((x, i) => (
-            <li key={i}>{x.text}</li>
+            <li key={i}>{plain(x.text)}</li>
           ))}
         </ul>
         <Field label="Reason (optional)">

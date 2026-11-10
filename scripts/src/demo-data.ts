@@ -9,7 +9,7 @@
 // submit_response_page, create_help_request), so what the screenshots show is what the team
 // would see. Needs Docker (the local Supabase database container).
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import pg from 'pg';
 
@@ -42,6 +42,8 @@ function snapshot() {
     '--disable-triggers',
     ...SCHEMAS.flatMap((s) => ['--schema', s]),
   ]);
+  // Keep the previous copy too, so one mistake can never lose the only saved copy.
+  if (existsSync(SNAPSHOT)) renameSync(SNAPSHOT, SNAPSHOT.replace(/\.sql$/, '.previous.sql'));
   writeFileSync(SNAPSHOT, dump);
   console.log(`Saved the app data to ${SNAPSHOT} (${Math.round(dump.length / 1024)} KB).`);
 }

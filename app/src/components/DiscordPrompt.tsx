@@ -37,6 +37,7 @@ export function DiscordPrompt() {
   return (
     <Modal
       open
+      stayOpen
       onOpenChange={(o) => !o && void save(true)}
       title={`Welcome, ${account.member?.name.split(' ')[0] ?? ''}`}
       description="Add your Discord user ID so the team alerts can tag you. You only do this once."

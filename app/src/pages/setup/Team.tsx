@@ -72,7 +72,16 @@ export default function Team() {
               {(data ?? []).map((t) => (
                 <tr key={t.id} className={trowClick} onClick={() => setEditing(t)}>
                   <td className={td}>
-                    <span className="font-medium">{t.name}</span>{' '}
+                    <button
+                      type="button"
+                      className="text-left font-medium hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(t);
+                      }}
+                    >
+                      {t.name}
+                    </button>{' '}
                     {t.is_placeholder && <Badge tone="warning">Needs real details</Badge>}
                     {!t.active && <Badge>Not in use</Badge>}
                   </td>

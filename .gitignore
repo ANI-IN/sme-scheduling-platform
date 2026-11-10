@@ -17,3 +17,5 @@ coverage/
 .ui-demo-snapshot.sql
 .env.sandbox
 .env.production
+e2e/results/
+.ui-demo-snapshot*.sql

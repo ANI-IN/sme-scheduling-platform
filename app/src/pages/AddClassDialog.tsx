@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
+import { plain } from '@/lib/plain';
 import { useCohorts, useModules, type Domain, type WeekRow } from '@/lib/data';
 import {
   Button,
@@ -194,7 +195,7 @@ export function AddClassDialog({
       >
         <ul className="mb-3 list-disc space-y-1 pl-5 text-sm">
           {(pending ?? []).map((x, i) => (
-            <li key={i}>{x.text}</li>
+            <li key={i}>{plain(x.text)}</li>
           ))}
         </ul>
         <Field label="Reason (optional)">

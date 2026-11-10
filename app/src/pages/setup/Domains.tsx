@@ -91,7 +91,18 @@ export default function Domains() {
             <tbody>
               {(domains.data ?? []).map((d) => (
                 <tr key={d.id} className={trowClick} onClick={() => setOpen(d.id)}>
-                  <td className={`${td} font-medium`}>{d.name}</td>
+                  <td className={`${td} font-medium`}>
+                    <button
+                      type="button"
+                      className="text-left font-medium hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpen(d.id);
+                      }}
+                    >
+                      {d.name}
+                    </button>
+                  </td>
                   <td className={td}>
                     <Badge tone={statusTone[d.status]}>{statusLabel[d.status]}</Badge>
                   </td>

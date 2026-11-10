@@ -34,7 +34,7 @@ import { useDomain } from '@/lib/domain';
 import { type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
 import { Badge, Button, cn, type Tone } from './ui';
-import { ThemeSwitch } from './ThemeSwitch';
+import { ThemeMenuChoice } from './ThemeSwitch';
 
 type Item = { to: string; label: string; icon: typeof Home; end?: boolean };
 const groups: { label?: string; items: Item[] }[] = [
@@ -294,14 +294,14 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () =>
 function DomainSwitcher({ collapsed }: { collapsed: boolean }) {
   const { domain, domains, setDomainId } = useDomain();
   return (
-    <DM.Root>
+    <DM.Root modal={false}>
       <DM.Trigger
         className={cn(
           'flex w-full items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left text-sm shadow-sm hover:bg-muted',
           collapsed && 'justify-center px-0',
         )}
-        aria-label="Choose a domain"
       >
+        <span className="sr-only">Choose a domain. </span>
         <Globe2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         {!collapsed && (
           <>
@@ -355,15 +355,15 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   const pause = usePauseAll();
   return (
     <div className={cn('border-t border-border p-3', collapsed && 'p-2')}>
-      <DM.Root>
+      <DM.Root modal={false}>
         <DM.Trigger
           className={cn(
             'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted',
             collapsed && 'justify-center px-0',
           )}
-          aria-label="Your account and theme"
           title={email}
         >
+          <span className="sr-only">Your account and theme: </span>
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-link"
             aria-hidden
@@ -387,8 +387,8 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
                 {email}
               </div>
             </div>
-            <div className="px-1 pb-1 text-xs font-medium">Theme</div>
-            <ThemeSwitch className="mb-2 w-full justify-between" />
+            <DM.Label className="px-1 pb-1 text-xs font-medium">Theme</DM.Label>
+            <ThemeMenuChoice />
             <DM.Separator className="my-1 h-px bg-border" />
             <DM.Item
               onSelect={() => void pause.toggle()}

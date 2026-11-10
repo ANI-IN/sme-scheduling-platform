@@ -21,7 +21,7 @@ export function ActionMenu({
   const shown = items.filter((i) => !i.hidden);
   if (shown.length === 0) return null;
   return (
-    <DM.Root>
+    <DM.Root modal={false}>
       <DM.Trigger
         aria-label={label}
         title={label}

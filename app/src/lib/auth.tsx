@@ -63,7 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // Supabase can report the same sign in twice at once (initial session and signed in);
+    // only the newest answer is used, so a slower older one never overwrites it.
+    let latest = 0;
     const accept = async (event: AuthChangeEvent, s: Session | null) => {
+      const call = ++latest;
       if (!s) {
         setSession(null);
         setAccount(null);
@@ -72,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         const a = await loadAccount(isNewSignIn(event, s));
-        if (!alive) return;
+        if (!alive || call !== latest) return;
         if (!a.allowed) {
           await supabase.auth.signOut();
           setRejected(a.message ?? 'Only company Google accounts can use SME Scheduling.');
@@ -83,9 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccount(a);
         }
       } catch {
-        if (!alive) return;
+        if (!alive || call !== latest) return;
         setSession(s);
-        setAccount(null);
       }
       setLoading(false);
     };

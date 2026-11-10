@@ -307,7 +307,12 @@ export function RankingEditor({
         </SortableContext>
       </DndContext>
       <div className="mt-2 flex flex-wrap gap-2">
-        <Select value={add} onChange={(e) => setAdd(e.target.value)} className="w-64">
+        <Select
+          aria-label="Instructor to add"
+          value={add}
+          onChange={(e) => setAdd(e.target.value)}
+          className="w-64"
+        >
           <option value="">Choose an instructor to add</option>
           {(instructors.data ?? [])
             .filter((i) => i.status !== 'Archived' && !order.includes(i.id))

@@ -412,6 +412,7 @@ export function Modal({
   description,
   children,
   wide,
+  stayOpen,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -419,12 +420,15 @@ export function Modal({
   description?: string;
   children: ReactNode;
   wide?: boolean;
+  /** Only the close button, Escape or the dialog's own buttons close it (not a click or focus elsewhere). */
+  stayOpen?: boolean;
 }) {
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-40 bg-overlay" />
         <D.Content
+          onInteractOutside={stayOpen ? (e) => e.preventDefault() : undefined}
           className={cn(
             'fixed top-1/2 left-1/2 z-50 max-h-[90vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-card p-5 text-card-foreground shadow-lg',
             wide ? 'max-w-5xl' : 'max-w-lg',
@@ -701,7 +705,8 @@ export function Stat({
   return <div className={cls}>{body}</div>;
 }
 
-export const tableWrap = 'overflow-x-auto rounded-lg border border-border bg-card shadow-sm';
+export const tableWrap =
+  'relative overflow-x-auto rounded-lg border border-border bg-card shadow-sm';
 export const thead = 'border-b border-border bg-muted/60';
 export const th =
   'px-3 py-2 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase';

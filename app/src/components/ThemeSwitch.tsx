@@ -1,3 +1,4 @@
+import { DropdownMenu as DM } from 'radix-ui';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme, type ThemeChoice } from '@/lib/theme';
 import { cn } from './ui';
@@ -37,5 +38,35 @@ export function ThemeSwitch({ className }: { className?: string }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/** The same choice inside a menu, built from menu items so screen readers announce it correctly. */
+export function ThemeMenuChoice() {
+  const { choice, setChoice } = useTheme();
+  return (
+    <DM.RadioGroup
+      value={choice}
+      onValueChange={(v) => setChoice(v as ThemeChoice)}
+      aria-label="Theme"
+      className="mb-2 flex rounded-md border border-border bg-muted p-0.5"
+    >
+      {options.map((o) => (
+        <DM.RadioItem
+          key={o.value}
+          value={o.value}
+          onSelect={(e) => e.preventDefault()}
+          className={cn(
+            'inline-flex h-7 flex-1 cursor-pointer items-center justify-center gap-1 rounded px-2 text-xs font-medium outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-ring',
+            choice === o.value
+              ? 'bg-card text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <o.icon className="h-3.5 w-3.5" aria-hidden />
+          <span>{o.label}</span>
+        </DM.RadioItem>
+      ))}
+    </DM.RadioGroup>
   );
 }

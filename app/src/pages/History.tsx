@@ -156,6 +156,7 @@ export default function History() {
       </PageHeader>
       <Toolbar>
         <Select
+          aria-label="Domains"
           value={f.scope}
           onChange={(e) => setF({ ...f, scope: e.target.value })}
           className="w-40"
@@ -164,6 +165,7 @@ export default function History() {
           <option value="all">All domains</option>
         </Select>
         <Select
+          aria-label="Type of change"
           value={f.category}
           onChange={(e) => setF({ ...f, category: e.target.value })}
           className="w-44"
@@ -187,6 +189,7 @@ export default function History() {
           ))}
         </Select>
         <Select
+          aria-label="Module"
           value={f.module}
           onChange={(e) => setF({ ...f, module: e.target.value })}
           className="w-44"
@@ -199,6 +202,7 @@ export default function History() {
           ))}
         </Select>
         <Select
+          aria-label="Instructor"
           value={f.instructor}
           onChange={(e) => setF({ ...f, instructor: e.target.value })}
           className="w-44"
@@ -211,6 +215,7 @@ export default function History() {
           ))}
         </Select>
         <Select
+          aria-label="Changed by"
           value={f.actor}
           onChange={(e) => setF({ ...f, actor: e.target.value })}
           className="w-44"

@@ -47,8 +47,8 @@ select is(tests.msgs(:'mw', 'M4'), 3, 'resend creates a new outbox row (new uniq
 
 -- =============================================================== planner (SCH-1, SCH-4) across daylight saving
 select (public.generate_classes(:'dom', :'mod', array['2027-03-07', '2027-03-14']::date[])) as g \gset
-select is(:'g'::jsonb -> 0 -> 'classes' -> 0 ->> 'shown', 'Sun, Mar 7 · 9:00 AM – 1:00 PM PST', 'generator: Mar 7 live class at 9:00 AM PST');
-select is(:'g'::jsonb -> 1 -> 'classes' -> 0 ->> 'shown', 'Sun, Mar 14 · 9:00 AM – 1:00 PM PDT', 'generator: Mar 14 (first PDT Sunday) still 9:00 AM');
+select is(:'g'::jsonb -> 0 -> 'classes' -> 0 ->> 'shown', 'Sun, Mar 7 · 9:00 AM to 1:00 PM PST', 'generator: Mar 7 live class at 9:00 AM PST');
+select is(:'g'::jsonb -> 1 -> 'classes' -> 0 ->> 'shown', 'Sun, Mar 14 · 9:00 AM to 1:00 PM PDT', 'generator: Mar 14 (first PDT Sunday) still 9:00 AM');
 select is((:'g'::jsonb -> 1 -> 'classes' -> 0 ->> 'starts_at')::timestamptz, '2027-03-14 16:00+00'::timestamptz, 'stored 16:00 UTC');
 select lives_ok(format($$select public.create_module_weeks(%L, (select jsonb_agg(jsonb_build_object('module_id', w ->> 'module_id', 'week_start_date', w ->> 'week_start_date', 'classes', w -> 'classes')) from jsonb_array_elements(%L::jsonb) w))$$,
   :'dom', :'g'), 'planned weeks are created');

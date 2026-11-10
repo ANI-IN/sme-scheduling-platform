@@ -101,7 +101,7 @@ select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'mw') as mw, (:'j'::j
 insert into public.instructor_unavailability (instructor_id, from_date, to_date, reason) values (:'i1', '2027-01-25', '2027-02-10', 'Travel');
 select tests.tick(:'dom', '2027-01-01 18:00+00');
 select is(tests.asking(:'mw'), 'UA Instr2', 'unavailable instructor is skipped for module weeks in that range');
-select ok((public.preview_next(:'mw')) -> 'line' -> 0 ->> 'reason' like 'Unavailable Jan 25 – Feb 10', 'preview shows the reason');
+select ok((public.preview_next(:'mw')) -> 'line' -> 0 ->> 'reason' like 'Unavailable Jan 25 to Feb 10', 'preview shows the reason');
 -- deactivate the instructor being asked: request withdrawn, next asked
 select public.deactivate_instructor(:'i2');
 select is(tests.asking(:'mw'), 'UA Instr3', 'deactivating the instructor being asked withdraws the request and asks the next');
