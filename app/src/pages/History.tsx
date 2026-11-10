@@ -210,9 +210,9 @@ export default function History() {
           Every change, message and decision appears here. History can’t be edited or deleted.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-white">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
-            <thead className="border-b bg-slate-50">
+            <thead className="border-b bg-muted">
               <tr>
                 <th className={th}>When (your time)</th>
                 <th className={th}>Who</th>
@@ -226,12 +226,14 @@ export default function History() {
                   <td className={`${td} whitespace-nowrap`} title={`PT: ${fmtPT(e.at)}`}>
                     {fmtLocal(e.at)}
                     {e.sim_at && (
-                      <div className="text-xs text-amber-700">test clock: {fmtPT(e.sim_at)}</div>
+                      <div className="text-xs text-warning-strong">
+                        test clock: {fmtPT(e.sim_at)}
+                      </div>
                     )}
                   </td>
                   <td className={td}>
                     {e.actor_label}
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {e.actor_kind === 'TeamMember' ? 'Team' : e.actor_kind}
                     </div>
                   </td>
@@ -246,7 +248,7 @@ export default function History() {
                             {undone.has(e.id) && <Badge tone="purple">Undone</Badge>}
                           </div>
                           {d.changes.length > 0 && (
-                            <ul className="mt-1 space-y-0.5 text-xs text-slate-600">
+                            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                               {d.changes.map((c) => (
                                 <li key={c.label}>
                                   <span className="font-medium">{c.label}:</span> {c.from} → {c.to}
@@ -255,12 +257,12 @@ export default function History() {
                             </ul>
                           )}
                           {e.note && e.category !== 'Setup changes' && (
-                            <div className="mt-1 text-xs whitespace-pre-line text-slate-600">
+                            <div className="mt-1 text-xs whitespace-pre-line text-muted-foreground">
                               {plain(e.note)}
                             </div>
                           )}
                           <button
-                            className="mt-1 text-xs text-blue-700 hover:underline"
+                            className="mt-1 text-xs text-link hover:underline"
                             onClick={() => {
                               const n = new Set(open);
                               if (n.has(e.id)) n.delete(e.id);
@@ -271,7 +273,7 @@ export default function History() {
                             {open.has(e.id) ? 'Hide details' : 'Show details'}
                           </button>
                           {open.has(e.id) && (
-                            <pre className="mt-1 max-h-48 overflow-auto rounded bg-slate-50 p-2 text-[11px] whitespace-pre-wrap text-slate-600">
+                            <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] whitespace-pre-wrap text-muted-foreground">
                               {JSON.stringify(
                                 {
                                   type: e.category,

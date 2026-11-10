@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useDomain } from '@/lib/domain';
 import { useSystem } from '@/lib/data';
+import { ThemeSwitch } from './ThemeSwitch';
 import { cn, Select } from './ui';
 
 const tabs = [
@@ -62,10 +63,10 @@ export function Layout() {
   const killed = system.data && !system.data.state.outreach_enabled;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-2">
-          <span className="font-semibold text-slate-900">SME Scheduling</span>
+          <span className="font-semibold text-foreground">SME Scheduling</span>
           <Select
             aria-label="Domain"
             className="w-48"
@@ -79,9 +80,10 @@ export function Layout() {
               </option>
             ))}
           </Select>
-          <div className="ml-auto flex items-center gap-3 text-sm text-slate-600">
+          <div className="ml-auto flex items-center gap-3 text-sm text-muted-foreground">
+            <ThemeSwitch />
             <span className="hidden sm:inline">{session?.user.email}</span>
-            <button className="text-blue-700 hover:underline" onClick={() => void signOut()}>
+            <button className="text-link hover:underline" onClick={() => void signOut()}>
               Sign out
             </button>
           </div>
@@ -95,14 +97,14 @@ export function Layout() {
                 cn(
                   'border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap',
                   isActive
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-slate-600 hover:text-slate-900',
+                    ? 'border-primary text-link'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
                 )
               }
             >
               {t.label}
               {t.to === '/attention' && (urgent.data ?? 0) > 0 && (
-                <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-xs text-white">
+                <span className="ml-1.5 rounded-full bg-destructive px-1.5 text-xs text-destructive-foreground">
                   {urgent.data}
                 </span>
               )}
@@ -112,20 +114,20 @@ export function Layout() {
       </header>
       {(domain?.status === 'Test' ||
         (domain?.status === 'Paused' && domain.paused_from === 'Test')) && (
-        <div className="bg-amber-400 px-4 py-1.5 text-center text-sm font-semibold text-amber-950">
+        <div className="border-b border-warning-strong/20 bg-warning-soft px-4 py-2 text-center text-sm text-warning-strong">
           TEST MODE — {domain.name} messages go to the test Discord channel and test email only. No
           real instructor is contacted.
           {domain.test_clock_at && ' Test clock is set (Settings → Test mode).'}
         </div>
       )}
       {domain?.status === 'Paused' && (
-        <div className="bg-slate-700 px-4 py-1.5 text-center text-sm text-white">
+        <div className="border-b border-border bg-neutral-soft px-4 py-2 text-center text-sm text-neutral-strong">
           {domain.name} is paused: no instructor messages, requests don’t move on, check-ins are
           paused.
         </div>
       )}
       {killed && (
-        <div className="bg-red-700 px-4 py-1.5 text-center text-sm font-semibold text-white">
+        <div className="border-b border-destructive/30 bg-danger-soft px-4 py-2 text-center text-sm font-medium text-danger-strong">
           Kill switch is ON — all instructor messages are paused everywhere. Team alerts continue.
           (Settings → System)
         </div>

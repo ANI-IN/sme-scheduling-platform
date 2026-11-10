@@ -139,7 +139,9 @@ export default function Schedule() {
         header: 'Date, time (PT)',
         cell: ({ row, getValue }) => (
           <span
-            className={row.original.cls.status === 'Cancelled' ? 'text-slate-400 line-through' : ''}
+            className={
+              row.original.cls.status === 'Cancelled' ? 'text-muted-foreground line-through' : ''
+            }
           >
             {getValue()}
             {row.original.holiday && (
@@ -208,7 +210,7 @@ export default function Schedule() {
           row.original.week.help_request.some((h) =>
             ['Open', 'InProgress', 'WaitingOnInstructor'].includes(h.status),
           ) ? (
-            <LifeBuoy className="h-4 w-4 text-amber-600" aria-label="Help request open" />
+            <LifeBuoy className="h-4 w-4 text-warning-strong" aria-label="Help request open" />
           ) : null,
       }),
     ],
@@ -292,7 +294,7 @@ export default function Schedule() {
       </PageHeader>
 
       {selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-2 text-sm">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary bg-info-soft p-2 text-sm">
           <strong>{selected.size} module week(s) selected:</strong>
           <Button size="sm" variant="outline" onClick={() => setQueueFor([...selected])}>
             Set instructors to ask
@@ -430,9 +432,9 @@ export default function Schedule() {
           Use “Plan classes” to create module weeks from the class pattern.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-white">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full">
-            <thead className="border-b bg-slate-50">
+            <thead className="border-b bg-muted">
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id}>
                   {hg.headers.map((h) => (
@@ -447,7 +449,7 @@ export default function Schedule() {
               {table.getRowModel().rows.map((r) => (
                 <tr
                   key={r.id}
-                  className={`cursor-pointer hover:bg-slate-50 ${r.original.first ? 'border-t-2 border-slate-200' : ''} ${r.original.holiday ? 'bg-amber-50' : ''}`}
+                  className={`cursor-pointer hover:bg-muted ${r.original.first ? 'border-t-2 border-border' : ''} ${r.original.holiday ? 'bg-warning-soft' : ''}`}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).tagName !== 'INPUT')
                       setOpenWeek(r.original.week.id);

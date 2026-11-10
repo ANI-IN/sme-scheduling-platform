@@ -109,9 +109,9 @@ export default function Instructors() {
           Add each real person once. Existing instructors are reused across domains.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full">
-            <thead className="border-b bg-slate-50">
+            <thead className="border-b bg-muted">
               <tr>
                 <th className={th}>Name</th>
                 <th className={th}>Status</th>
@@ -124,12 +124,12 @@ export default function Instructors() {
               {rows.map((i) => (
                 <tr
                   key={i.id}
-                  className="cursor-pointer border-b last:border-0 hover:bg-slate-50"
+                  className="cursor-pointer border-b last:border-0 hover:bg-muted"
                   onClick={() => setEditing(i)}
                 >
                   <td className={td}>
                     <div className="font-medium">{i.full_name}</div>
-                    <div className="text-xs text-slate-500">{i.primary_email}</div>
+                    <div className="text-xs text-muted-foreground">{i.primary_email}</div>
                   </td>
                   <td className={td}>
                     <div className="flex flex-wrap gap-1">
@@ -329,7 +329,7 @@ function InstructorDrawer({
     >
       <div className="space-y-3">
         {instructor && (
-          <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3">
+          <div className="flex flex-wrap gap-2 rounded-md bg-muted p-3">
             {instructor.verified_at ? (
               <Badge tone="blue">✓ Verified {fmtPT(instructor.verified_at)}</Badge>
             ) : (
@@ -378,7 +378,7 @@ function InstructorDrawer({
           />
         </Field>
         <div className="space-y-2">
-          <span className="text-sm font-medium text-slate-700">Extra emails (same person)</span>
+          <span className="text-sm font-medium text-foreground">Extra emails (same person)</span>
           {extras.map((e, idx) => (
             <div key={idx} className="flex gap-2">
               <Input
@@ -440,12 +440,12 @@ function InstructorDrawer({
           onChange={(v) => setF({ ...f, is_test: v })}
         />
         {dup && (
-          <p className="rounded bg-amber-50 p-2 text-sm text-amber-900">
+          <p className="rounded bg-warning-soft p-2 text-sm text-warning-strong">
             An instructor with this email or Discord ID already exists: {dup.full_name}
           </p>
         )}
         {contactChanged && (
-          <p className="text-sm text-amber-800">
+          <p className="text-sm text-warning-strong">
             Changing email or Discord details removes the Verified badge.
           </p>
         )}
@@ -470,7 +470,7 @@ function InstructorDrawer({
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-slate-500">None.</p>
+                <p className="text-sm text-muted-foreground">None.</p>
               )}
             </div>
             <Unavailability instructor={instructor} />
@@ -582,7 +582,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
           <li key={u.id} className="flex items-center justify-between">
             <span>
               {u.from_date} → {u.to_date}{' '}
-              {u.reason && <span className="text-slate-500">({u.reason})</span>}
+              {u.reason && <span className="text-muted-foreground">({u.reason})</span>}
             </span>
             <Button
               size="sm"
@@ -597,7 +597,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
           </li>
         ))}
         {instructor.instructor_unavailability.length === 0 && (
-          <li className="text-slate-500">None.</li>
+          <li className="text-muted-foreground">None.</li>
         )}
       </ul>
       <div className="flex flex-wrap items-end gap-2">

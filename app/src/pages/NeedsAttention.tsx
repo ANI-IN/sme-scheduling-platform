@@ -160,7 +160,7 @@ export default function NeedsAttention() {
           {rows.map((a) => (
             <li
               key={a.id}
-              className={`rounded-lg border bg-white p-3 ${a.severity === 'Urgent' && a.status !== 'Done' ? 'border-red-300' : 'border-slate-200'}`}
+              className={`rounded-lg border bg-card p-3 ${a.severity === 'Urgent' && a.status !== 'Done' ? 'border-destructive/40' : 'border-border'}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="space-y-1">
@@ -177,9 +177,11 @@ export default function NeedsAttention() {
                   </div>
                   <div className="font-medium">{a.title}</div>
                   {a.detail && (
-                    <div className="text-sm whitespace-pre-line text-slate-600">{a.detail}</div>
+                    <div className="text-sm whitespace-pre-line text-muted-foreground">
+                      {a.detail}
+                    </div>
                   )}
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted-foreground">
                     Waiting {ago(a.created_at)} · raised {fmtLocal(a.created_at)}
                     {a.assigned_to
                       ? ` · assigned to ${teamNames.get(a.assigned_to)}`
@@ -400,7 +402,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
               .join(', ')}
             {req.details && <p className="mt-1 whitespace-pre-line">{req.details}</p>}
           </div>
-          <div className="text-slate-600">
+          <div className="text-muted-foreground">
             Urgency: {req.urgency} · reply by {req.reply_channel} · target{' '}
             {fmtLocal(req.response_target_at)} ({fmtPT(req.response_target_at)}) · routed to{' '}
             {req.routed_to.map((r) => teamNames.get(r)).join(', ')}
@@ -411,7 +413,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
               {h.data!.messages.map((m) => (
                 <li
                   key={m.id}
-                  className={`rounded p-2 text-xs ${m.direction === 'Inbound' ? 'bg-amber-50' : 'bg-slate-50'}`}
+                  className={`rounded p-2 text-xs ${m.direction === 'Inbound' ? 'bg-warning-soft' : 'bg-muted'}`}
                 >
                   <strong>
                     {m.direction === 'Inbound'

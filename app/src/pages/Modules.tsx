@@ -97,9 +97,9 @@ export default function Modules() {
           ) : (modules.data ?? []).length === 0 ? (
             <Empty title="No modules yet">Add the modules of this domain in rotation order.</Empty>
           ) : (
-            <div className="overflow-x-auto rounded-lg border bg-white">
+            <div className="overflow-x-auto rounded-lg border bg-card">
               <table className="w-full">
-                <thead className="border-b bg-slate-50">
+                <thead className="border-b bg-muted">
                   <tr>
                     <th className={th}>#</th>
                     <th className={th}>Module</th>
@@ -154,7 +154,7 @@ function ModuleListRow({
     (r) => instructors.data?.find((i) => i.id === r.instructor_id)?.status === 'Active',
   ).length;
   return (
-    <tr className="cursor-pointer border-b last:border-0 hover:bg-slate-50" onClick={onOpen}>
+    <tr className="cursor-pointer border-b last:border-0 hover:bg-muted" onClick={onOpen}>
       <td className={td}>{m.rotation_order}</td>
       <td className={`${td} font-medium`}>{m.name}</td>
       <td className={td}>
@@ -344,7 +344,7 @@ function DomainPanel() {
                     />
                   ))}
                 {(team.data ?? []).length === 0 && (
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-muted-foreground">
                     Add team members in Settings first.
                   </span>
                 )}
@@ -617,7 +617,7 @@ function PatternEditor({ module: m, run }: { module: ModuleRow; run: Run }) {
           ))}
           {items.length === 0 && (
             <tr>
-              <td className="py-1 text-slate-500">No classes in the pattern yet.</td>
+              <td className="py-1 text-muted-foreground">No classes in the pattern yet.</td>
             </tr>
           )}
         </tbody>
@@ -687,12 +687,12 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className="flex items-center gap-2 rounded border bg-white px-2 py-1.5 text-sm"
+      className="flex items-center gap-2 rounded border bg-card px-2 py-1.5 text-sm"
     >
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab text-slate-400"
+        className="cursor-grab text-muted-foreground"
         aria-label="Drag to reorder"
       >
         <GripVertical className="h-4 w-4" />
@@ -735,7 +735,7 @@ function RankingEditor({ module: m }: { module: ModuleRow }) {
   return (
     <section>
       <h3 className="mb-1 font-medium">Ranking</h3>
-      <p className="mb-2 text-xs text-slate-500">
+      <p className="mb-2 text-xs text-muted-foreground">
         Rank 1 = Primary, then Backup 1, 2, … Changes apply to the next person asked, never to a
         request already sent.
       </p>
@@ -747,20 +747,20 @@ function RankingEditor({ module: m }: { module: ModuleRow }) {
               const greyed = !i || i.status !== 'Active' || !i.verified_at;
               return (
                 <SortableRow key={id} id={id}>
-                  <span className="w-20 text-xs text-slate-500">
+                  <span className="w-20 text-xs text-muted-foreground">
                     {idx === 0 ? 'Primary' : `Backup ${idx}`}
                   </span>
-                  <span className={greyed ? 'text-slate-400' : 'font-medium'}>
+                  <span className={greyed ? 'text-muted-foreground' : 'font-medium'}>
                     {i?.full_name ?? 'Unknown'}
                   </span>
                   {i && i.status !== 'Active' && <Badge>{i.status}</Badge>}
                   {i && !i.verified_at && <Badge tone="amber">Not verified</Badge>}
                   {i?.is_test && <Badge tone="purple">TEST</Badge>}
-                  <span className="ml-2 truncate text-xs text-slate-500">
+                  <span className="ml-2 truncate text-xs text-muted-foreground">
                     {(ctx.data?.upcoming.get(id) ?? []).slice(0, 2).join(' · ')}
                   </span>
                   <button
-                    className="ml-auto text-slate-400 hover:text-red-600"
+                    className="ml-auto text-muted-foreground hover:text-danger-strong"
                     aria-label="Remove from ranking"
                     onClick={() => setOrder(order.filter((x) => x !== id))}
                   >
@@ -885,12 +885,7 @@ function Resources({ module: m, run }: { module: ModuleRow; run: Run }) {
       <ul className="mb-2 space-y-1 text-sm">
         {items.map((x) => (
           <li key={x.id} className="flex flex-wrap items-center gap-3">
-            <a
-              href={x.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blue-700 hover:underline"
-            >
+            <a href={x.url} target="_blank" rel="noreferrer" className="text-link hover:underline">
               {x.title}
             </a>
             <Checkbox
@@ -921,7 +916,7 @@ function Resources({ module: m, run }: { module: ModuleRow; run: Run }) {
             </Button>
           </li>
         ))}
-        {items.length === 0 && <li className="text-slate-500">No resources yet.</li>}
+        {items.length === 0 && <li className="text-muted-foreground">No resources yet.</li>}
       </ul>
       <div className="flex flex-wrap gap-2">
         <Input
@@ -989,7 +984,7 @@ function WhoIsNext({ moduleId }: { moduleId: string }) {
     <section>
       <h3 className="mb-1 font-medium">Who will be asked next</h3>
       {upcoming.length === 0 ? (
-        <p className="text-sm text-slate-500">No upcoming unconfirmed module weeks.</p>
+        <p className="text-sm text-muted-foreground">No upcoming unconfirmed module weeks.</p>
       ) : (
         <ul className="space-y-1 text-sm">
           {(previews.data ?? []).map(({ w, p }) => (

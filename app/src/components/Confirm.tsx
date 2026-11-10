@@ -21,7 +21,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmCtx.Provider value={confirm}>
       {children}
       <Modal open={!!state} onOpenChange={(o) => !o && close(false)} title={state?.title ?? ''}>
-        {state?.body && <div className="mb-4 text-sm text-slate-600">{state.body}</div>}
+        {state?.body && <div className="mb-4 text-sm text-muted-foreground">{state.body}</div>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => close(false)}>
             Cancel

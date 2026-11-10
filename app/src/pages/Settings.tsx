@@ -57,7 +57,7 @@ function Section({
   return (
     <Card className="p-4">
       <h2 className="font-semibold">{title}</h2>
-      {hint && <p className="mb-3 text-sm text-slate-500">{hint}</p>}
+      {hint && <p className="mb-3 text-sm text-muted-foreground">{hint}</p>}
       <div className={hint ? '' : 'mt-3'}>{children}</div>
     </Card>
   );
@@ -79,7 +79,7 @@ function DomainSettings() {
         <div className="space-y-5">
           {groups.map((g) => (
             <div key={g}>
-              <h3 className="mb-2 text-sm font-semibold text-slate-600">{g}</h3>
+              <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{g}</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {data!
                   .filter((s) => s.group === g)
@@ -175,7 +175,7 @@ function SettingEditor({ s, domainId }: { s: SettingRow; domainId: string }) {
             </label>
           ))}
         </div>
-        {err && <span className="text-xs text-red-600">{err}</span>}
+        {err && <span className="text-xs text-danger-strong">{err}</span>}
       </Field>
     );
   }
@@ -199,7 +199,7 @@ function SettingEditor({ s, domainId }: { s: SettingRow; domainId: string }) {
           </Select>
         ) : s.type === 'text_list' ? (
           <textarea
-            className="min-h-16 w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+            className="min-h-16 w-full rounded-md border border-border px-2 py-1 text-sm"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -449,7 +449,7 @@ function TestMode() {
             ))}
           </div>
           {last != null && (
-            <pre className="max-h-40 overflow-auto rounded bg-slate-50 p-2 text-xs">
+            <pre className="max-h-40 overflow-auto rounded bg-muted p-2 text-xs">
               {JSON.stringify(last, null, 2)}
             </pre>
           )}
@@ -671,10 +671,7 @@ function Holidays() {
     <Section title="Holidays" hint="Used by the class planner to highlight holiday weeks.">
       <ul className="mb-2 grid gap-1 text-sm sm:grid-cols-2">
         {(data ?? []).map((x) => (
-          <li
-            key={x.id}
-            className="flex items-center justify-between rounded bg-slate-50 px-2 py-1"
-          >
+          <li key={x.id} className="flex items-center justify-between rounded bg-muted px-2 py-1">
             <span>
               {DateTime.fromISO(x.date).toFormat('ccc LLL d, yyyy')} — {x.name}
             </span>

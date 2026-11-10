@@ -172,7 +172,7 @@ export function ClassDrawer({
               </Button>
             </div>
           ) : (
-            <p className="text-slate-600">
+            <p className="text-muted-foreground">
               {state.asking ? `Asking ${state.asking} now.` : 'No confirmed instructor.'}
             </p>
           )}
@@ -333,14 +333,14 @@ export function ClassDrawer({
         <section className="space-y-2 border-t pt-4">
           <h3 className="font-medium">Checklist</h3>
           {(checklist.data ?? []).length === 0 && (
-            <p className="text-slate-500">Created when an instructor is confirmed.</p>
+            <p className="text-muted-foreground">Created when an instructor is confirmed.</p>
           )}
           {classes.map((c) => {
             const items = (checklist.data ?? []).filter((i) => i.class_id === c.id);
             if (!items.length) return null;
             return (
               <div key={c.id}>
-                <div className="text-xs text-slate-500">{c.title}</div>
+                <div className="text-xs text-muted-foreground">{c.title}</div>
                 <div className="flex flex-wrap gap-3">
                   {items.map((i) => (
                     <Checkbox
@@ -419,12 +419,12 @@ export function ClassDrawer({
           <h3 className="font-medium">Timeline</h3>
           {(timeline.data?.messages ?? []).length > 0 && (
             <details>
-              <summary className="cursor-pointer text-blue-700">
+              <summary className="cursor-pointer text-link">
                 Messages ({timeline.data!.messages.length})
               </summary>
               <ul className="mt-1 space-y-1">
                 {timeline.data!.messages.map((m) => (
-                  <li key={m.id} className="rounded bg-slate-50 p-2 text-xs">
+                  <li key={m.id} className="rounded bg-muted p-2 text-xs">
                     <div className="flex flex-wrap gap-1">
                       <Badge>{m.template_id}</Badge>
                       <Badge
@@ -439,8 +439,10 @@ export function ClassDrawer({
                         {m.channel} · {fmtLocal(m.sent_at ?? m.created_at)}
                       </span>
                     </div>
-                    <div className="mt-1 whitespace-pre-line text-slate-700">{m.body_text}</div>
-                    {m.last_error && <div className="text-red-700">Error: {m.last_error}</div>}
+                    <div className="mt-1 whitespace-pre-line text-foreground">{m.body_text}</div>
+                    {m.last_error && (
+                      <div className="text-danger-strong">Error: {m.last_error}</div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -449,9 +451,9 @@ export function ClassDrawer({
           <ul className="space-y-1">
             {(timeline.data?.events ?? []).map((e) => (
               <li key={e.id} className="text-xs">
-                <span className="text-slate-500">{fmtLocal(e.at)}</span> ·{' '}
+                <span className="text-muted-foreground">{fmtLocal(e.at)}</span> ·{' '}
                 <strong>{e.actor_label}</strong> · {e.action}
-                {e.note && <span className="text-slate-500"> — {e.note}</span>}
+                {e.note && <span className="text-muted-foreground"> — {e.note}</span>}
               </li>
             ))}
           </ul>

@@ -239,7 +239,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             Propose classes
           </Button>
           {active.length === 0 && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Add active modules with a class pattern first (Modules tab).
             </p>
           )}
@@ -248,7 +248,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
         <div className="space-y-3">
           <div className="max-h-[60vh] overflow-auto rounded border">
             <table className="w-full">
-              <thead className="sticky top-0 bg-slate-50">
+              <thead className="sticky top-0 bg-muted">
                 <tr>
                   <th className={th}>Week (Sunday)</th>
                   <th className={th}>Module</th>
@@ -262,7 +262,9 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                   return (
                     <tr
                       key={wi}
-                      className={holiday ? 'bg-amber-50' : w.duplicate ? 'bg-red-50' : 'border-t'}
+                      className={
+                        holiday ? 'bg-warning-soft' : w.duplicate ? 'bg-danger-soft' : 'border-t'
+                      }
                     >
                       <td className={td}>
                         {w.week_start_date}
@@ -355,7 +357,9 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             </Button>
           </div>
           {rows.some((w) => w.duplicate) && (
-            <p className="text-sm text-red-700">Remove the weeks marked “Already planned” first.</p>
+            <p className="text-sm text-danger-strong">
+              Remove the weeks marked “Already planned” first.
+            </p>
           )}
         </div>
       )}

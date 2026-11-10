@@ -1,1 +1,170 @@
 @import 'tailwindcss';
+
+/* Dark mode follows the `dark` class on <html> (set before first paint by index.html). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------------------------
+   Design tokens. Every color in the app comes from here; both themes meet WCAG AA for text and
+   controls (checked by scripts/src/contrast.ts). No pure black backgrounds.
+   --------------------------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --background: #f6f7f9;
+  --foreground: #1b1f27;
+  --card: #ffffff;
+  --card-foreground: #1b1f27;
+  --muted: #eef0f4;
+  --muted-foreground: #586172;
+  --border: #e1e4ea;
+  --input: #858e9d;
+  --ring: #2a5bd7;
+
+  --primary: #2a5bd7;
+  --primary-foreground: #ffffff;
+  --primary-hover: #234db8;
+  --primary-soft: #e9effc;
+  --link: #2450c0;
+
+  --destructive: #c42f2f;
+  --destructive-foreground: #ffffff;
+  --destructive-hover: #a82626;
+
+  --success-soft: #e5f4ec;
+  --success-strong: #17603a;
+  --warning-soft: #fdf2df;
+  --warning-strong: #7a4602;
+  --danger-soft: #fcebeb;
+  --danger-strong: #9e1f1f;
+  --info-soft: #e9effc;
+  --info-strong: #1e4399;
+  --neutral-soft: #eef0f4;
+  --neutral-strong: #3b4250;
+  --accent-soft: #f1ecfb;
+  --accent-strong: #573a9e;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3b4250;
+  --sidebar-active: #e9effc;
+  --sidebar-active-foreground: #1e4399;
+
+  --overlay: rgb(15 18 25 / 0.45);
+  --shadow-color: 220 25% 15%;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --background: #121620;
+  --foreground: #e5e8ee;
+  --card: #1a1f2a;
+  --card-foreground: #e5e8ee;
+  --muted: #232937;
+  --muted-foreground: #a0a9b8;
+  --border: #2c3342;
+  --input: #6a7385;
+  --ring: #7fa2ff;
+
+  --primary: #3a68d8;
+  --primary-foreground: #ffffff;
+  --primary-hover: #3561cf;
+  --primary-soft: #1d2a48;
+  --link: #94b2ff;
+
+  --destructive: #bf3939;
+  --destructive-foreground: #ffffff;
+  --destructive-hover: #cc4545;
+
+  --success-soft: #16352a;
+  --success-strong: #86dcab;
+  --warning-soft: #3a2c14;
+  --warning-strong: #f3c675;
+  --danger-soft: #41191d;
+  --danger-strong: #ffa3a3;
+  --info-soft: #1d2a48;
+  --info-strong: #a7c0ff;
+  --neutral-soft: #262c39;
+  --neutral-strong: #c7cdd8;
+  --accent-soft: #2c2445;
+  --accent-strong: #cbb8ff;
+
+  --sidebar: #161b25;
+  --sidebar-foreground: #c7cdd8;
+  --sidebar-active: #1d2a48;
+  --sidebar-active-foreground: #b7cbff;
+
+  --overlay: rgb(5 7 12 / 0.6);
+  --shadow-color: 220 40% 2%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-link: var(--link);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-success-soft: var(--success-soft);
+  --color-success-strong: var(--success-strong);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-strong: var(--warning-strong);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-strong: var(--danger-strong);
+  --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-strong: var(--neutral-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-overlay: var(--overlay);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.06);
+  --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.12);
+  --shadow-lg: 0 12px 32px -6px hsl(var(--shadow-color) / 0.25);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+  html {
+    background: var(--background);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  select {
+    color-scheme: inherit;
+  }
+}

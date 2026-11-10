@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { ThemeProvider, useTheme } from '@/lib/theme';
 import './index.css';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { DomainProvider } from '@/lib/domain';
@@ -19,6 +20,11 @@ const Modules = lazy(() => import('@/pages/Modules'));
 const Instructors = lazy(() => import('@/pages/Instructors'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const History = lazy(() => import('@/pages/History'));
+
+function ThemedToaster() {
+  const { resolved } = useTheme();
+  return <Toaster theme={resolved} richColors closeButton position="top-right" />;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 10_000, refetchOnWindowFocus: true, retry: 1 } },
@@ -69,15 +75,17 @@ function Gate() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ConfirmProvider>
-          <BrowserRouter>
-            <Gate />
-          </BrowserRouter>
-          <Toaster richColors position="top-right" />
-        </ConfirmProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ConfirmProvider>
+            <BrowserRouter>
+              <Gate />
+            </BrowserRouter>
+            <ThemedToaster />
+          </ConfirmProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

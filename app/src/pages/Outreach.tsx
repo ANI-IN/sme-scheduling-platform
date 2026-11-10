@@ -172,9 +172,9 @@ export default function Outreach() {
             Nothing to chase right now.
           </Empty>
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-white">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
-              <thead className="border-b bg-slate-50">
+              <thead className="border-b bg-muted">
                 <tr>
                   <th className={th}></th>
                   <th className={th}>Module week</th>
@@ -215,13 +215,15 @@ export default function Outreach() {
                         </td>
                         <td className={td}>
                           <button
-                            className="text-left font-medium text-blue-800 hover:underline"
+                            className="text-left font-medium text-link hover:underline"
                             onClick={() => setDrawer(w.id)}
                           >
                             {label(w)}
                           </button>
                           {w.at_risk && (
-                            <div className="text-xs text-red-700">At risk: {w.at_risk_reason}</div>
+                            <div className="text-xs text-danger-strong">
+                              At risk: {w.at_risk_reason}
+                            </div>
                           )}
                         </td>
                         <td className={td}>{w.outreach_mode}</td>
@@ -229,7 +231,7 @@ export default function Outreach() {
                           {p?.asking ? (
                             <>
                               {p.asking.name}
-                              <div className="text-xs text-slate-500">
+                              <div className="text-xs text-muted-foreground">
                                 asked {ago(p.asking.sent_at, domainNow)} ago
                                 {p.asking.reminded ? ', reminded' : ''}
                               </div>
@@ -243,7 +245,7 @@ export default function Outreach() {
                         </td>
                         <td className={td}>
                           {p ? (
-                            (p.next ?? <span className="text-red-700">Nobody left</span>)
+                            (p.next ?? <span className="text-danger-strong">Nobody left</span>)
                           ) : (
                             <Spinner />
                           )}
@@ -296,11 +298,11 @@ export default function Outreach() {
                         </td>
                       </tr>
                       {open && (
-                        <tr className="border-b bg-slate-50">
+                        <tr className="border-b bg-muted">
                           <td></td>
                           <td colSpan={7} className="px-2 py-2 text-sm">
                             {asked.length === 0 ? (
-                              <span className="text-slate-500">Nobody asked yet.</span>
+                              <span className="text-muted-foreground">Nobody asked yet.</span>
                             ) : (
                               <ol className="list-decimal space-y-0.5 pl-5">
                                 {asked.map((r) => (
@@ -323,12 +325,12 @@ export default function Outreach() {
                               </ol>
                             )}
                             {p && (
-                              <div className="mt-2 text-xs text-slate-600">
+                              <div className="mt-2 text-xs text-muted-foreground">
                                 Line:{' '}
                                 {p.line.map((l) => (
                                   <span
                                     key={l.instructor_id}
-                                    className={l.reason ? 'text-slate-400' : ''}
+                                    className={l.reason ? 'text-muted-foreground' : ''}
                                   >
                                     {l.name}
                                     {l.reason ? ` (${l.reason})` : ''} ·{' '}
@@ -353,9 +355,9 @@ export default function Outreach() {
         {confirmed.length === 0 ? (
           <Empty title="No confirmed module weeks coming up" />
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-white">
+          <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full">
-              <thead className="border-b bg-slate-50">
+              <thead className="border-b bg-muted">
                 <tr>
                   <th className={th}>Module week</th>
                   <th className={th}>Instructor</th>
@@ -376,13 +378,15 @@ export default function Outreach() {
                     <tr key={w.id} className="border-b last:border-0">
                       <td className={td}>
                         <button
-                          className="text-left font-medium text-blue-800 hover:underline"
+                          className="text-left font-medium text-link hover:underline"
                           onClick={() => setDrawer(w.id)}
                         >
                           {label(w)}
                         </button>
                         {w.at_risk && (
-                          <div className="text-xs text-red-700">At risk: {w.at_risk_reason}</div>
+                          <div className="text-xs text-danger-strong">
+                            At risk: {w.at_risk_reason}
+                          </div>
                         )}
                       </td>
                       <td className={td}>{st.confirmed}</td>
@@ -476,12 +480,12 @@ function Sortable({ id, children }: { id: string; children: React.ReactNode }) {
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className="flex items-center gap-2 rounded border bg-white px-2 py-1 text-sm"
+      className="flex items-center gap-2 rounded border bg-card px-2 py-1 text-sm"
     >
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab text-slate-400"
+        className="cursor-grab text-muted-foreground"
         aria-label="Drag to reorder"
       >
         <GripVertical className="h-4 w-4" />
@@ -548,7 +552,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
             {(list.data ?? []).map((i) => (
               <label
                 key={i.instructor_id}
-                className={`flex items-start gap-2 rounded px-1 py-0.5 text-sm ${blocked(i) ? 'text-slate-400' : ''}`}
+                className={`flex items-start gap-2 rounded px-1 py-0.5 text-sm ${blocked(i) ? 'text-muted-foreground' : ''}`}
               >
                 <input
                   type="checkbox"
@@ -566,14 +570,14 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
                 <span>
                   {i.name}{' '}
                   {i.rank ? (
-                    <span className="text-xs text-slate-500">#{i.rank}</span>
+                    <span className="text-xs text-muted-foreground">#{i.rank}</span>
                   ) : (
                     <Badge>Not in this module’s list</Badge>
                   )}
                   {i.is_test && <Badge tone="purple">TEST</Badge>}
                   {i.reason && <div className="text-xs">{i.reason}</div>}
                   {!i.reason && i.warning && (
-                    <div className="text-xs text-amber-700">⚠ {i.warning}</div>
+                    <div className="text-xs text-warning-strong">⚠ {i.warning}</div>
                   )}
                 </span>
               </label>
@@ -582,7 +586,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
           <div>
             <h3 className="mb-1 text-sm font-medium">Order (drag to change)</h3>
             {order.length === 0 ? (
-              <p className="text-sm text-slate-500">Tick instructors on the left.</p>
+              <p className="text-sm text-muted-foreground">Tick instructors on the left.</p>
             ) : (
               <DndContext
                 sensors={sensors}
@@ -598,7 +602,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
                   <ol className="space-y-1">
                     {order.map((id, idx) => (
                       <Sortable key={id} id={id}>
-                        <span className="w-5 text-xs text-slate-500">{idx + 1}.</span>
+                        <span className="w-5 text-xs text-muted-foreground">{idx + 1}.</span>
                         {byId.get(id)?.name}
                       </Sortable>
                     ))}
@@ -630,7 +634,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
         onOpenChange={(o) => !o && setDecision(null)}
         title={`${decision?.asking} is being asked right now`}
       >
-        <p className="mb-4 text-sm text-slate-600">
+        <p className="mb-4 text-sm text-muted-foreground">
           Keep waiting for their answer, or withdraw the request politely and start the new list
           now?
         </p>
