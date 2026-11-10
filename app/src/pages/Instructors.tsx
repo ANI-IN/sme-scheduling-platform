@@ -73,7 +73,7 @@ export function useInstructorContext() {
 }
 
 const FILTERS: { value: string; label: string; test: (i: InstructorRow) => boolean }[] = [
-  { value: 'active', label: 'Active', test: (i) => i.status === 'Active' },
+  { value: 'active', label: 'In use', test: (i) => i.status === 'Active' },
   {
     value: 'unchecked',
     label: 'Contact details not checked',

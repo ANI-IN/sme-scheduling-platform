@@ -318,7 +318,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                                 type="time"
                                 aria-label="Start time"
                                 value={c.start_time}
-                                className="h-7 w-24"
+                                className="h-7 w-28"
                                 onChange={(e) => editClass(wi, ci, { start_time: e.target.value })}
                               />
                               <span className="text-muted-foreground">to</span>
@@ -326,7 +326,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                                 type="time"
                                 aria-label="End time"
                                 value={c.end_time}
-                                className="h-7 w-24"
+                                className="h-7 w-28"
                                 onChange={(e) => editClass(wi, ci, { end_time: e.target.value })}
                               />
                               {c.holiday && <Badge tone="warning">Holiday: {c.holiday}</Badge>}

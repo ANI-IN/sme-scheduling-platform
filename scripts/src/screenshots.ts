@@ -6,11 +6,22 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Page } from 'playwright';
+import pg from 'pg';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const OUT = join(ROOT, 'docs', 'screenshots');
 const APP = process.env.APP_URL ?? 'http://localhost:5173';
 const EMAIL = process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com';
+const DB = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
+const DEMO_MODULE = 'Screenshot module';
+
+/** Remove modules made by the new module flow shots, so later shots do not show them. */
+async function removeDemoModules() {
+  const c = new pg.Client({ connectionString: DB });
+  await c.connect();
+  await c.query('delete from public.module where name = $1', [DEMO_MODULE]);
+  await c.end();
+}
 
 /** Use Playwright's own browser, or any Chromium Playwright has installed on this machine. */
 function chromePath(): string | undefined {
@@ -35,7 +46,13 @@ function chromePath(): string | undefined {
   return undefined;
 }
 
-type Shot = { name: string; path: string; act?: (p: Page) => Promise<void> };
+type Shot = {
+  name: string;
+  path: string;
+  act?: (p: Page) => Promise<void>;
+  /** Only at this width (for example the mobile menu). */
+  width?: 'desktop' | 'mobile';
+};
 
 function localKeys(): { api: string; secret: string } {
   const out = execFileSync(
@@ -75,25 +92,101 @@ const clickRow = (selector: string) => async (p: Page) => {
   await p.waitForTimeout(800);
 };
 
+/** Wait until the page has drawn its data: no loading skeletons, then a short pause. */
+async function settle(p: Page) {
+  await p
+    .waitForFunction(() => !document.querySelector('.animate-pulse'), null, { timeout: 8000 })
+    .catch(() => {});
+  await p.waitForTimeout(500);
+}
+
+const steps =
+  (...fns: ((p: Page) => Promise<void>)[]) =>
+  async (p: Page) => {
+    for (const f of fns) await f(p);
+  };
+const fill = (label: string | RegExp, value: string) => async (p: Page) => {
+  await p.getByLabel(label).first().fill(value);
+};
+const tab = (name: string | RegExp) => async (p: Page) => {
+  await p.getByRole('tab', { name }).first().click();
+  await p.waitForTimeout(600);
+};
+/** The new module flow: step 1 saves a module, so run this only on demo data. */
+const newModule = (to: number) =>
+  steps(
+    fill(/^name/i, DEMO_MODULE),
+    click(/save and continue/i),
+    ...Array.from({ length: Math.max(0, to - 2) }, () => click(/^continue$/i)),
+  );
+
 export const SHOTS: Shot[] = [
   { name: 'home', path: '/' },
+  { name: 'home-help-request', path: '/', act: click(/open help request/i) },
+  { name: 'shell-domain-switcher', path: '/', act: click(/choose a domain/i), width: 'desktop' },
+  {
+    name: 'shell-user-menu',
+    path: '/',
+    act: click(/your account and theme/i),
+    width: 'desktop',
+  },
+  { name: 'shell-mobile-menu', path: '/', act: click(/open menu/i), width: 'mobile' },
   { name: 'classes', path: '/classes' },
   { name: 'classes-plan-dialog', path: '/classes', act: click(/plan classes/i) },
   { name: 'classes-class-drawer', path: '/classes', act: clickRow('tbody tr') },
+  {
+    name: 'classes-cancel-confirm',
+    path: '/classes',
+    act: steps(clickRow('tbody tr'), click(/^cancel class week$/i)),
+  },
   { name: 'requests', path: '/requests' },
   { name: 'requests-choose-who', path: '/requests', act: click(/choose who to ask/i) },
+  { name: 'requests-ask-next-confirm', path: '/requests', act: click(/ask the next instructor/i) },
+  { name: 'requests-release-confirm', path: '/requests', act: click(/^release$/i) },
   { name: 'modules', path: '/setup/modules' },
-  { name: 'modules-new-flow', path: '/setup/modules/new' },
   { name: 'module-detail', path: '/setup/modules', act: clickRow('tbody tr') },
+  {
+    name: 'module-detail-order',
+    path: '/setup/modules',
+    act: steps(clickRow('tbody tr'), tab(/instructor order/i)),
+  },
+  {
+    name: 'module-detail-times',
+    path: '/setup/modules',
+    act: steps(clickRow('tbody tr'), tab(/class times/i)),
+  },
+  { name: 'modules-new-1-details', path: '/setup/modules/new' },
+  { name: 'modules-new-1-errors', path: '/setup/modules/new', act: click(/save and continue/i) },
+  { name: 'modules-new-2-times', path: '/setup/modules/new', act: newModule(2) },
+  { name: 'modules-new-3-order', path: '/setup/modules/new', act: newModule(3) },
+  {
+    name: 'modules-new-3-add-instructor',
+    path: '/setup/modules/new',
+    act: steps(newModule(3), click(/add new instructor/i)),
+  },
+  { name: 'modules-new-4-owners', path: '/setup/modules/new', act: newModule(4) },
+  { name: 'modules-new-5-materials', path: '/setup/modules/new', act: newModule(5) },
+  { name: 'modules-new-6-review', path: '/setup/modules/new', act: newModule(6) },
   { name: 'instructors', path: '/setup/instructors' },
   { name: 'instructors-add-drawer', path: '/setup/instructors', act: click(/add instructor/i) },
   { name: 'instructors-edit-drawer', path: '/setup/instructors', act: clickRow('tbody tr') },
   { name: 'team', path: '/setup/team' },
+  { name: 'team-drawer', path: '/setup/team', act: clickRow('tbody tr') },
   { name: 'domains', path: '/setup/domains' },
+  { name: 'domains-create', path: '/setup/domains', act: click(/create domain/i) },
+  { name: 'domains-drawer', path: '/setup/domains', act: clickRow('tbody tr') },
   { name: 'settings-automation', path: '/settings/automation' },
+  { name: 'settings-automation-help', path: '/settings/automation', act: tab(/help/i) },
   { name: 'settings-testing', path: '/settings/testing' },
+  { name: 'settings-testing-go-live', path: '/settings/testing', act: click(/^go live$/i) },
   { name: 'settings-connections', path: '/settings/connections' },
+  {
+    name: 'settings-connections-pause',
+    path: '/settings/connections',
+    act: click(/^pause all messages$/i),
+  },
   { name: 'activity', path: '/activity' },
+  { name: 'activity-details', path: '/activity', act: click(/show details/i) },
 ];
 
 async function main() {
@@ -122,10 +215,19 @@ async function main() {
         })
         .catch(() => {});
       await page.waitForTimeout(1500);
-      for (const s of shots) {
-        await page.goto(APP + s.path);
-        await page.waitForLoadState('networkidle').catch(() => {});
-        await page.waitForTimeout(900);
+      await page.goto(APP + '/');
+      await settle(page);
+      for (const s of shots.filter((x) => !x.width || x.width === vp.name)) {
+        // Move inside the app (no reload): much faster than loading every page from scratch.
+        // The same address again needs a real load so the page starts fresh (new module flow).
+        if (new URL(page.url()).pathname === s.path) await page.goto(APP + s.path);
+        else
+          await page.evaluate((path) => {
+            window.history.pushState({}, '', path);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+            window.scrollTo(0, 0);
+          }, s.path);
+        await settle(page);
         try {
           if (s.act) await s.act(page);
         } catch (e) {
@@ -134,8 +236,19 @@ async function main() {
           );
         }
         const file = join(OUT, `${s.name}-${theme}-${vp.name}.png`);
-        await page.screenshot({ path: file, fullPage: !s.act });
+        if (s.act) {
+          await page.screenshot({ path: file });
+        } else {
+          // Grow the window to the page height so the sticky sidebar is drawn full length.
+          const h = await page.evaluate(() => document.documentElement.scrollHeight);
+          await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, h) });
+          await page.waitForTimeout(150);
+          await page.screenshot({ path: file });
+          await page.setViewportSize({ width: vp.width, height: vp.height });
+        }
         console.log(`  ✓ ${s.name}-${theme}-${vp.name}.png`);
+        if (s.name.startsWith('modules-new')) await removeDemoModules();
+        await page.keyboard.press('Escape').catch(() => {});
         await page.keyboard.press('Escape').catch(() => {});
       }
       await ctx.close();

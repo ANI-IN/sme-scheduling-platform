@@ -74,7 +74,7 @@ export default function ModuleNew() {
                 onClick={() => setStep(i)}
                 aria-current={i === step ? 'step' : undefined}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm disabled:opacity-50',
+                  'flex h-full w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm leading-tight disabled:opacity-50',
                   i === step
                     ? 'border-primary bg-primary-soft text-foreground'
                     : 'border-border bg-card text-muted-foreground hover:bg-muted',
@@ -92,7 +92,7 @@ export default function ModuleNew() {
                 >
                   {done ? <Check className="h-3 w-3" aria-hidden /> : i + 1}
                 </span>
-                <span className="truncate">{label}</span>
+                <span>{label}</span>
               </button>
             </li>
           );

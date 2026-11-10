@@ -584,7 +584,7 @@ function ClassEditor({
               aria-label="Start time"
               value={t.start}
               onChange={(ev) => setT({ ...t, start: ev.target.value })}
-              className="h-8 w-28"
+              className="h-8 w-32"
             />
             <span className="text-muted-foreground">to</span>
             <Input
@@ -592,7 +592,7 @@ function ClassEditor({
               aria-label="End time"
               value={t.end}
               onChange={(ev) => setT({ ...t, end: ev.target.value })}
-              className="h-8 w-28"
+              className="h-8 w-32"
             />
             <Button
               size="sm"

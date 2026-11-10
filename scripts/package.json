@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "contrast": "tsx src/contrast.ts",
     "screenshots": "tsx src/screenshots.ts",
-    "scan-text": "tsx src/scan-text.ts"
+    "scan-text": "tsx src/scan-text.ts",
+    "demo": "tsx src/demo-data.ts"
   },
   "dependencies": {
     "pg": "^8.23.1"

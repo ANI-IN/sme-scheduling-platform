@@ -1,7 +1,7 @@
 export const weekStatusLabel: Record<string, string> = {
-  Planned: 'Not ready',
-  NotReady: 'Not ready',
-  Ready: 'Ready',
+  Planned: 'Not started yet',
+  NotReady: 'Setup not finished',
+  Ready: 'Ready to ask',
   Asking: 'Asking',
   Confirmed: 'Confirmed',
   Completed: 'Completed',

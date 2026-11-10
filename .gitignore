@@ -12,3 +12,6 @@ coverage/
 
 # Local-only: Windows path workaround (see docs/SETUP.md "Local development")
 .npmrc
+
+# Local data snapshot taken before loading screenshot demo data (scripts/src/demo-data.ts)
+.ui-demo-snapshot.sql

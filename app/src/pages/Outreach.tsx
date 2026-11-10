@@ -23,6 +23,7 @@ import { useDomain, useDomainNow } from '@/lib/domain';
 import { useInstructors, useSettingsMap, useWeeks, type WeekRow } from '@/lib/data';
 import { ago, fmtLocal, fmtPT } from '@/lib/time';
 import { weekState } from '@/lib/status';
+import { plain } from '@/lib/plain';
 import { supabase } from '@/lib/supabase';
 import { check } from '@/lib/rpc';
 import { useConfirm } from '@/components/Confirm';
@@ -137,8 +138,8 @@ export default function Outreach() {
   const statusOf = (w: WeekRow, p?: Preview) => {
     if (w.paused) return <Badge tone="accent">Requests paused</Badge>;
     if (w.status === 'NeedsInstructor') return <Badge tone="danger">Needs an instructor</Badge>;
-    if (['Planned', 'NotReady'].includes(w.status))
-      return <Badge tone="warning">Setup not finished</Badge>;
+    if (w.status === 'NotReady') return <Badge tone="warning">Setup not finished</Badge>;
+    if (w.status === 'Planned') return <Badge tone="neutral">Not started yet</Badge>;
     if (p?.asking && !p.next) return <Badge tone="warning">Last person to ask</Badge>;
     if (p?.asking) return <Badge tone="info">Waiting for a reply</Badge>;
     return <Badge tone="neutral">{w.at_risk ? 'At risk' : 'Ready to ask'}</Badge>;
@@ -192,11 +193,11 @@ export default function Outreach() {
                   <th className={th}>
                     <span className="sr-only">Show everyone asked</span>
                   </th>
-                  <th className={th}>Class week</th>
-                  <th className={th}>Who to ask</th>
+                  <th className={`${th} min-w-44`}>Class week</th>
+                  <th className={`${th} hidden lg:table-cell`}>Who to ask</th>
                   <th className={th}>Asking now</th>
-                  <th className={th}>Moves on</th>
-                  <th className={th}>Next to ask</th>
+                  <th className={`${th} hidden md:table-cell`}>Moves on</th>
+                  <th className={`${th} hidden md:table-cell`}>Next to ask</th>
                   <th className={th}>Status</th>
                   <th className={th}>
                     <span className="sr-only">Actions</span>
@@ -245,7 +246,7 @@ export default function Outreach() {
                             </div>
                           )}
                         </td>
-                        <td className={`${td} text-xs`}>
+                        <td className={`${td} hidden text-xs lg:table-cell`}>
                           {w.outreach_mode === 'Manual' ? 'Chosen list' : 'Instructor order'}
                         </td>
                         <td className={td}>
@@ -261,14 +262,14 @@ export default function Outreach() {
                             <span className="text-muted-foreground">Nobody yet</span>
                           )}
                         </td>
-                        <td className={`${td} text-xs`}>
+                        <td className={`${td} hidden text-xs md:table-cell`}>
                           {p?.asking ? (
                             fmtPT(p.asking.deadline_at)
                           ) : (
                             <span className="text-muted-foreground">Not yet</span>
                           )}
                         </td>
-                        <td className={td}>
+                        <td className={`${td} hidden md:table-cell`}>
                           {p ? (
                             (p.next ?? <span className="text-danger-strong">Nobody left</span>)
                           ) : (
@@ -393,7 +394,7 @@ export default function Outreach() {
             <table className="w-full">
               <thead className={thead}>
                 <tr>
-                  <th className={th}>Class week</th>
+                  <th className={`${th} min-w-44`}>Class week</th>
                   <th className={th}>Instructor</th>
                   {checkinDays.map((d) => (
                     <th key={d} className={th}>
@@ -606,14 +607,16 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
                 <span>
                   {i.name}{' '}
                   {i.rank ? (
-                    <span className="text-xs text-muted-foreground">#{i.rank}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {i.rank === 1 ? 'Primary' : `Backup ${i.rank - 1}`}
+                    </span>
                   ) : (
                     <Badge>Not in this module's instructor order</Badge>
                   )}
                   {i.is_test && <Badge tone="accent">Test</Badge>}
-                  {i.reason && <div className="text-xs">{i.reason}</div>}
+                  {i.reason && <div className="text-xs">{plain(i.reason)}</div>}
                   {!i.reason && i.warning && (
-                    <div className="text-xs text-warning-strong">{i.warning}</div>
+                    <div className="text-xs text-warning-strong">{plain(i.warning)}</div>
                   )}
                 </span>
               </label>

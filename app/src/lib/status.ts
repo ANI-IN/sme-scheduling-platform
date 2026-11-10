@@ -19,7 +19,7 @@ export function weekState(w: WeekRow, names: Map<string, string>): WeekState {
   const base = { asking: askingName, confirmed, atRisk: w.at_risk };
   if (w.status === 'Cancelled') return { ...base, label: 'Cancelled', tone: 'gray' };
   if (w.status === 'Completed') return { ...base, label: 'Completed', tone: 'gray' };
-  if (w.paused) return { ...base, label: 'Paused', tone: 'purple' };
+  if (w.paused) return { ...base, label: 'Requests paused', tone: 'purple' };
   if (w.at_risk && !booking)
     return {
       ...base,
@@ -33,7 +33,8 @@ export function weekState(w: WeekRow, names: Map<string, string>): WeekState {
       tone: w.at_risk ? 'amber' : 'green',
     };
   if (askingName) return { ...base, label: `Asking (${askingName})`, tone: 'blue' };
-  if (w.status === 'NeedsInstructor') return { ...base, label: 'Needs instructor', tone: 'red' };
-  if (w.status === 'Ready') return { ...base, label: 'Ready', tone: 'blue' };
-  return { ...base, label: 'Not ready', tone: 'amber' };
+  if (w.status === 'NeedsInstructor') return { ...base, label: 'Needs an instructor', tone: 'red' };
+  if (w.status === 'Ready') return { ...base, label: 'Ready to ask', tone: 'blue' };
+  if (w.status === 'NotReady') return { ...base, label: 'Setup not finished', tone: 'amber' };
+  return { ...base, label: 'Not started yet', tone: 'gray' };
 }

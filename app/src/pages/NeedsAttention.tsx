@@ -334,6 +334,17 @@ export function TaskList() {
   );
 }
 
+const URGENCY: Record<string, string> = {
+  NoRush: 'before the class, no rush',
+  Within24h: 'within 24 hours',
+  Urgent: 'urgent',
+};
+const REPLY_BY: Record<string, string> = {
+  Either: 'Discord or email',
+  Discord: 'Discord',
+  Email: 'email',
+};
+
 /** Working a help request in the app (PRD 10.6). */
 export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const team = useTeam();
@@ -368,7 +379,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
       ) : (
         <div className="space-y-4 text-sm">
           <div className="flex flex-wrap gap-2">
-            <Badge tone={req.severity === 'Urgent' ? 'danger' : 'neutral'}>{req.severity}</Badge>
+            {req.severity === 'Urgent' && <Badge tone="danger">Urgent</Badge>}
             <Badge tone="info">{helpStatusLabel[req.status]}</Badge>
             <span>
               From{' '}
@@ -391,7 +402,8 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
             {req.details && <p className="mt-1 whitespace-pre-line">{req.details}</p>}
           </div>
           <div className="text-muted-foreground">
-            Urgency: {req.urgency} · reply by {req.reply_channel} · answer by{' '}
+            How soon: {URGENCY[req.urgency] ?? req.urgency} · reply by{' '}
+            {REPLY_BY[req.reply_channel] ?? req.reply_channel} · answer by{' '}
             {fmtLocal(req.response_target_at)} ({fmtPT(req.response_target_at)}) · sent to{' '}
             {req.routed_to.map((r) => teamNames.get(r)).join(', ')}
             {req.assigned_to && ` · taken by ${teamNames.get(req.assigned_to)}`}

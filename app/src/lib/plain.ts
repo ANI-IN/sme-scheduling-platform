@@ -54,6 +54,7 @@ const REPLACEMENTS: [RegExp, string][] = [
   [/\bChecklist overdue: /g, 'Class tasks overdue: '],
   [/\bChecklist pending: /g, 'Class tasks not finished: '],
   [/\bNeed help: /g, 'Help requested: '],
+  [/\bZoom \/ meeting link or calendar invite\b/g, 'Zoom link or calendar invite'],
   [/\bTyped reply from /g, 'Written reply from '],
   [/\bLate "Yes" from /g, 'Late yes from '],
   [/\bNew time not confirmed: /g, 'New class time not confirmed: '],
