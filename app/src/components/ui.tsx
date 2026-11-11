@@ -306,7 +306,7 @@ export function Badge({
     <span
       title={title}
       className={cn(
-        'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap',
+        'inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium break-words',
         tones[tone],
         className,
       )}
@@ -409,6 +409,18 @@ export function ErrorText({ error }: { error: unknown }) {
       <span className="whitespace-pre-line">
         {error instanceof Error ? error.message : String(error)}
       </span>
+    </div>
+  );
+}
+
+/** A list or page that could not load: says so (never an empty state) and offers to try again. */
+export function LoadError({ what, onRetry }: { what: string; onRetry: () => unknown }) {
+  return (
+    <div className="space-y-2">
+      <ErrorText error={`Could not load ${what}. Check your connection and try again.`} />
+      <Button variant="secondary" onClick={() => void onRetry()}>
+        Try again
+      </Button>
     </div>
   );
 }
@@ -552,7 +564,9 @@ export function Drawer({
               <X className="h-4 w-4" />
             </D.Close>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+          <div className="min-w-0 flex-1 overflow-y-auto px-5 py-4 [overflow-wrap:anywhere]">
+            {children}
+          </div>
           {footer && <div className="border-t border-border px-5 py-3">{footer}</div>}
         </D.Content>
       </D.Portal>

@@ -377,7 +377,7 @@ function Review({
     { ok: m.class_pattern_item.length > 0, text: 'At least one class time' },
     {
       ok: order.some((i) => i?.status === 'Active'),
-      text: 'At least one active instructor in the order',
+      text: 'At least one instructor in use in the order',
     },
     { ok: m.module_owner.length > 0, text: 'At least one owner' },
   ];

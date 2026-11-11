@@ -158,6 +158,9 @@ async function load() {
   console.log(
     `Demo ready: ${s.weeks} class weeks, ${s.confirmed} confirmed, ${s.asking} being asked, ${s.tasks} open tasks.`,
   );
+  // Every table was just replaced: give the planner fresh numbers now, so the first page loads of a
+  // test run do not wait on stale plans or on the automatic analyze (decision 249).
+  await c.query('analyze');
   await c.end();
 }
 

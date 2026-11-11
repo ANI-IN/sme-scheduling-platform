@@ -52,11 +52,11 @@ the exported files by hand.
 | `Google service account (<env>)` | n8n credential, Google Service Account | Can be the same service account | Production service account |
 | `Poke secret (<env>)` | n8n credential, Header Auth `x-poke-key` | Its own random string | A different random string |
 | `supabaseUrl` | Config node, all six workflows | Sandbox project URL | Production project URL |
-| `pokeUrl` | Config node, all six workflows | `https://<your-n8n>/webhook/sandbox-sme-poke` | `https://<your-n8n>/webhook/sme-poke` |
-| `pokeKey` | Config node, all six workflows | The Sandbox poke secret | The Production poke secret |
+| `pokeUrl` | Config node, WF1 to WF5 (WF6 has only `supabaseUrl`) | `https://<your-n8n>/webhook/sandbox-sme-poke` | `https://<your-n8n>/webhook/sme-poke` |
+| `pokeKey` | Config node, WF1 to WF5 | The Sandbox poke secret | The Production poke secret |
 | Shared drive ID and folder ID | WF3 node "Upload to Google Drive" | A Sandbox backup folder | The Production backup folder |
 | Error workflow | Settings of WF1 to WF4 and WF6 | `[Sandbox] WF5 Error handler` | `[Production] WF5 Error handler` |
-| `response_base_url` | Database, app Settings | `https://<your-n8n>/webhook/sandbox-respond` | `https://<your-n8n>/webhook/respond` |
+| `RESPONSE_BASE_URL` | `.env.sandbox` or `.env.production`, then `npm run configure:<env> -w scripts` | `https://<your-n8n>/webhook/sandbox-respond` | `https://<your-n8n>/webhook/respond` |
 | `VITE_N8N_POKE_URL`, `VITE_N8N_POKE_KEY` | App hosting variables | Sandbox values | Production values |
 
 The Sandbox database also refuses to send anything outside its allow lists (`SANDBOX_ALLOWED_DISCORD_SERVERS` and
@@ -168,7 +168,7 @@ const pokeUrl     = 'https://YOUR-N8N/webhook/sandbox-sme-poke';   // this envir
 const pokeKey     = 'REPLACE_WITH_POKE_SECRET';            // the Poke secret value (step 2.5)
 ```
 
-Do this in **all six** workflows (WF4 only uses `supabaseUrl`, but keep them identical).
+Do this in WF1 to WF5. WF6's Config has only `supabaseUrl`.
 
 WF3 has two more values: open **Upload to Google Drive** and replace `REPLACE_WITH_SHARED_DRIVE_ID` with the shared
 drive ID and `REPLACE_WITH_DRIVE_FOLDER_ID` with the folder ID (each is the last part of the address when you open it
@@ -191,19 +191,18 @@ For **WF1, WF2, WF3, WF4 and WF6**: open the workflow → **…** menu → **Set
 
 ## 7. Tell the database and the app where n8n is
 
-1. **Confirm-page URL (WF2)** — must be saved in the database as `app_config.response_base_url`.
-   Every instructor button link and the form on every confirm page is built from it.
-   - In the app: **Settings → System → Response page URL (n8n WF2)** → `https://<your-n8n>/webhook/respond` → Save, **or**
-   - In the Supabase SQL editor:
-     ```sql
-     update public.app_config set response_base_url = 'https://<your-n8n>/webhook/respond' where id = 1;
-     ```
+1. **Answer page link (WF2).** Every instructor button and the form on every answer page is built from it. Put
+   this environment's WF2 production address in `RESPONSE_BASE_URL` in `.env.sandbox` (`/webhook/sandbox-respond`) or
+   `.env.production` (`/webhook/respond`), then run `npm run configure:sandbox -w scripts` or
+   `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). It must start with `https://`. The app shows
+   it read only on **Settings, Connections, Advanced: links**; it cannot be changed from the app (decision 205).
 2. **Poke URL + secret (WF4)** — in the app's environment (Vercel → your project → Settings → Environment Variables, and `app/.env.local` for local use):
    - `VITE_N8N_POKE_URL` = `https://<your-n8n>/webhook/sme-poke`
    - `VITE_N8N_POKE_KEY` = the Poke secret value
    - Redeploy the app after changing them.
    - The same URL and secret go in each workflow's **Config** node (step 4).
-3. Also set **Settings → System → Admin alert channel ID** in the app so failure alerts and the daily heartbeat have somewhere to go.
+3. In the app, choose the **Admin alert channel** on **Settings, Connections, Discord servers** (from the list), so
+   failure alerts and the daily system summary have somewhere to go.
 4. The app must send the poke as a normal (CORS) `fetch` with the `x-poke-key` header. Browsers silently drop custom
    headers in `no-cors` mode, and n8n then rejects the poke (403). WF4 still delivers within 5 minutes, but not instantly.
 
@@ -213,17 +212,19 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
 
 ## 8. Test it
 
-1. Put a domain in **Test** mode in the app (it needs the test Discord channel and test email set).
-2. In the app press **Settings → Send test alert** (team alert) and **Instructors → (a test instructor) → Send test message**.
-   Within seconds a message should appear in Discord and/or the inbox. If not, check WF4's **Executions** list.
-3. Press **Settings → Run check now** — WF4 runs the engine and sends anything due. In Test mode all instructor messages go to the
-   test channel and test email, prefixed `[TEST → would go to <name>]`.
+1. On **Settings, Testing**, choose the testing channel and testing email, then press **Turn on testing** for a domain.
+2. Press **Send test alert** on **Setup, Team** (a team alert), and **Send contact check** for a test instructor on
+   **Setup, Instructors**. Within seconds a message should appear in Discord and the inbox. If not, check WF4's
+   **Executions** list.
+3. Press **Run the automatic check now** on **Settings, Testing**: WF4 runs the engine and sends anything due. While a
+   domain is being tested, every instructor message goes to the testing channel and testing email, and says who it
+   would have gone to.
 4. Click a button in a test message: the confirm page opens (nothing is recorded yet). Press the button on the page:
    the answer is recorded and follow-up messages arrive within seconds.
 5. Type a reply in a test instructor's Discord channel or reply to a test email; after the next hourly run (or run WF1
    manually with **Execute workflow**) it shows up in **Needs Attention**.
 6. Run WF3 manually once and check that `sme-backup-YYYY-MM-DD.json` appears in the shared drive folder.
-7. To test WF5, temporarily break the Supabase URL in WF1's Config and run WF1 — an admin alert should arrive and a
+7. To test WF5, temporarily break the Supabase URL in WF1's Config and run WF1: an admin alert should arrive and a
    History entry should be recorded (put the URL back afterwards).
 
 ## 9. Good to know

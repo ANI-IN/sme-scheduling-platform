@@ -20,9 +20,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { reorderA11y } from '@/lib/reorder';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
+import { instructorStatusLabel } from '@/lib/labels';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useWeeks } from '@/lib/data';
 import { fmtAt, weekRegion } from '@/lib/region';
@@ -193,7 +195,16 @@ export function PatternEditor({
   );
 }
 
-export function SortableRow({ id, children }: { id: string; children: React.ReactNode }) {
+export function SortableRow({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  /** Who this row is, for the handle's name: "Move Maya". */
+  label: string;
+  children: React.ReactNode;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   return (
     <li
@@ -205,7 +216,7 @@ export function SortableRow({ id, children }: { id: string; children: React.Reac
         {...attributes}
         {...listeners}
         className="cursor-grab text-muted-foreground"
-        aria-label="Drag to reorder"
+        aria-label={`Move ${label}`}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -269,21 +280,30 @@ export function RankingEditor({
         Drag to change the order. Changes apply to the next person we ask, never to a request
         already sent.
       </p>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+        accessibility={reorderA11y(
+          order,
+          (id) => byId.get(id)?.full_name ?? 'Unknown instructor',
+          (idx) => (idx === 0 ? 'Primary instructor' : `Backup ${idx}`),
+        )}
+      >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           <ol className="space-y-1">
             {order.map((id, idx) => {
               const i = byId.get(id);
               const greyed = !i || i.status !== 'Active' || !i.verified_at;
               return (
-                <SortableRow key={id} id={id}>
+                <SortableRow key={id} id={id} label={i?.full_name ?? 'Unknown instructor'}>
                   <span className="w-32 text-xs text-muted-foreground">
                     {idx === 0 ? 'Primary instructor' : `Backup ${idx}`}
                   </span>
                   <span className={greyed ? 'text-muted-foreground' : 'font-medium'}>
                     {i?.full_name ?? 'Unknown'}
                   </span>
-                  {i && i.status !== 'Active' && <Badge>{i.status}</Badge>}
+                  {i && i.status !== 'Active' && <Badge>{instructorStatusLabel(i.status)}</Badge>}
                   {i && !i.verified_at && !i.is_test && (
                     <Badge tone="warning">Not checked yet</Badge>
                   )}

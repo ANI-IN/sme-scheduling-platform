@@ -122,6 +122,22 @@ export async function layoutProblems(page: Page): Promise<LayoutProblem[]> {
         }
       }
     }
+    // 4. A drawer or dialog body that scrolls sideways (UI-11). Tables may scroll sideways in their own
+    // box; anything else that is wider than its box means something did not wrap.
+    for (const box of [root, ...root.querySelectorAll<HTMLElement>('*')]) {
+      if (!visible(box)) continue;
+      const s = getComputedStyle(box);
+      if (!/(auto|scroll)/.test(s.overflowX + s.overflow)) continue;
+      if (
+        box.querySelector(':scope > table') ||
+        box.tagName === 'TEXTAREA' ||
+        box.tagName === 'SELECT'
+      )
+        continue;
+      if (box.closest('[data-layout-skip]')) continue;
+      if (box.scrollWidth > box.clientWidth + 2)
+        out.push({ kind: 'overflow', what: `${describe(box)} scrolls sideways` });
+    }
     return out.slice(0, 20);
   });
 }

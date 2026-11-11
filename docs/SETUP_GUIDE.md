@@ -21,7 +21,8 @@ documents, the checklist or the repository. Keep a copy in your company password
 - Admin rights on the company Discord server, and permission to create a second Discord server for testing.
 - An n8n instance (n8n Cloud or your own server) where you can create credentials and import workflows.
 - A Vercel account on a paid plan, or a free Cloudflare account (see part 7).
-- Node.js 22 and Git installed on your computer, and a copy of this repository.
+- Node.js 22 and Git installed on your computer, and a copy of this repository. On Windows, copy
+  `.npmrc.windows-example` to `.npmrc` in the repository folder before you start, so the commands below run in Git Bash.
 - About half a day for Sandbox, and about two hours for Production.
 
 ---
@@ -56,18 +57,18 @@ npm ci
 ```
 
 ```bash
-npx supabase login
+npm run db:login
 ```
 
 ```bash
-npx supabase link --project-ref <the project ref>
+npm run db:link -- <the project ref>
 ```
 
 ```bash
-npx supabase db push
+npm run db:push
 ```
 
-`db push` applies every file in `supabase/migrations/` in order. Run it again after each app update.
+`db:push` applies every file in `supabase/migrations/` in order. Run it again after each app update.
 
 **Production only:** load the Backend starting data (modules, class pattern and rankings from the PRD, with
 placeholder people you replace later). Open **SQL Editor**, paste the whole of `supabase/seed.sql`, press **Run**.
@@ -207,30 +208,10 @@ The app uses Discord servers you already have. It never creates servers or chann
    `npm run discord -w scripts`. Never put it in a file that is committed.
 3. On the same page, under **Privileged Gateway Intents**, switch on **Server Members Intent** (the app finds people
    by their Discord username) and **Message Content Intent** (the app reads typed replies). Save.
-4. **General Information**: copy the **Application ID**. Set it as `VITE_DISCORD_CLIENT_ID` for the web app (it is
-   not a secret). The app then shows the invite link on **Settings, Connections, Discord servers**.
-5. Open the invite link and add the bot to each server (the Sandbox bot to the Sandbox server only). The link asks
-   for exactly four permissions: View Channels, Send Messages, Embed Links and Read Message History.
-6. In each server, open the `1-1` category, **Edit Category**, **Permissions**, add the bot's role and allow the same
-   four permissions. Do the same for the alert, admin and testing channels if they are private.
+4. **General Information**: copy the **Application ID**. It goes into the hosting variable `VITE_DISCORD_CLIENT_ID`
+   (part 7; it is not a secret). The app then shows the invite link on **Settings, Connections, Discord servers**.
 
-### 4.3 In the app
-
-1. **Settings, Connections, Discord servers**: press **Refresh servers**. The servers the bot is in appear within a
-   minute.
-2. Choose the server of each domain. The app checks it and lists the channels the bot can see. Wait for **Ready**;
-   if it says **Needs a fix**, it says exactly what to change.
-
-   ![Discord servers on Settings, Connections](../app/public/help/discord-servers.png)
-
-3. **Setup, Instructors**: for each instructor, type their **Discord username** (for example `maya.k`, without @)
-   and choose their channel for each domain from the list. The app finds their Discord account by itself and shows
-   **Discord found**, or what is wrong. Nobody types Discord user IDs.
-
-   ![An instructor's Discord username and channel](../app/public/help/instructor-discord.png)
-
-4. **Setup, Team**: a Discord username is optional. People without one get email instead.
-5. **Setup, Domains** and **Settings, Testing**: choose the alert channel and the testing channel from the list.
+You add the bot to the servers and choose channels in part 7.5, once the app is online and WF6 runs in n8n.
 
 | Value | Where it comes from | Where it goes |
 |---|---|---|
@@ -257,7 +238,7 @@ n8n only moves messages in and out. Every decision is made by the database.
       `Gmail scheduling (<env>)`, `Google service account (<env>)`, `Poke secret (<env>)`.
       For the poke secret, make a long random string (for example from the password manager's generator).
    2. Import the six files from `n8n/sandbox/` (or `n8n/production/`), WF5 first.
-   3. In every workflow open the **Config** node and set `supabaseUrl`, `pokeUrl` and `pokeKey`.
+   3. In every workflow open the **Config** node and set `supabaseUrl`, `pokeUrl` and `pokeKey` (WF6 has only `supabaseUrl`).
    4. In WF3 **Upload to Google Drive**, set the shared drive ID and the folder ID.
    5. Set WF5 as the **Error workflow** of WF1 to WF4 and WF6. Publish WF5 and WF4 first, then the rest.
 3. Copy the two webhook addresses:
@@ -310,6 +291,7 @@ it and the Production site from `main`.
    | `VITE_ALLOWED_EMAIL_DOMAIN` | Your company domain | Your company domain |
    | `VITE_N8N_POKE_URL` | Sandbox WF4 address | Production WF4 address |
    | `VITE_N8N_POKE_KEY` | Sandbox poke secret | Production poke secret |
+   | `VITE_DISCORD_CLIENT_ID` | Sandbox bot Application ID (4.2) | Production bot Application ID (4.2) |
 
    Never set `VITE_ENABLE_DEV_LOGIN` here; it is for your own computer only.
 3. **Settings → Git → Production Branch**: `main`.
@@ -333,7 +315,34 @@ it and the Production site from `main`.
 2. Put this environment's app address in `APP_BASE_URL` and the WF2 webhook in `RESPONSE_BASE_URL` (1.4) and run
    configure again.
 3. Sign in to the app. Go to **Settings → Connections → Advanced: links** and fill in **Sender email**; the two links
-   show there to check. Then set up the Discord servers and the **Admin alert channel** as in 4.3.
+   show there to check. Then connect Discord as in 7.5, including the **Admin alert channel**.
+
+### 7.5 Connect Discord in the app
+
+Do this once the app is online (7.2 or 7.3) and the workflows are published in n8n (part 5): WF6 answers
+**Refresh servers** and **Check**.
+
+1. Sign in to the app. **Settings, Connections, Discord servers**: press **Open the invite link** and add the bot to
+   each server (the Sandbox bot to the Sandbox server only). The link asks for exactly four permissions: View
+   Channels, Send Messages, Embed Links and Read Message History.
+2. In each server, open the `1-1` category, **Edit Category**, **Permissions**, add the bot's role and allow the same
+   four permissions. Do the same for the alert, admin and testing channels if they are private.
+3. Back on **Settings, Connections, Discord servers**, press **Refresh servers**. The servers the bot is in appear within a
+   minute.
+4. Choose the server of each domain. The app checks it and lists the channels the bot can see. Wait for **Ready**;
+   if it says **Needs a fix**, it says exactly what to change.
+
+   ![Discord servers on Settings, Connections](../app/public/help/discord-servers.png)
+
+5. **Setup, Instructors**: for each instructor, type their **Discord username** (for example `maya.k`, without @)
+   and choose their channel for each domain from the list. The app finds their Discord account by itself and shows
+   **Discord found**, or what is wrong. Nobody types Discord user IDs.
+
+   ![An instructor's Discord username and channel](../app/public/help/instructor-discord.png)
+
+6. **Setup, Team**: a Discord username is optional. People without one get email instead.
+7. **Setup, Domains** and **Settings, Testing**: choose the alert channel and the testing channel from the list.
+
 
 ---
 
@@ -356,6 +365,30 @@ it and the Production site from `main`.
    ![Connection health](../app/public/help/connections.png)
 
 7. Walk through the scenarios in the PRD (section 20.3) with the test instructors and the practice clock.
+8. Run the manual checks with the real services in docs/TEST_REPORT.md (part "Checks only the real services can do").
+
+### 8.1.1 The Sandbox integration journey
+
+This runs one whole class journey through the real n8n workflows, the Sandbox bot and the Sandbox mailbox, checks
+that every message arrived, and cleans up. It needs a Gmail refresh token for the mailbox the test instructors' plus
+addresses go to (part 3):
+
+1. In Google Cloud, open the `n8n (Sandbox)` client (2.3) and add the **Authorized redirect URI**
+   `https://developers.google.com/oauthplayground`. Save.
+2. Open <https://developers.google.com/oauthplayground>, press the gear icon, tick **Use your own OAuth
+   credentials** and paste that client's Client ID and Client secret.
+3. Under **Step 1**, type the scope `https://www.googleapis.com/auth/gmail.modify`, press **Authorize APIs** and sign
+   in as the owner of the test mailbox. Allow.
+4. Under **Step 2**, press **Exchange authorization code for tokens** and copy the **Refresh token**.
+5. In `.env.sandbox` set `SANDBOX_GMAIL_CLIENT_ID`, `SANDBOX_GMAIL_CLIENT_SECRET`, `SANDBOX_GMAIL_REFRESH_TOKEN` and
+   `SANDBOX_DISCORD_BOT_TOKEN` (the Sandbox bot token). Nowhere else.
+6. Run:
+
+   ```bash
+   npm run integration:sandbox -w scripts
+   ```
+
+   It ends with **Everything arrived.** If not, it lists each check that failed.
 
 ### 8.2 Production
 
@@ -380,7 +413,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 3 | Supabase publishable key | Project Settings → API Keys | Vercel `VITE_SUPABASE_PUBLISHABLE_KEY` | | | ☐ |
 | 4 | Supabase secret key (secret) | Project Settings → API Keys → Secret keys | n8n `Supabase secret key (<env>)` | in password manager | in password manager | ☐ |
 | 5 | Database password and connection string (secret) | Connect → Session pooler | `.env.sandbox` or `.env.production` `DATABASE_URL` | in password manager | in password manager | ☐ |
-| 6 | Tables and functions | `npx supabase db push` | Supabase | | | ☐ |
+| 6 | Tables and functions | `npm run db:push` | Supabase | | | ☐ |
 | 7 | Starting data | `supabase/seed.sql` (Production), Reset Sandbox data (Sandbox) | Supabase | | | ☐ |
 | 8 | Environment and sign in domain | You decide | `npm run configure:<env> -w scripts` | Sandbox | Production | ☐ |
 | 9 | Sandbox allowed Discord servers and email domains | Discord server ID; your domain | `.env.sandbox`, then configure | | not used | ☐ |
@@ -393,19 +426,19 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 16 | Shared drive and backup folder IDs | Google Drive address bar | n8n WF3 Upload to Google Drive | | | ☐ |
 | 17 | Scheduling mailbox | Google Admin console | n8n Gmail sign in; app Sender email | | | ☐ |
 | 18 | Discord server | Discord | | | | ☐ |
-| 19 | Discord server ID | Right click server → Copy Server ID | App Connections; Sandbox allow list | | | ☐ |
+| 19 | Sandbox Discord server ID | Right click server → Copy Server ID | Sandbox allow list (1.4); the app lists servers itself | | | ☐ |
 | 20 | Discord bot token (secret) | Developer Portal → Bot | n8n `Discord bot (<env>)` | in password manager | in password manager | ☐ |
-| 21 | Message Content Intent on | Developer Portal → Bot | | | | ☐ |
-| 22 | Bot invited and can see channels | OAuth2 link in 4.2 | Discord server | | | ☐ |
-| 23 | Admin, alert and testing channel IDs | Right click channel → Copy Channel ID | App Connections, Domains, Testing | | | ☐ |
-| 24 | Poke secret (secret) | Password manager generator | n8n `Poke secret (<env>)`, Config `pokeKey`, Vercel `VITE_N8N_POKE_KEY` | in password manager | in password manager | ☐ |
+| 21 | Server Members Intent and Message Content Intent on | Developer Portal → Bot | | | | ☐ |
+| 22 | Bot invited and can see channels | Invite link on Connections (7.5) | Discord server | | | ☐ |
+| 23 | Admin, alert and testing channels | Chosen from the lists in the app (7.5) | App Connections, Domains, Testing | | | ☐ |
+| 24 | Poke key (low sensitivity: it is visible in the app's files) | Password manager generator | n8n `Poke secret (<env>)`, Config `pokeKey`, Vercel `VITE_N8N_POKE_KEY` | in password manager | in password manager | ☐ |
 | 25 | Workflows imported and published | `n8n/sandbox/`, `n8n/production/` | n8n | | | ☐ |
 | 26 | WF2 confirm page address | n8n WF2 webhook | `RESPONSE_BASE_URL` (1.4) | | | ☐ |
 | 27 | WF4 poke address | n8n WF4 webhook | Vercel `VITE_N8N_POKE_URL`; n8n Config `pokeUrl` | | | ☐ |
 | 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 and WF6 | | | ☐ |
 | 29 | OpenAI key (optional, secret) | platform.openai.com → API keys | n8n `OpenAI (<env>)` | skip | in password manager | ☐ |
 | 30 | Hosting project | Vercel Pro or Cloudflare Pages | | | | ☐ |
-| 31 | Hosting variables | Tables in 7.2 | Vercel or Cloudflare | | | ☐ |
+| 31 | Hosting variables, including `VITE_DISCORD_CLIENT_ID` | Table in 7.2 | Vercel or Cloudflare | | | ☐ |
 | 32 | App address | Vercel or Cloudflare Domains | Supabase URL Configuration; `APP_BASE_URL` (1.4) | | | ☐ |
 | 33 | First checks | Part 8 | | | | ☐ |
 

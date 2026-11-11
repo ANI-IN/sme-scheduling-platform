@@ -16,7 +16,7 @@ Open the class week from [Upcoming classes](/classes) or [Instructor requests](/
 
 1. Change the date or time next to the class.
 2. Press **Change time**.
-3. A confirmed instructor is asked to confirm the new time. If it clashes with another class of theirs, they are released and others are asked.
+3. A confirmed instructor is asked to confirm the new time. If the new time clashes with another class of theirs, the app says which class and nothing changes. Choose another time, or release the instructor first.
 
 A class can move to any day, for example from Sunday to Wednesday. The class week then starts on its new first day.
 

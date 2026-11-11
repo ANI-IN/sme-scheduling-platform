@@ -58,3 +58,7 @@ export const historyCategories = [
   'System',
   'Discord',
 ];
+
+/** An instructor's status in the team's words (glossary: "In use", "Not in use", "Archived"). */
+export const instructorStatusLabel = (s: string | null | undefined) =>
+  s === 'Active' ? 'In use' : s === 'Inactive' ? 'Not in use' : (s ?? '');

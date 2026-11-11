@@ -2,7 +2,7 @@
 -- (docs/reviews/*.md). The finding ID is at the start of each description.
 begin;
 \ir ../helpers/helpers.psql
-select plan(42);
+select plan(41);
 
 select tests.scenario('RF', 'Live', '2027-01-31', 3) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as mod, (:'j'::jsonb ->> 'mw') as mw,
@@ -202,10 +202,7 @@ select throws_like($$ delete from public.team_member where id = '$$ || :'gone' |
 -- SEC-3: the team never sees an answer link's secret; the automation gets it when sending.
 select ok(not exists (select 1 from public.message m join public.response_link l on position(l.token in coalesce(m.body_text, '') || coalesce(m.body_html, '') || coalesce(m.buttons::text, '')) > 0),
   'SEC-3 no answer link secret is stored in any message');
-select tests.tick(:'dom2', '2027-01-02 18:00+00');
-select ok(exists (select 1 from public.claim_outbound_messages(100) c join public.response_link l on position(l.token in coalesce(c.buttons::text, '')) > 0)
-          or not exists (select 1 from public.message where status = 'Pending' and buttons::text like '%{{t:%'),
-  'SEC-3 the automation receives the real links when it takes a message to send');
+-- The automation receiving the real links is checked strictly in 210 (TST-4).
 
 -- SEC-4: the link addresses cannot be changed from the app.
 select throws_like($$ select public.set_app_config(jsonb_build_object('response_base_url', 'https://elsewhere.example/x', 'version', (select version from public.app_config where id = 1))) $$,

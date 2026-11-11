@@ -282,6 +282,9 @@ async function race() {
   const a = new pg.Client({ connectionString: url });
   const b = new pg.Client({ connectionString: url });
   await Promise.all([a.connect(), b.connect()]);
+  // When something fails, the scratch database is dropped while these are open: do not crash on that.
+  a.on('error', () => {});
+  b.on('error', () => {});
   const press = (cl: pg.Client) =>
     cl
       .query(`select set_config('app.test_now', '2027-01-01T18:00:00Z', false); `)
@@ -294,7 +297,68 @@ async function race() {
   line(
     `  connection A → ${ra.rows[0].r}, connection B → ${rb.rows[0].r}; bookings created: ${n.n}`,
   );
-  line(Number(n.n) === 1 ? '  ✓ exactly one booking' : '  ✗ UNEXPECTED');
+  const one1 = Number(n.n) === 1 && [ra.rows[0].r, rb.rows[0].r].includes('confirmed');
+  line(one1 ? '  ✓ exactly one booking' : '  ✗ UNEXPECTED');
+  // TST-5: a race that goes wrong fails the run (and CI), not only the printout.
+  if (!one1) process.exitCode = 1;
+
+  // The same instructor says Yes to two class weeks at the same time, at the same moment: only one
+  // can be booked (no overlapping confirmed classes), and the other is turned down politely.
+  line(
+    '\n═════ Race: one instructor says "Yes" to two overlapping class weeks at the same moment ═════',
+  );
+  const both: string[] = [];
+  for (const name of ['Overlap A', 'Overlap B']) {
+    const m = await one<{ id: string }>(
+      `insert into public.module (domain_id, name) values ($1, $2) returning id`,
+      [s.dom, name],
+    );
+    await c.query(
+      `insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time, duration_minutes, sort_order)
+       values ($1, 'Live class', '{module}: Live class', 0, '09:00', 240, 1)`,
+      [m.id],
+    );
+    await c.query(
+      `insert into public.module_ranking (module_id, instructor_id, rank) values ($1, $2, 1)`,
+      [m.id, s.i[1]],
+    );
+    // An owner and materials, so the setup check lets the week be asked.
+    await c.query(
+      `insert into public.module_owner (module_id, team_member_id)
+       select $1, o.team_member_id from public.module_owner o join public.module m on m.id = o.module_id
+        where m.domain_id = $2 limit 1`,
+      [m.id, s.dom],
+    );
+    await c.query(
+      `insert into public.module_resource (module_id, title, url) values ($1, 'Materials', 'https://example.com/materials')`,
+      [m.id],
+    );
+    const w = await one<{ v: { module_week_ids: string[] } }>(
+      `select public.create_module_weeks($1, (select jsonb_agg(jsonb_build_object('module_id', $2::uuid, 'week_start_date', w ->> 'week_start_date', 'classes', w -> 'classes'))
+                                                from jsonb_array_elements(public.generate_classes($1, $2, array['2027-02-07']::date[])) w),
+                                     true, 'Two modules at the same time on purpose: the race needs overlapping weeks') as v`,
+      [s.dom, m.id],
+    );
+    both.push(w.v.module_week_ids[0]!);
+  }
+  await c.query(`select public.engine_tick($1, '2027-01-08T17:00:00Z')`, [s.dom]);
+  const ta = await token(both[0]!, s.i[1]!, 'Yes');
+  const tb = await token(both[1]!, s.i[1]!, 'Yes');
+  const pressToken = (cl: pg.Client, tok: string) =>
+    cl
+      .query(`select set_config('app.test_now', '2027-01-08T18:00:00Z', false); `)
+      .then(() => cl.query('select public.record_response($1) ->> $2 as r', [tok, 'result']));
+  const [xa, xb] = await Promise.all([pressToken(a, ta), pressToken(b, tb)]);
+  const booked = await one<{ n: string }>(
+    `select count(*) as n from public.booking where module_week_id = any($1::uuid[]) and status = 'Active'`,
+    [both],
+  );
+  const answers = [xa.rows[0].r, xb.rows[0].r].sort();
+  line(`  week A → ${xa.rows[0].r}, week B → ${xb.rows[0].r}; active bookings: ${booked.n}`);
+  const ok2 =
+    Number(booked.n) === 1 && answers.includes('confirmed') && answers.includes('not_booked');
+  line(ok2 ? '  ✓ one booking, the other week turned down' : '  ✗ UNEXPECTED');
+  if (!ok2) process.exitCode = 1;
   await Promise.all([a.end(), b.end()]);
 }
 

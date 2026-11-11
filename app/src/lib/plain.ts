@@ -40,6 +40,12 @@ export const messageName: Record<string, string> = {
 };
 
 const REPLACEMENTS: [RegExp, string][] = [
+  // Whole database values first, before the word by word rules below can change part of them.
+  [/^Not verified$/, 'Contact details not checked'],
+  [/^Help pending$/, 'Help request open'],
+  [/^Skipped$/, 'Skipped by the team'],
+  [/^Booking released$/, 'Released'],
+  [/^Clash$/, 'Clash with another class'],
   [/\s+[—–]\s+/g, ': '],
   [/[—–]/g, ' to '],
   [/\be\.g\./gi, 'for example'],
@@ -77,6 +83,11 @@ const REPLACEMENTS: [RegExp, string][] = [
   [/\bOps contacts\b/g, 'Operations team'],
   [/\bops contacts\b/g, 'operations team'],
   [/\bverified\b/g, 'contact details checked'],
+  [/\bOutreach changed by ops\b/g, 'The team changed who is asked'],
+  [/\bReleased by ops\b/g, 'Released by the team'],
+  [/\bby ops\b/g, 'by the team'],
+  [/\bwas deactivated\b/g, 'is no longer in use'],
+  [/\bInactive\b/g, 'Not in use'],
   [/\bOutreach\b/g, 'Instructor requests'],
   [/\boutreach\b/g, 'instructor requests'],
   [/ · /g, ', '],

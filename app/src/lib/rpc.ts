@@ -16,7 +16,7 @@ export function friendlyError(e: unknown): string {
   if (msg.includes('holiday_date_key')) return 'That date is already in the holiday list.';
   if (msg.includes('domain_name_uq')) return 'A domain with this name already exists.';
   if (msg.includes('violates foreign key'))
-    return 'It is still in use, so it can’t be deleted. Archive or deactivate it instead.';
+    return 'It is still in use, so it can’t be deleted. Archive it or stop using it instead.';
   if (msg.includes('booking_slot_no_overlap'))
     return 'That instructor is already teaching at that time.';
   if (msg.includes('domain_test_mode_needs_targets'))

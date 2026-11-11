@@ -21,8 +21,8 @@ The app uses the Discord servers you already have. It never creates servers or c
 
 1. Open [Instructors](/setup/instructors) and open the instructor.
 2. Type their **Discord username**, for example maya.k (without @). You see it under their name in Discord.
-3. Press **Save**. The app finds their Discord account by itself and shows **Discord found**. If it shows **Not found on Discord**, check the spelling and that they joined the server, then press **Check Discord**.
-4. Under **Their channel in each domain**, choose their channel. Type part of the name to find it quickly.
+3. Press **Save changes** (or **Add instructor** for someone new). The app finds their Discord account by itself and shows **Discord found**. If it shows **Not found on Discord**, check the spelling and that they joined the server, then press **Check Discord**.
+4. Under **Their channel in each domain**, choose their channel. Type part of the name to find it quickly. For someone new, open them again first: the channels show once they are added.
 
 > You never need a Discord user ID. The app finds it from the username.
 

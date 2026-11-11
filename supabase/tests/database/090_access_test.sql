@@ -1,7 +1,7 @@
 -- Release Milestone 3: sign in and access.
 begin;
 \ir ../helpers/helpers.psql
-select plan(23);
+select plan(26);
 
 select tests.company();
 
@@ -43,6 +43,10 @@ select tests.as_postgres();
 select tests.login_google('ops@example.com');
 select ok(private.is_team_user(), 'and a company Google session does');
 select tests.as_postgres();
+-- TST-9: real sessions say how they signed in (amr). An email link session of a Google user is refused.
+select tests.login_google('ops@example.com', 'otp');
+select ok(not private.is_team_user(), 'in Production a Google user who signed in by email link (amr otp) gets no access');
+select tests.as_postgres();
 update public.app_config set environment = 'Development' where id = 1;
 
 -- =============================================================== first sign in creates the team member
@@ -62,12 +66,23 @@ select tests.as_postgres();
 
 -- =============================================================== remove access
 select tests.make_team_member('Admin Person') as admin \gset
+-- The person has a live session (a refresh token) when their access is removed.
+insert into auth.users (id, instance_id, aud, role, email)
+select t.auth_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', t.email
+  from public.team_member t
+ where t.email = 'new.person@example.com' and not exists (select 1 from auth.users u where u.id = t.auth_user_id);
+insert into auth.sessions (id, user_id)
+select gen_random_uuid(), auth_user_id from public.team_member where email = 'new.person@example.com';
 select tests.login_as('admin.person@example.com');
 select public.set_member_access((select id from public.team_member where email = 'new.person@example.com'), false, 'Left the company');
 select ok(exists (select 1 from public.history_event where action = 'Access removed' and note = 'Left the company'),
   'removing access is recorded with the reason');
 select throws_ok(format('select public.set_member_access(%L, false)', :'admin'), '22023', null, 'nobody can remove their own access');
 select tests.as_postgres();
+select is((select count(*)::int from auth.sessions s join public.team_member t on t.auth_user_id = s.user_id
+            where t.email = 'new.person@example.com'), 0, 'removing access ends their sessions everywhere (SEC-2)');
+select ok(not exists (select 1 from public.history_event where action like '%Could not end the sessions%' or note like '%Could not end the sessions%'),
+  'and ending the sessions worked (nothing was only logged)');
 select tests.login_with('{"email": "new.person@example.com"}');
 select is((public.my_account(true) ->> 'allowed')::boolean, false, 'a removed person cannot use the app');
 select is((select count(*)::int from public.domain), 0, 'and sees no data');

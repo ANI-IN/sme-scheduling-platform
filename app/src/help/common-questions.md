@@ -33,7 +33,7 @@ Each line shows a status:
 
 **Errors in the app** lists problems people ran into while using the app. If you see the same error many times, tell whoever looks after the app.
 
-The links and IDs under **Advanced** are set once by whoever installed the app. You rarely need to change them.
+**Advanced: links** shows the sender email and two links. The links are set by whoever installs the app and cannot be changed here.
 
 ## Still stuck
 

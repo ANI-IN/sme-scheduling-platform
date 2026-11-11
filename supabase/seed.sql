@@ -5,16 +5,9 @@
 -- Backend exists only here, as data. Nothing in the code refers to it.
 -- =====================================================================================
 
--- Company email domain: only accounts @this-domain can sign in. Local development uses
--- example.com; on a hosted project set your real domain (docs/SETUP_GUIDE.md, npm run configure).
-update public.app_config
-   set company_email_domain = 'example.com',
-       environment = 'Development',
-       environment_set_at = now(),
-       app_base_url = 'http://localhost:5173',
-       response_base_url = 'http://localhost:5678/webhook/respond',
-       scheduling_sender_name = 'SME Scheduling'
- where id = 1;
+-- The company domain, the environment and the two links are set by `npm run configure` on a hosted
+-- project, and by supabase/seed.local.sql on your own computer (never pasted into a hosted project).
+update public.app_config set scheduling_sender_name = 'SME Scheduling' where id = 1;
 
 do $$
 declare

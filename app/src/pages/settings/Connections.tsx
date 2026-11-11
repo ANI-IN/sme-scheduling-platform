@@ -170,7 +170,7 @@ function ConfigForm({ config }: { config: Config }) {
   return (
     <Section
       title="Advanced: links"
-      description="Technical addresses and IDs the automation needs. Who can sign in is set when the app is installed: company Google accounts only."
+      description="The sender email and the links the automation needs. Who can sign in is set when the app is installed: company Google accounts only."
     >
       <details>
         <summary className="cursor-pointer text-sm font-medium text-link">Show the links</summary>

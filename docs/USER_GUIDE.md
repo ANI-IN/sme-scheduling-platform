@@ -1,52 +1,35 @@
-# SME Scheduling — user guide for ops (one page)
+# User guide
 
-Sign in with your company Google account. Pick the domain at the top. A yellow **TEST MODE** bar means messages only go
-to the test channel and test inbox. A red bar means the **kill switch** is on (no instructor messages anywhere).
-Each class is shown in the time zone of its region: **US Pacific (PST or PDT)** or **India (IST)**; US classes also show the India time. History and system times are in **your** time.
+The full user guide is inside the app: press **Help** in the sidebar, or the **?** next to any page title. It has
+step by step guides with pictures, kept up to date with the screens. This page is a one page overview.
 
-**1. Needs Attention — start here every day.** Everything waiting on a person, urgent first.
-- **I'm on it** pauses reminders for 24 hours. **Assign to** hands it to someone. **Mark done** closes it (add a note).
-- **Assign instructor / Open class** opens the class drawer. **Reply / handle** opens a help request.
-- **Release & find replacement** appears on typed replies — use it only if the instructor really cancelled
-  (the system never cancels from typed text by itself).
-- Filters: type, assigned to, urgent only, mine only.
+## Signing in
 
-**2. Schedule — plan and manage classes.**
-- **Plan classes:** choose the first module, then the first Sunday + number of weeks (or paste the official list of
-  Sundays). Review the grid: holiday weeks are yellow — use **Shift this + later 1 wk**. Press **Create**.
-  Duplicates are refused.
-- Click any row to open the **class drawer**: change time, cancel a class or the whole week, assign manually, record an
-  offline (phone) confirmation, release a booking, pause outreach, resend the last message, create a help request,
-  tick the checklist (calendar invite, Zoom link, Uplevel link), and see the full timeline.
-- Tick weeks for **bulk actions** (set instructors to ask, fill from rankings, pause/resume, shift, cancel).
-- **Download as sheet** gives a CSV copy (changes in the copy are never imported).
+Sign in with your company Google account. Choose the domain at the top of the sidebar. A **Sandbox** label means you
+are in the practice copy of the app, where real instructors are never contacted.
 
-**3. Outreach — who is being asked.**
-- **A. Finding instructors:** who is being asked, when it moves on, who is next. Expand a row to see everyone asked.
-  **Skip to next**, **Change mode** (tick instructors, drag them into order, choose what happens when the list runs
-  out), **Assign manually**, **Pause**. If someone is being asked when you change the list, you choose **Keep waiting**
-  or **Withdraw and start**.
-- **B. Confirmed and check-ins:** 10-day and 2-day check-in answers. **Release**, **Change instructor**,
-  **Resend check-in**.
+## The pages
 
-**4. Modules — the setup of each domain.** Domain status (Draft/Test/Live/Paused), alert channel, leads and ops
-contacts. Per module: owners, class pattern (PT), ranking (add from the list, drag to reorder; you see the impact
-before saving), resources ("include in confirmation"), and **who will be asked next**. Warnings show thin benches,
-inactive primaries, missing owners or resources. Modules are archived, never deleted.
+| Page | What it is for |
+|---|---|
+| **Home** | Start here every day. **Needs your attention** lists every task waiting on a person, urgent first. The cards count urgent and open tasks, this week's classes, classes still without an instructor and open help requests. |
+| **Upcoming classes** | Every planned class, grouped by class week, with its time zone, region, status and instructor. Filters for module, cohort, region and status. **Plan classes**, **Add one class** and **Download as spreadsheet** are at the top. Open a class week to change times, assign or release an instructor, add tasks or cancel. |
+| **Instructor requests** | Who is being asked for each class week, and the confirmed classes with their reminders. **Ask the next instructor**, **Start asking now** and the **More options** menu (change the order, ask a specific person, assign, pause requests). |
+| **Setup** | **Modules** (class times, instructor order, owners, materials), **Instructors** (contact details, Discord username and channel, contact check, dates they cannot teach), **Team** and **Domains** (Discord server, alert channel, cohorts and regions, holidays). |
+| **Settings** | **Automation** (when to ask, remind and escalate, per domain or cohort, with rarely used values under **More options**), **Messages** (the message templates), **Testing** (practice clock, practice class, going live) and **Connections** (connection health, Discord servers, sender email). |
+| **Activity history** | Everything that happened, who did it and when. It cannot be edited or deleted. |
 
-**5. Instructors — one record per real person.** Add name, emails, Discord user ID and channel link; duplicates are
-blocked. **Send test message** → they tap "Got it" → **✓ Verified** (or tick **Seen manually**). Unverified people are
-never asked in Live domains. Add unavailable dates. **Deactivate** asks, per upcoming class, whether to keep it or
-release it and find a backup. Changing contact details removes the Verified badge.
+## Times
 
-**6. Settings.** Domain settings (defaults shown, **Reset** returns to default), team list (Discord IDs, digest
-preference, **Send test alert**), holidays, **Test mode** (test channel/email, test clock: **Jump to** readiness / 30 /
-14 / 10 / 2 days before, **Advance 1 day**, **Run check now**), and **System** (kill switch, last hourly run, connection
-status, system links).
+Each class shows the time where it is taught: **US Pacific (PST or PDT)** or **India (IST)**. US classes also show the
+India time. Activity history and system times are in your own time zone.
 
-**7. History — everything that happened.** Filter by domain, module, instructor, team member, type and dates; search;
-**Export CSV**. **Undo** works for setup changes (rankings, instructor details, settings, modules) while nothing changed
-since; it never recalls messages already sent. History can't be edited or deleted.
+## Pausing messages
 
-**Daily rhythm:** check Needs Attention (urgent first) → glance at Outreach → tick checklists for confirmed classes →
-keep at least 6 weeks planned in Schedule.
+Your account menu at the bottom of the sidebar has **Pause all messages**. A red bar then shows on every page until
+you press **Turn messages back on**. See docs/RUNBOOK.md for emergencies.
+
+## Words used in the app
+
+The Help guide **Glossary** explains each term, for example class week, instructor order, contact check
+and reminder before class.

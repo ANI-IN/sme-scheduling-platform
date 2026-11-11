@@ -1,47 +1,68 @@
 # Runbook
 
-## Daily checks (5 minutes)
-1. **Admin Discord channel:** the daily heartbeat (T15) arrived this morning. No heartbeat = something is down (see below).
-2. **App → Settings → System:** last hourly run is less than ~1 hour ago and says `ok`; "waiting to send" is small;
-   failures in the last 24 h are explained.
-3. **App → Needs Attention:** no urgent items older than a few hours without "I'm on it".
-4. **Test mode:** the yellow bar is only on domains that should be in test. The digest also says which domains are in
-   TEST MODE.
+What to check each day, how to stop messages fast, and what to do when something looks wrong. The app's own Help
+(the **Help** link in the sidebar) explains every page step by step.
 
-## Kill switch (stop all instructor messages)
-- **Turn on:** Settings → System → **Pause all outreach (kill switch)** → confirm. No instructor is messaged anywhere;
-  requests stop moving on; team alerts continue. Queued instructor messages are held, not lost.
-- **Turn off:** same place → **Turn kill switch off**. Held messages and due steps go out at the next run.
-- The heartbeat reminds the admin every day while it is on.
-- To stop one domain only: Modules → domain status **Paused**. To stop one module week: class drawer → **Pause outreach**.
+## Stop all messages to instructors (do this first in an emergency)
+
+1. Open your account menu at the bottom of the sidebar (your email address).
+2. Press **Pause all messages** and confirm.
+
+No instructor is messaged anywhere and requests stop moving on. Team alerts still go out. Messages that were waiting
+are kept, not lost. A red bar shows on every page while messages are paused.
+
+To start again, press **Turn messages back on** in the red bar and confirm. Waiting messages go out at the next
+automatic check, once each.
+
+You can also pause from the bottom of **Settings, Automation**, or from **Settings, Connections**.
+
+- **Stop one domain only:** **Setup, Domains**, open the domain, set its **Status** to **Paused**.
+- **Stop one class week only:** open the class week (on **Upcoming classes** or **Instructor requests**) and press
+  **Pause requests**.
+
+## Daily checks (5 minutes)
+
+1. **Admin alert channel in Discord:** the daily system summary arrived this morning. If it did not, something is
+   down (see the table below).
+2. **Settings, Connections, Connection health:** the automatic check ran less than about an hour ago and says it
+   worked. **Messages waiting to send** is small. Failures in the last 24 hours have a reason in Activity history.
+3. **Home, Needs your attention:** no urgent task older than a few hours without someone on it.
+4. **Testing:** only the domains that should be tested show the testing bar. The daily summary also lists them.
 
 ## Common problems
-| Symptom | Likely cause | Fix |
+
+| What you see | Likely cause | What to do |
 |---|---|---|
-| No heartbeat this morning | n8n down, WF3 unpublished, or Discord admin channel wrong | Open n8n → Executions. Check WF3 is published and its Config node. Check Settings → System → Admin channel ID. |
-| "Last hourly run" is old | WF1 not published / n8n down / Supabase paused | Publish WF1; check n8n Executions for errors (WF5 also posts them in the admin channel). Supabase free projects pause after a week of no activity — restore it in the Supabase dashboard. |
-| Messages stay "waiting to send" | WF4 not running, wrong Supabase secret key, kill switch on | Check kill switch; run WF4 manually; check the "Supabase secret key" credential. |
-| App buttons don't send right away | `VITE_N8N_POKE_URL`/`VITE_N8N_POKE_KEY` wrong | Messages still go within 5 minutes (WF4 schedule). Fix the Cloudflare env and redeploy. |
-| "Message failed: … via Discord" (Missing Access / Unknown Channel) | Bot can't see the instructor channel, or the channel link changed | Give the bot role access to the channel; fix the channel link on the instructor (then send a test message). Email was still sent. |
-| "Email bounced" | Wrong email address | Fix it on the instructor; Discord is still used meanwhile. |
-| Confirm link shows "This link isn't valid" | Link copied incompletely, or Response page URL wrong | Check Settings → System → Response page URL is the WF2 production URL. |
-| Instructor says the page does nothing when they press the button | Response page URL points to the test webhook (`/webhook-test/`) | Use the production URL (`/webhook/respond`) and publish WF2. |
-| Someone can't sign in | Not a company account, or Supabase redirect URL missing | Only `@company` accounts work. Check Supabase → Authentication → URL Configuration. |
-| "This changed — reload" | Someone else saved the same record | Reload the page and redo your edit. |
-| Outreach not starting for a week | Readiness check failing (no owner, nobody eligible…) | Needs Attention shows the reason; fix it and it starts at the next run (or Settings → Run check now in test mode). |
-| "Needs instructor" | Everyone in the ranking declined, didn't reply or can't be asked | Phone people; **Assign manually** or **Record offline confirmation**; or add instructors to the ranking (outreach resumes automatically). |
-| Typed reply in Needs Attention | Instructor wrote instead of tapping | Read it and decide; reply in their channel; use the item's buttons. |
+| No daily system summary this morning | n8n is down, WF3 is not published, or no admin alert channel is chosen | Open n8n, **Executions**. Check WF3 is published and its Config node. Choose the admin alert channel on **Settings, Connections**. |
+| The automatic check on Connections is old | WF1 is not published, n8n is down, or the Supabase project is paused | Publish WF1. Check n8n **Executions** (WF5 also posts errors in the admin alert channel). A free Supabase project pauses after a week without use: restore it in the Supabase dashboard. |
+| Messages stay waiting to send | Messages are paused, WF4 is not running, or the Supabase key in n8n is wrong | Check for the red paused bar first. Run WF4 by hand in n8n. Check the n8n credential **Supabase secret key**. |
+| Buttons in the app do not send at once | `VITE_N8N_POKE_URL` or `VITE_N8N_POKE_KEY` is wrong in the hosting settings | Messages still go within 5 minutes (WF4 runs on a schedule). Fix the hosting variables and deploy again. |
+| A task says a Discord message was not delivered | The bot cannot post in the instructor's channel, or the channel was deleted | The task says exactly what to fix. Give the bot's role access to the channel, or choose a new channel for the instructor on **Setup, Instructors**. The email was still sent. |
+| A task says an email bounced | Wrong email address | Fix it on **Setup, Instructors**. Discord is still used meanwhile. |
+| An answer link says "This link isn't valid" | The link was copied only in part, or the answer page link is wrong | **Settings, Connections, Advanced: links** shows the answer page link. It must be the WF2 production address. Change it with `npm run configure:<env> -w scripts` (docs/SETUP_GUIDE.md, 1.4). |
+| An instructor presses the button on the answer page and nothing happens | The answer page link points to the n8n test address (`/webhook-test/`) | Use the production address (`/webhook/respond`) and publish WF2. |
+| Someone cannot sign in | Not a company Google account, or the Supabase redirect address is missing | Only company Google accounts work. Check Supabase, **Authentication, URL Configuration**. The refusal is in Activity history. |
+| "This changed, reload" | Someone else saved the same record | Reload the page and make your change again. |
+| Requests do not start for a class week | Setup is not finished (no owner, nobody can be asked, and so on) | **Needs your attention** says why. Fix it and asking starts at the next automatic check. |
+| "Needs an instructor" | Everyone in the instructor order said no, did not reply or cannot be asked | Phone people, then open the class week and press **Assign an instructor** or **Record a phone or chat confirmation**. Or add instructors to the module's instructor order: asking starts again by itself. |
+| A written reply shows in Needs your attention | An instructor wrote instead of pressing a button | Read it and decide. Press **Reply** to answer them in their channel and by email. |
 
 ## After an outage
-Nothing needs replaying. When n8n or Supabase comes back, the next hourly run catches up: missed reminders are sent once,
-expired requests move on, and unique message keys prevent duplicates. Check History → System for the run summaries.
+
+Nothing needs replaying. When n8n or Supabase comes back, the next automatic check catches up: missed reminders are
+sent once, requests with no answer move on, and every message has its own key, so nothing is sent twice. Activity
+history shows what ran.
 
 ## Backups
-WF3 saves `sme-backup-YYYY-MM-DD.json` to the Google Drive folder every night (all setup and schedule tables). History
-can also be exported as CSV from the History tab. Supabase's paid plan adds automatic backups when the whole team depends
-on the system.
+
+WF3 saves `sme-backup-YYYY-MM-DD.json` to the shared Google Drive folder every night (every setup and schedule table).
+Activity history can also be downloaded as a spreadsheet from **Activity history**. Supabase's paid plan adds automatic
+backups when the whole team depends on the app.
 
 ## Adding a new domain (no code)
-Follow PRD §21.2: create the domain (Draft) in Modules → set alert channel, leads, ops → add modules, owners, pattern,
-resources → add/verify instructors (existing people are reused) → rankings → review settings → switch to **Test** and run
-the key scenarios with the test clock → plan classes → shadow for a week → **Live**.
+
+Follow the Help guide **Setting up a new domain**: create the domain on **Setup, Domains**, choose its Discord server
+and alert channel, add the operations team and leads, add modules with owners, class times and materials, add or check
+instructors (people already in the app are reused), set each module's instructor order, review the settings on
+**Settings, Automation**, then turn on testing and run the key steps with the practice clock on **Settings, Testing**.
+Plan classes, watch for a week, then **Go live**.

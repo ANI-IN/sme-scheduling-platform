@@ -297,24 +297,28 @@ export default function Automation() {
     }
   }
 
+  // The daily summary covers every cohort a person helps with, so it is set for the domain only.
+  const DOMAIN_ONLY = new Set(['daily_summary']);
   const fields = (keys: string[]) =>
-    keys.map((k) => {
-      const s = byKey.get(k);
-      if (!s) return null;
-      const sw = SWITCH_FOR[k];
-      return (
-        <SettingField
-          key={k}
-          s={s}
-          scope={scope}
-          value={current(s)}
-          changed={k in draft}
-          off={sw !== undefined && effective(sw) === false}
-          onChange={(v) => stage(k, v)}
-          onReset={() => stage(k, null)}
-        />
-      );
-    });
+    keys
+      .filter((k) => scope === 'Domain' || !DOMAIN_ONLY.has(k))
+      .map((k) => {
+        const s = byKey.get(k);
+        if (!s) return null;
+        const sw = SWITCH_FOR[k];
+        return (
+          <SettingField
+            key={k}
+            s={s}
+            scope={scope}
+            value={current(s)}
+            changed={k in draft}
+            off={sw !== undefined && effective(sw) === false}
+            onChange={(v) => stage(k, v)}
+            onReset={() => stage(k, null)}
+          />
+        );
+      });
   const preset = PRESETS.find((p) =>
     Object.entries(p.values).every(([k, v]) => Number(effective(k)) === v),
   );

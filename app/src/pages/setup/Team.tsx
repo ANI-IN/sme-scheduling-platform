@@ -302,7 +302,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
           )}
         </div>
         <Checkbox
-          label="Active"
+          label="In use"
           hint="People who are not in use are not tagged or reminded."
           checked={f.active}
           onChange={(c) => setF({ ...f, active: c })}

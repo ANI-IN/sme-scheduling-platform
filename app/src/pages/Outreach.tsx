@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import {
   DndContext,
@@ -18,6 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { reorderA11y } from '@/lib/reorder';
 import { rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
 import { useCohorts, useInstructors, useSettingsMap, useWeeks, type WeekRow } from '@/lib/data';
@@ -36,6 +38,7 @@ import {
   Empty,
   ErrorText,
   Field,
+  LoadError,
   Modal,
   Notice,
   PageHeader,
@@ -181,9 +184,8 @@ export default function Outreach() {
       ),
   });
 
-  const helpOpen = (weeks.data ?? []).filter((w) =>
-    w.help_request.some((h) => ['Open', 'InProgress', 'WaitingOnInstructor'].includes(h.status)),
-  ).length;
+  const helpOpen = upcoming.filter(hasHelp).length;
+  const filtered = !!(cohortId || moduleId || region);
   const checkinDays = ((settings.data?.checkin_days as number[] | undefined) ?? [10, 2])
     .slice()
     .sort((a, b) => b - a);
@@ -305,6 +307,23 @@ export default function Outreach() {
         </div>
         {weeks.isLoading ? (
           <SkeletonRows rows={4} />
+        ) : weeks.error ? (
+          <LoadError what="the class weeks" onRetry={() => weeks.refetch()} />
+        ) : focus === 'confirmed' ? (
+          <Empty title="Hidden while you show only confirmed class weeks">
+            Select the Confirmed card again to show every class week.
+          </Empty>
+        ) : finding.length === 0 && (focus !== '' || filtered) ? (
+          <Empty title="No class weeks match these filters" />
+        ) : upcoming.length === 0 ? (
+          <Empty
+            title="No classes planned yet"
+            action={
+              <Link to="/classes" className="text-sm font-medium text-link hover:underline">
+                Plan classes on Upcoming classes
+              </Link>
+            }
+          />
         ) : finding.length === 0 ? (
           <Empty title="Every upcoming class week has an instructor">
             Nothing to follow up right now.
@@ -367,7 +386,7 @@ export default function Outreach() {
                           <WeekMeta w={w} />
                           {w.at_risk && (
                             <div className="text-xs text-danger-strong">
-                              At risk: {w.at_risk_reason}
+                              At risk: {plain(w.at_risk_reason)}
                             </div>
                           )}
                         </td>
@@ -486,11 +505,11 @@ export default function Outreach() {
                                     {r.status === 'Accepted'
                                       ? 'said yes'
                                       : r.status === 'Declined'
-                                        ? `declined${r.close_reason && r.close_reason !== 'Declined' ? ` (${r.close_reason})` : ''}`
+                                        ? `declined${r.close_reason && r.close_reason !== 'Declined' ? ` (${plain(r.close_reason)})` : ''}`
                                         : r.status === 'Expired'
                                           ? 'no reply'
                                           : r.status === 'Withdrawn'
-                                            ? `withdrawn (${r.close_reason})`
+                                            ? `withdrawn${r.close_reason ? ` (${plain(r.close_reason)})` : ''}`
                                             : r.status === 'Reminded'
                                               ? 'reminded, waiting'
                                               : 'waiting'}
@@ -507,7 +526,7 @@ export default function Outreach() {
                                     className={l.reason ? 'text-muted-foreground' : ''}
                                   >
                                     {l.name}
-                                    {l.reason ? ` (${l.reason})` : ''} ·{' '}
+                                    {l.reason ? ` (${plain(l.reason)})` : ''} ·{' '}
                                   </span>
                                 ))}
                               </div>
@@ -534,6 +553,10 @@ export default function Outreach() {
         </div>
         {weeks.isLoading ? (
           <SkeletonRows rows={3} />
+        ) : weeks.error ? null : ['asking', 'needs'].includes(focus) ? (
+          <Empty title="Hidden while you show only class weeks still looking for an instructor" />
+        ) : confirmed.length === 0 && (focus !== '' || filtered) ? (
+          <Empty title="No confirmed class weeks match these filters" />
         ) : confirmed.length === 0 ? (
           <Empty title="No confirmed class weeks coming up" />
         ) : (
@@ -570,7 +593,7 @@ export default function Outreach() {
                         <WeekMeta w={w} />
                         {w.at_risk && (
                           <div className="text-xs text-danger-strong">
-                            At risk: {w.at_risk_reason}
+                            At risk: {plain(w.at_risk_reason)}
                           </div>
                         )}
                       </td>
@@ -602,7 +625,7 @@ export default function Outreach() {
                       <td className={td}>
                         <div className="flex flex-wrap gap-1">
                           <Button size="sm" variant="secondary" onClick={() => setDrawer(w.id)}>
-                            Change instructor
+                            Open class week
                           </Button>
                           <Button
                             size="sm"
@@ -635,7 +658,7 @@ export default function Outreach() {
                                 );
                             }}
                           >
-                            Release
+                            Release instructor
                           </Button>
                         </div>
                       </td>
@@ -660,7 +683,15 @@ export default function Outreach() {
   );
 }
 
-function Sortable({ id, children }: { id: string; children: React.ReactNode }) {
+function Sortable({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   return (
     <li
@@ -672,7 +703,7 @@ function Sortable({ id, children }: { id: string; children: React.ReactNode }) {
         {...attributes}
         {...listeners}
         className="cursor-grab text-muted-foreground"
-        aria-label="Drag to reorder"
+        aria-label={`Move ${label}`}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -779,6 +810,11 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                accessibility={reorderA11y(
+                  order,
+                  (id) => byId.get(id)?.name ?? 'Unknown instructor',
+                  (idx) => `number ${idx + 1}`,
+                )}
                 onDragEnd={(e: DragEndEvent) => {
                   if (e.over && e.active.id !== e.over.id)
                     setOrder((o) =>
@@ -789,7 +825,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
                 <SortableContext items={order} strategy={verticalListSortingStrategy}>
                   <ol className="space-y-1">
                     {order.map((id, idx) => (
-                      <Sortable key={id} id={id}>
+                      <Sortable key={id} id={id} label={byId.get(id)?.name ?? 'Unknown instructor'}>
                         <span className="w-5 text-xs text-muted-foreground">{idx + 1}.</span>
                         {byId.get(id)?.name}
                       </Sortable>
@@ -850,7 +886,8 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
 /** Ask one chosen instructor now; if nobody says yes, the usual instructor order continues. */
 function AskPersonDialog({ week, onClose }: { week: WeekRow; onClose: () => void }) {
   const { run, err, busy } = useRun();
-  const confirm = useConfirm();
+  // Set when someone else is being asked right now: the team chooses what happens to that request.
+  const [askingNow, setAskingNow] = useState<string | null>(null);
   const list = useQuery({
     queryKey: ['request', 'eligibility', week.id],
     queryFn: async () =>
@@ -880,7 +917,7 @@ function AskPersonDialog({ week, onClose }: { week: WeekRow; onClose: () => void
         <SkeletonRows rows={3} />
       ) : (
         <Field label="Instructor">
-          <Select value={id} onChange={(e) => setId(e.target.value)}>
+          <Select value={id} disabled={!!askingNow} onChange={(e) => setId(e.target.value)}>
             <option value="">Choose an instructor</option>
             {(list.data ?? []).map((i) => (
               <option
@@ -903,29 +940,54 @@ function AskPersonDialog({ week, onClose }: { week: WeekRow; onClose: () => void
         </Notice>
       )}
       <ErrorText error={err} />
-      <div className="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          disabled={!id}
-          loading={busy}
-          onClick={async () => {
-            let res = await send();
-            if (res?.needs_decision) {
-              const withdraw = await confirm({
-                title: `${res.asking ?? 'Someone'} is being asked right now`,
-                body: 'Withdraw that request politely and ask your chosen person now? Choose Cancel to keep waiting for their answer first.',
-                confirmLabel: 'Withdraw and ask now',
-              });
-              res = await send(withdraw ? 'withdraw' : 'keep');
-            }
-            if (res) onClose();
-          }}
-        >
-          Ask now
-        </Button>
-      </div>
+      {askingNow ? (
+        <div className="mt-4 space-y-3">
+          <div role="status">
+            <Notice tone="warning">
+              {askingNow} is being asked right now. Withdraw that request politely and ask your
+              chosen person now, or ask them after {askingNow} answers.
+            </Notice>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Go back
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!id}
+              loading={busy}
+              onClick={async () => (await send('keep')) && onClose()}
+            >
+              Ask after their answer
+            </Button>
+            <Button
+              autoFocus
+              disabled={!id}
+              loading={busy}
+              onClick={async () => (await send('withdraw')) && onClose()}
+            >
+              Withdraw and ask now
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            Go back
+          </Button>
+          <Button
+            disabled={!id}
+            loading={busy}
+            onClick={async () => {
+              const res = await send();
+              if (res?.needs_decision) setAskingNow(res.asking ?? 'Someone');
+              else if (res) onClose();
+            }}
+          >
+            Ask now
+          </Button>
+        </div>
+      )}
     </Modal>
   );
 }

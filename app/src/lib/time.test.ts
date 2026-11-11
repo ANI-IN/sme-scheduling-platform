@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fmtPT, fmtPTRange, isSunday, parseDateList, ptParts, weeklyDates } from './time';
+import { DateTime } from 'luxon';
+import { ago, fmtPT, fmtPTRange, isSunday, parseDateList, ptParts, weeklyDates } from './time';
 import { isCompanyEmail, isDiscordId, isEmail, parseChannelLink } from './validation';
 import { toCsv } from './csv';
 
@@ -66,5 +67,16 @@ describe('CSV export', () => {
     expect(toCsv([{ a: 'x,y', b: 'say "hi"', c: 'l1\nl2' }])).toBe(
       'a,b,c\n"x,y","say ""hi""","l1\nl2"',
     );
+  });
+});
+
+describe('ago', () => {
+  const now = DateTime.fromISO('2027-01-31T12:00:00Z');
+  it('says how long ago in words, not abbreviations', () => {
+    expect(ago('2027-01-31T11:59:50Z', now)).toBe('less than a minute');
+    expect(ago('2027-01-31T11:59:00Z', now)).toBe('1 minute');
+    expect(ago('2027-01-31T11:15:00Z', now)).toBe('45 minutes');
+    expect(ago('2027-01-31T09:00:00Z', now)).toBe('3 hours');
+    expect(ago('2027-01-28T12:00:00Z', now)).toBe('3 days');
   });
 });

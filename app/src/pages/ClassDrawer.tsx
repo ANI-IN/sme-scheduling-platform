@@ -136,6 +136,7 @@ export function ClassDrawer({
       open
       onOpenChange={(o) => !o && onClose()}
       title={`${week.module?.name ?? 'Class week'}: week of ${weekOf}`}
+      footer={err ? <ErrorText error={err} /> : undefined}
       description={
         week.cohort
           ? /cohort/i.test(week.cohort)
@@ -146,12 +147,15 @@ export function ClassDrawer({
     >
       <div className="space-y-6 text-sm">
         <div className="flex flex-wrap gap-2">
-          <Badge tone={state.tone}>{state.label}</Badge>
-          {week.at_risk && <Badge tone="danger">At risk: {plain(week.at_risk_reason)}</Badge>}
+          <Badge tone={state.tone}>{state.short}</Badge>
+          {week.at_risk && state.kind !== 'At risk' && <Badge tone="danger">At risk</Badge>}
           <Badge>{week.outreach_mode === 'Manual' ? 'Chosen list' : 'Instructor order'}</Badge>
           {week.paused && <Badge tone="accent">Requests paused</Badge>}
           {openHelp && <Badge tone="warning">Help request open</Badge>}
         </div>
+        {week.at_risk && week.at_risk_reason && (
+          <p className="-mt-4 text-danger-strong">{plain(week.at_risk_reason)}</p>
+        )}
 
         <DrawerGroup
           title="Classes"
@@ -248,7 +252,7 @@ export function ClassDrawer({
                     )
                   }
                 >
-                  Assign instructor
+                  Assign an instructor
                 </Button>
                 <Button
                   size="sm"
@@ -266,7 +270,7 @@ export function ClassDrawer({
                     )
                   }
                 >
-                  They agreed by phone or chat
+                  Record a phone or chat confirmation
                 </Button>
               </div>
             </div>
@@ -365,22 +369,25 @@ export function ClassDrawer({
           <div className="mt-2 space-y-4">
             <DrawerGroup title="Class week">
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    run(
-                      () =>
-                        rpc('pause_outreach', {
-                          p_module_week_id: week.id,
-                          p_paused: !week.paused,
-                        }),
-                      week.paused ? 'Requests resumed' : 'Requests paused',
-                    )
-                  }
-                >
-                  {week.paused ? 'Resume requests' : 'Pause requests'}
-                </Button>
+                {/* OUT-3: a confirmed class week has nobody to ask, so there is nothing to pause. */}
+                {(!booking || week.paused) && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      run(
+                        () =>
+                          rpc('pause_outreach', {
+                            p_module_week_id: week.id,
+                            p_paused: !week.paused,
+                          }),
+                        week.paused ? 'Requests resumed' : 'Requests paused',
+                      )
+                    }
+                  >
+                    {week.paused ? 'Resume requests' : 'Pause requests'}
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="secondary"
@@ -555,8 +562,6 @@ export function ClassDrawer({
           </div>
         </details>
 
-        <ErrorText error={err} />
-
         <DrawerGroup title="Activity">
           {(timeline.data?.messages ?? []).length > 0 && (
             <details>
@@ -625,6 +630,7 @@ export function ClassDrawer({
                     body: 'Open requests are withdrawn politely, and a confirmed instructor is told that the class is cancelled. This cannot be undone.',
                     danger: true,
                     confirmLabel: 'Cancel the class week',
+                    cancelLabel: 'Keep the class week',
                   })
                 )
                   await run(
@@ -879,6 +885,7 @@ function ClassEditor({
                       body: 'If this is the only class left in the week, the whole class week is cancelled.',
                       danger: true,
                       confirmLabel: 'Cancel the class',
+                      cancelLabel: 'Keep the class',
                     })
                   )
                     await run(() => rpc('cancel_class', { p_class_id: c.id }), 'Class cancelled');

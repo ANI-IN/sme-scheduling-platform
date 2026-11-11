@@ -458,7 +458,7 @@ function Banners() {
               every domain. Team alerts continue.
             </span>
             <Button size="sm" onClick={() => void pause.toggle()}>
-              Resume messages
+              Turn messages back on
             </Button>
           </span>
         </Bar>

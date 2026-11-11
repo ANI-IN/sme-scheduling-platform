@@ -13,6 +13,7 @@ import { weekState } from '@/lib/status';
 import {
   Badge,
   Empty,
+  LoadError,
   PageHeader,
   Section,
   Select,
@@ -24,7 +25,7 @@ import {
   thead,
   trow,
 } from '@/components/ui';
-import { TaskList } from './NeedsAttention';
+import { inCohort, TaskList } from './NeedsAttention';
 
 const OPEN = ['Queued', 'Sent', 'Reminded'];
 
@@ -66,17 +67,25 @@ export default function Home() {
       const rows = check(
         await supabase
           .from('attention_item')
-          .select('severity, status, done_at')
+          .select('severity, status, done_at, module_week_id')
           .or(`domain_id.eq.${domain!.id},domain_id.is.null`)
           .or(`status.neq.Done,done_at.gte.${DateTime.now().startOf('day').toUTC().toISO()}`),
       );
-      return {
-        urgent: rows.filter((r) => r.status !== 'Done' && r.severity === 'Urgent').length,
-        open: rows.filter((r) => r.status !== 'Done').length,
-        doneToday: rows.filter((r) => r.status === 'Done').length,
-      };
+      return rows;
     },
   });
+  // The cards count the same tasks the list below shows for the chosen cohort.
+  const cohortWeeks = new Set(
+    (allWeeks.data ?? []).filter((w) => w.cohort_id === cohortId).map((w) => w.id),
+  );
+  const taskRows = (counts.data ?? []).filter((r) =>
+    inCohort(r.module_week_id, cohortId || undefined, cohortWeeks),
+  );
+  const taskCounts = {
+    urgent: taskRows.filter((r) => r.status !== 'Done' && r.severity === 'Urgent').length,
+    open: taskRows.filter((r) => r.status !== 'Done').length,
+    doneToday: taskRows.filter((r) => r.status === 'Done').length,
+  };
 
   // This week in Pacific time, Sunday to Saturday.
   const ptNow = now.setZone(PT);
@@ -165,16 +174,16 @@ export default function Home() {
       <div className="flex flex-wrap gap-3">
         <Stat
           label="Urgent tasks"
-          value={counts.data?.urgent ?? 0}
+          value={taskCounts.urgent}
           tone="danger"
           hint="Answer these first"
           onClick={scrollToTasks}
         />
         <Stat
           label="Open tasks"
-          value={counts.data?.open ?? 0}
+          value={taskCounts.open}
           tone="info"
-          hint={`${counts.data?.doneToday ?? 0} done today`}
+          hint={`${taskCounts.doneToday} done today`}
           onClick={scrollToTasks}
         />
         <Stat
@@ -219,6 +228,8 @@ export default function Home() {
       >
         {weeks.isLoading ? (
           <SkeletonRows rows={3} />
+        ) : allWeeks.error ? (
+          <LoadError what="this week's classes" onRetry={() => allWeeks.refetch()} />
         ) : thisWeek.length === 0 ? (
           <Empty title="No classes this week" icon={<CalendarDays className="h-5 w-5" />}>
             Plan classes on the Upcoming classes page.
@@ -251,12 +262,15 @@ export default function Home() {
                         </div>
                       </td>
                       <td className={td}>
-                        {st.confirmed ?? (
-                          <span className="text-muted-foreground">Not confirmed</span>
-                        )}
+                        {st.confirmed ??
+                          (st.asking ? (
+                            `Asking: ${st.asking}`
+                          ) : (
+                            <span className="text-muted-foreground">Not confirmed</span>
+                          ))}
                       </td>
                       <td className={td}>
-                        <Badge tone={st.tone}>{st.label}</Badge>
+                        <Badge tone={st.tone}>{st.short}</Badge>
                       </td>
                     </tr>
                   );

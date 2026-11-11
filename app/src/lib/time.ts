@@ -36,10 +36,12 @@ export function fmtLocal(iso: string | null | undefined): string {
 export function ago(iso: string | null | undefined, now: DateTime = DateTime.now()): string {
   if (!iso) return '';
   const mins = Math.max(0, Math.round(now.diff(DateTime.fromISO(iso), 'minutes').minutes));
-  if (mins < 60) return `${mins}m`;
+  const n = (v: number, unit: string) => `${v} ${unit}${v === 1 ? '' : 's'}`;
+  if (mins < 1) return 'less than a minute';
+  if (mins < 60) return n(mins, 'minute');
   const h = Math.round(mins / 60);
-  if (h < 48) return `${h}h`;
-  return `${Math.round(h / 24)}d`;
+  if (h < 48) return n(h, 'hour');
+  return n(Math.round(h / 24), 'day');
 }
 
 /** Sundays starting at firstSunday (yyyy-mm-dd), for `weeks` weeks. */

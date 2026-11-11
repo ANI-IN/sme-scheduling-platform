@@ -46,7 +46,7 @@ try {
       `/tmp/sme-tests/database/${f}`,
     ]);
     const out = `${r.stdout}${r.stderr}`;
-    const bad = r.status !== 0 || /^not ok/m.test(out) || /Looks like you/m.test(out);
+    const bad = r.status !== 0 || /^\s*not ok/m.test(out) || /Looks like you/m.test(out);
     if (bad) failed++;
     console.log(`${bad ? 'FAIL' : 'ok  '} ${f}`);
     if (bad)

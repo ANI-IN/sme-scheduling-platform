@@ -1,7 +1,14 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { Button, Modal } from './ui';
 
-type Opts = { title: string; body?: ReactNode; confirmLabel?: string; danger?: boolean };
+type Opts = {
+  title: string;
+  body?: ReactNode;
+  confirmLabel?: string;
+  /** The button that does nothing. "Go back" unless a clearer name fits, never "Cancel". */
+  cancelLabel?: string;
+  danger?: boolean;
+};
 type Ctx = (o: Opts) => Promise<boolean>;
 
 const ConfirmCtx = createContext<Ctx>(async () => false);
@@ -24,7 +31,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         {state?.body && <div className="mb-4 text-sm text-muted-foreground">{state.body}</div>}
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => close(false)}>
-            Cancel
+            {state?.cancelLabel ?? 'Go back'}
           </Button>
           <Button variant={state?.danger ? 'danger' : 'primary'} onClick={() => close(true)}>
             {state?.confirmLabel ?? 'Yes, continue'}

@@ -2,7 +2,7 @@
 // confirmation, replacing an instructor, reminders and help requests. The rules behind them are
 // covered in depth by supabase/tests/database; here a person does each one in the app.
 import type { Page } from '@playwright/test';
-import { expect, loadDemoData, ready, sql, test } from './fixtures.ts';
+import { a11y, expect, loadDemoData, noSidewaysScroll, ready, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'default' });
 test.beforeAll(() => loadDemoData());
@@ -19,33 +19,60 @@ async function openWeek(page: Page, has: RegExp) {
   return page.getByRole('dialog');
 }
 
-test('an instructor answers Yes: the request turns into a confirmed class on screen', async ({
+test('an instructor answers Yes: the answer page, then a confirmed class on screen', async ({
   page,
 }) => {
   // A class week where someone is being asked, and the link of their Yes button.
-  const r = await one<{ mw: string; token: string; name: string }>(
-    `select r.module_week_id mw, l.token, i.full_name name
+  const r = await one<{ mw: string; token: string; name: string; module: string; week: string }>(
+    `select r.module_week_id mw, l.token, i.full_name name, m.name module,
+            to_char(w.week_start_date, 'Mon FMDD') week
        from public.request r join public.response_link l on l.request_id = r.id
        join public.instructor i on i.id = r.instructor_id
+       join public.module_week w on w.id = r.module_week_id join public.module m on m.id = w.module_id
       where r.kind = 'Outreach' and r.status in ('Sent', 'Reminded') and l.answer = 'Yes'
       order by r.created_at limit 1`,
   );
-  await page.goto('/requests');
-  await ready(page);
-  await expect(page.getByText(r.name).first()).toBeVisible();
-  // The instructor presses Yes (the automation passes the click to the database).
-  const res = await one<{ out: { result: string } }>(`select public.record_response($1) out`, [
-    r.token,
-  ]);
-  expect(res.out.result).toBeTruthy();
+  // The page the instructor opens from the Yes button (served by n8n from response_page), on a phone.
+  const html = await one<{ h: string }>(`select public.response_page($1)::text h`, [r.token]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setContent(html.h);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('button').first()).toBeVisible();
+  await a11y(page, 'the answer page');
+  await noSidewaysScroll(page, 'the answer page');
+  const base = await one<{ u: string }>(
+    `select response_base_url u from public.app_config where id = 1`,
+  );
+  await page.route(
+    (u) => u.href.startsWith(base.u),
+    async (route) => {
+      const form = Object.fromEntries(new URLSearchParams(route.request().postData() ?? ''));
+      const out = await one<{ h: string }>(`select public.submit_response_page($1, $2)::text h`, [
+        form.t ?? '',
+        JSON.stringify(form),
+      ]);
+      await route.fulfill({ status: 200, contentType: 'text/html', body: out.h });
+    },
+  );
+  await page.getByRole('button').first().click();
+  await expect(page.getByText(/You.re confirmed/).first()).toBeVisible();
+  await a11y(page, 'the page after pressing Yes');
+  await noSidewaysScroll(page, 'the page after pressing Yes');
+  await page.unrouteAll();
+  await page.setViewportSize({ width: 1440, height: 900 });
   const again = await one<{ out: { result: string } }>(`select public.record_response($1) out`, [
     r.token,
   ]);
-  expect(JSON.stringify(again.out)).toMatch(/already/i);
-  await page.reload();
+  expect(again.out.result).toBe('already_recorded');
+  // That exact class week shows the instructor as confirmed.
+  await page.goto('/classes');
   await ready(page);
-  await page.getByRole('button', { name: /^Confirmed/ }).click();
-  await expect(page.getByText(r.name).first()).toBeVisible();
+  await page
+    .getByRole('button', { name: `Open ${r.module}, week of ${r.week}` })
+    .first()
+    .click();
+  const dlg = page.getByRole('dialog');
+  await expect(dlg.getByText(`Confirmed: ${r.name}`)).toBeVisible();
   const b = await one<{ n: number }>(
     `select count(*)::int n from public.booking where module_week_id = $1 and status = 'Active'`,
     [r.mw],
@@ -71,24 +98,58 @@ test('a confirmed class: tick a checklist task in the class drawer', async ({ pa
 test('replacing an instructor: release from the class drawer, the next one is asked', async ({
   page,
 }) => {
-  const dlg = await openWeek(page, /Confirmed/);
-  const mw = await one<{ id: string; instr: string }>(
-    `select b.module_week_id id, b.instructor_id instr from public.booking b
-      where b.status = 'Active' order by b.confirmed_at desc limit 1`,
+  // One confirmed class week with someone left to ask after the confirmed instructor.
+  const w = await one<{ id: string; instr: string; name: string; module: string; week: string }>(
+    `select b.module_week_id id, b.instructor_id instr, i.full_name name, m.name module,
+            to_char(mw.week_start_date, 'Mon FMDD') week
+       from public.booking b join public.module_week mw on mw.id = b.module_week_id
+       join public.module m on m.id = mw.module_id join public.instructor i on i.id = b.instructor_id
+      where b.status = 'Active' and mw.first_class_at > now() + interval '3 days'
+        and exists (select 1 from public.module_ranking k where k.module_id = mw.module_id and k.instructor_id <> b.instructor_id)
+      order by mw.first_class_at limit 1`,
   );
+  await page.goto('/classes');
+  await ready(page);
+  await page
+    .getByRole('button', { name: `Open ${w.module}, week of ${w.week}` })
+    .first()
+    .click();
+  const dlg = page.getByRole('dialog');
+  await expect(dlg.getByText(`Confirmed: ${w.name}`)).toBeVisible();
   await dlg.getByRole('button', { name: 'Release instructor' }).click();
   await page.getByRole('button', { name: 'Release and find a replacement' }).click();
   await expect(page.getByText('Instructor released')).toBeVisible();
-  const rel = await one<{ n: number; notes: number }>(
-    `select count(*)::int n,
-            (select count(*)::int from public.message m join public.booking b2 on b2.instructor_id = m.instructor_id
-              where b2.status = 'Released' and m.template_id = 'M16' and m.module_week_id = b2.module_week_id) notes
-       from public.booking where status = 'Released'`,
+  // The released instructor is thanked, and the booking says the team released them.
+  const rel = await one<{ reason: string; notes: number }>(
+    `select b.release_reason reason,
+            (select count(*)::int from public.message m where m.module_week_id = b.module_week_id
+              and m.instructor_id = b.instructor_id and m.template_id = 'M16') notes
+       from public.booking b where b.module_week_id = $1 and b.instructor_id = $2 and b.status = 'Released'`,
+    [w.id, w.instr],
   );
-  expect(rel.n).toBeGreaterThan(0);
   expect(rel.notes).toBeGreaterThan(0);
-  expect(mw.instr).toBeTruthy();
-  await expect(dlg.getByText(/No instructor confirmed yet|Asking .* now/)).toBeVisible();
+  expect(rel.reason).toBe('OpsReleased');
+  // Someone else is asked for this class week, and the drawer says who.
+  await expect
+    .poll(
+      async () =>
+        (
+          await sql<{ name: string }>(
+            `select i.full_name name from public.request r join public.instructor i on i.id = r.instructor_id
+              where r.module_week_id = $1 and r.kind = 'Outreach' and r.status in ('Queued', 'Sent', 'Reminded')`,
+            [w.id],
+          )
+        )[0]?.name ?? '',
+      { timeout: 15_000 },
+    )
+    .not.toBe('');
+  const next = await one<{ name: string }>(
+    `select i.full_name name from public.request r join public.instructor i on i.id = r.instructor_id
+      where r.module_week_id = $1 and r.kind = 'Outreach' and r.status in ('Queued', 'Sent', 'Reminded')`,
+    [w.id],
+  );
+  expect(next.name).not.toBe(w.name);
+  await expect(dlg.getByText(`Asking ${next.name} now.`)).toBeVisible();
 });
 
 test('reminders: the daily summary is switched off for the domain and back on', async ({
@@ -133,4 +194,91 @@ test('a help request: the team replies and the instructor is answered', async ({
     `select count(*)::int n from public.message where template_id = 'M14' and body_text like '%slides are in the module folder%'`,
   );
   expect(h.n).toBeGreaterThan(0);
+});
+
+test('assigning by hand: someone who cannot teach those dates cannot be chosen, and the reason shows', async ({
+  page,
+}) => {
+  // A class week still looking for an instructor, and someone in its instructor order who says they
+  // cannot teach that week.
+  const w = await one<{ id: string; module: string; week: string; name: string; instr: string }>(
+    `select mw.id, m.name module, to_char(mw.week_start_date, 'Mon FMDD') week, i.full_name name, i.id instr
+       from public.module_week mw join public.module m on m.id = mw.module_id
+       join public.domain d on d.id = mw.domain_id
+       join public.module_ranking k on k.module_id = mw.module_id join public.instructor i on i.id = k.instructor_id
+      where d.name = 'Backend' and not exists (select 1 from public.booking b where b.module_week_id = mw.id and b.status = 'Active')
+        and mw.status not in ('Cancelled', 'Completed') and mw.first_class_at > now() + interval '3 days'
+        and not exists (select 1 from public.request r where r.module_week_id = mw.id and r.instructor_id = i.id
+                         and r.status in ('Queued', 'Sent', 'Reminded'))
+      order by mw.first_class_at, k.rank desc limit 1`,
+  );
+  await sql(
+    `insert into public.instructor_unavailability (instructor_id, from_date, to_date, reason)
+     select $1, (w.first_class_at at time zone 'America/Los_Angeles')::date - 1,
+            (w.first_class_at at time zone 'America/Los_Angeles')::date + 7, 'E2E away'
+       from public.module_week w where w.id = $2`,
+    [w.instr, w.id],
+  );
+  await page.goto('/classes');
+  await ready(page);
+  await page
+    .getByRole('button', { name: `Open ${w.module}, week of ${w.week}` })
+    .first()
+    .click();
+  const dlg = page.getByRole('dialog');
+  const option = dlg.getByLabel('Instructor').locator('option', { hasText: w.name });
+  await expect(option).toContainText('Unavailable');
+  await expect(option).toBeDisabled();
+});
+
+test('Home: on it, assign to someone, and mark done with a note', async ({ page }) => {
+  // An open task of the domain being shown, with a title the screen shows as it is.
+  const t = await one<{ id: string; title: string }>(
+    `insert into public.attention_item (domain_id, type, severity, status, title, detail)
+     select d.id, 'Other', 'Normal', 'Open', 'E2E call the venue about the projector', 'Made by a test'
+       from public.domain d where d.name = 'Backend'
+     returning id, title`,
+  );
+  const me = await one<{ id: string; name: string }>(
+    `select id, name from public.team_member where active and access_removed_at is null order by name limit 1`,
+  );
+  await page.goto('/');
+  await ready(page);
+  const item = () => page.locator('li', { hasText: t.title }).first();
+  await item().getByRole('button', { name: /on it/ }).click();
+  await expect(page.getByText('Reminders paused for 24 hours')).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (
+          await one<{ s: string }>(`select status s from public.attention_item where id = $1`, [
+            t.id,
+          ])
+        ).s,
+    )
+    .not.toBe('Open');
+  await item().getByLabel('Assign to a team member').selectOption(me.id);
+  await expect(page.getByText('Assigned', { exact: true })).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (
+          await one<{ a: string }>(
+            `select assigned_to a from public.attention_item where id = $1`,
+            [t.id],
+          )
+        ).a,
+    )
+    .toBe(me.id);
+  await item().getByRole('button', { name: 'Mark done' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Mark done' });
+  await dlg.getByLabel('Note (optional)').fill('E2E handled on a call');
+  await dlg.getByRole('button', { name: 'Mark done' }).click();
+  await expect(page.getByText('Marked done')).toBeVisible();
+  await expect(dlg).toHaveCount(0);
+  const done = await one<{ s: string; note: string }>(
+    `select status s, done_note note from public.attention_item where id = $1`,
+    [t.id],
+  );
+  expect(done).toEqual({ s: 'Done', note: 'E2E handled on a call' });
 });

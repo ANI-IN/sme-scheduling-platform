@@ -16,7 +16,7 @@ import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '
 import { PT } from '@/lib/time';
 import { asRegion, classTimeLine, REGIONS, TZ } from '@/lib/region';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
-import { weekState } from '@/lib/status';
+import { WEEK_KINDS, weekState } from '@/lib/status';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -26,6 +26,7 @@ import {
   Empty,
   ErrorText,
   Input,
+  LoadError,
   Modal,
   PageHeader,
   Select,
@@ -123,7 +124,11 @@ export default function Schedule() {
         continue;
       if (moduleFilter && w.module_id !== moduleFilter) continue;
       if (cohortFilter && w.cohort_id !== cohortFilter) continue;
-      if (statusFilter && weekState(w, names).label !== statusFilter) continue;
+      if (statusFilter) {
+        const s = weekState(w, names);
+        // "At risk" shows every week at risk, confirmed or not; the others match the status itself.
+        if (statusFilter === 'At risk' ? !s.atRisk : s.kind !== statusFilter) continue;
+      }
       const classes = [...w.class_session]
         .filter((c) => !regionFilter || asRegion(c.region) === regionFilter)
         .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
@@ -149,10 +154,19 @@ export default function Schedule() {
     names,
     holidayMap,
   ]);
-  const statuses = useMemo(
-    () => [...new Set((weeks.data ?? []).map((w) => weekState(w, names).label))].sort(),
-    [weeks.data, names],
-  );
+  // Only the statuses some class week has, in their natural order, without names.
+  const statuses = useMemo(() => {
+    const have = new Set<string>();
+    for (const w of weeks.data ?? []) {
+      const s = weekState(w, names);
+      have.add(s.kind);
+      if (s.atRisk) have.add('At risk');
+    }
+    // Over and cancelled weeks only show with "Show past and cancelled".
+    return WEEK_KINDS.filter(
+      (k) => have.has(k) && (showPast || !['Completed', 'Cancelled'].includes(k)),
+    );
+  }, [weeks.data, names, showPast]);
 
   const columns = useMemo(
     () => [
@@ -202,7 +216,19 @@ export default function Schedule() {
           cell: ({ row }) => (
             <div>
               <div className="font-medium">
-                {row.original.first ? row.original.week.module?.name : ''}
+                {row.original.first && (
+                  <button
+                    type="button"
+                    className="text-left font-medium text-link hover:underline"
+                    aria-label={`Open ${row.original.week.module?.name ?? 'class week'}, week of ${DateTime.fromISO(row.original.week.week_start_date).toFormat('LLL d')}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenWeek(row.original.week.id);
+                    }}
+                  >
+                    {row.original.week.module?.name}
+                  </button>
+                )}
                 {row.original.first && row.original.week.cohort && (
                   <span className="ml-1 text-xs font-normal text-muted-foreground">
                     {row.original.week.cohort}
@@ -217,20 +243,26 @@ export default function Schedule() {
           ),
         },
       ),
-      col.accessor((r) => weekState(r.week, names).label, {
+      col.accessor((r) => weekState(r.week, names).short, {
         id: 'status',
         header: 'Status',
         cell: ({ row }) => {
           if (!row.original.first) return null;
           const s = weekState(row.original.week, names);
-          return <Badge tone={s.tone}>{s.label}</Badge>;
+          return <Badge tone={s.tone}>{s.short}</Badge>;
         },
       }),
-      col.accessor((r) => weekState(r.week, names).confirmed ?? '', {
-        id: 'confirmed',
-        header: 'Instructor',
-        cell: ({ row, getValue }) => (row.original.first ? getValue() : null),
-      }),
+      col.accessor(
+        (r) => {
+          const s = weekState(r.week, names);
+          return s.confirmed ?? (s.asking ? `Asking: ${s.asking}` : '');
+        },
+        {
+          id: 'confirmed',
+          header: 'Instructor',
+          cell: ({ row, getValue }) => (row.original.first ? getValue() : null),
+        },
+      ),
       col.accessor(
         (r) =>
           r.week.outreach_mode === 'Manual'
@@ -470,8 +502,12 @@ export default function Schedule() {
             variant="outline"
             onClick={() =>
               forEachWeek(
-                (w) => rpc('pause_outreach', { p_module_week_id: w.id, p_paused: true }),
-                'Requests paused',
+                // Confirmed class weeks have nobody to ask, so they are left as they are.
+                async (w) =>
+                  w.booking.some((b) => b.status === 'Active')
+                    ? undefined
+                    : rpc('pause_outreach', { p_module_week_id: w.id, p_paused: true }),
+                'Requests paused for the class weeks still looking for an instructor',
               )
             }
           >
@@ -541,6 +577,7 @@ export default function Schedule() {
                   body: 'Open requests are withdrawn politely and confirmed instructors are told that the class is cancelled. This cannot be undone.',
                   danger: true,
                   confirmLabel: 'Cancel the classes',
+                  cancelLabel: 'Keep the classes',
                 })
               )
                 await forEachWeek(
@@ -557,10 +594,34 @@ export default function Schedule() {
 
       {weeks.isLoading ? (
         <SkeletonRows rows={8} />
+      ) : weeks.error ? (
+        <LoadError what="the classes" onRetry={() => weeks.refetch()} />
+      ) : table.getFilteredRowModel().rows.length === 0 &&
+        (search || moduleFilter || cohortFilter || regionFilter || statusFilter) ? (
+        <Empty
+          title="No classes match these filters"
+          icon={<CalendarDays className="h-5 w-5" />}
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSearch('');
+                setModuleFilter('');
+                setCohortFilter('');
+                setRegionFilter('');
+                setStatusFilter('');
+              }}
+            >
+              Clear filters
+            </Button>
+          }
+        />
       ) : rows.length === 0 ? (
         <Empty
           title={
-            search || moduleFilter || cohortFilter ? 'No classes match' : 'No classes planned yet'
+            !showPast && (weeks.data ?? []).length > 0
+              ? 'No upcoming classes'
+              : 'No classes planned yet'
           }
           icon={<CalendarDays className="h-5 w-5" />}
           action={
@@ -569,7 +630,9 @@ export default function Schedule() {
             </Button>
           }
         >
-          Plan classes creates class weeks from each module's class times.
+          {!showPast && (weeks.data ?? []).length > 0
+            ? 'Every class week is over or cancelled. Turn on "Show past and cancelled" to see them, or plan new classes.'
+            : "Plan classes creates class weeks from each module's class times."}
         </Empty>
       ) : (
         <div className={tableWrap}>

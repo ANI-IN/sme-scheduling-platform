@@ -7,10 +7,10 @@ Use this when something is wrong, for example wrong class times were sent or a m
 
 ![Pause all messages from your account menu](/help/pause-menu.png)
 
-1. Open your account menu at the bottom of the sidebar (your name).
+1. Open your account menu at the bottom of the sidebar (your email address).
 2. Press **Pause all messages** and confirm.
 
-You can also pause from [Automation](/settings/automation) (the **Help and follow up** tab) or from [Connections](/settings/connections).
+You can also pause at the bottom of the [Automation](/settings/automation) page or from [Connections](/settings/connections).
 
 While messages are paused:
 
@@ -21,6 +21,6 @@ While messages are paused:
 
 ## Turn messages back on
 
-Press **Resume messages** in the red bar and confirm. Messages that were waiting go out at the next automatic check. Nothing is lost and nothing is sent twice.
+Press **Turn messages back on** in the red bar and confirm. Messages that were waiting go out at the next automatic check. Nothing is lost and nothing is sent twice.
 
 > To pause only one class week, open it, choose **More options** and press **Pause requests**. To pause one domain, set its status to Paused on the Domains page.

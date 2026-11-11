@@ -3,7 +3,7 @@
 // record_discord_result, using made up server, channel and member data.
 import { expect, loadDemoData, ready, sql, test } from './fixtures.ts';
 
-test.describe.configure({ mode: 'default' });
+test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => loadDemoData());
 
 const one = async <T>(q: string, p: unknown[] = []) => (await sql<T>(q, p))[0]!;
@@ -207,6 +207,7 @@ test('a domain alert channel comes from the list; Discord checks are in Activity
 
 test('a contact check goes to the instructor channel with a tag, plus email, never twice', async ({
   page,
+  problems,
 }) => {
   const i = await one<{ id: string }>(
     `select id from public.instructor where full_name = 'Test Instructor F'`,
@@ -240,14 +241,28 @@ test('a contact check goes to the instructor channel with a tag, plus email, nev
   expect(discord[0]!.chan).toBeTruthy();
   expect(discord[0]!.mentions ?? []).toContain('900000000000000099');
   // Pressing again does not send the same message twice while the first is waiting.
-  await dlg
-    .getByRole('button', { name: /Send contact check/ })
-    .first()
-    .click()
-    .catch(() => {});
-  const again = await one<{ n: number; k: number }>(
-    `select count(*)::int n, count(distinct unique_key)::int k from public.message where instructor_id = $1`,
+  const again = dlg.getByRole('button', { name: /Send contact check/ }).first();
+  if (await again.isEnabled()) {
+    const answered = page.waitForResponse(
+      (r) => r.url().includes('/rest/v1/rpc/send_test_message'),
+      {
+        timeout: 15_000,
+      },
+    );
+    // The database refuses it on purpose (400), and the screen says why.
+    problems.allow.push(/HTTP 400: POST .*\/rest\/v1\/rpc\/send_test_message/, /status of 400/);
+    await again.click();
+    await answered;
+    // The second press is refused while the first check is still on its way.
+    await expect(dlg.getByText(/already on its way/)).toBeVisible();
+  }
+  const perWay = await sql<{ channel: string; n: number }>(
+    `select channel, count(*)::int n from public.message where instructor_id = $1 and template_id = 'M15'
+      group by channel order by channel`,
     [i.id],
   );
-  expect(again.n).toBe(again.k);
+  expect(perWay).toEqual([
+    { channel: 'Discord', n: 1 },
+    { channel: 'Email', n: 1 },
+  ]);
 });

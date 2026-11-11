@@ -16,6 +16,7 @@ import {
   Checkbox,
   Empty,
   ErrorText,
+  LoadError,
   Field,
   Input,
   Modal,
@@ -27,6 +28,16 @@ import {
 import { ClassDrawer, useRun } from './ClassDrawer';
 
 /** Tasks waiting for a person (shown on Home). */
+/**
+ * With a cohort chosen, a task belongs to it when it is about one of its class weeks, or when it is
+ * about the whole domain (no class week), so nothing urgent is hidden. Home counts tasks the same way.
+ */
+export const inCohort = (
+  weekId: string | null,
+  cohortId: string | undefined,
+  cohortWeeks: Set<string>,
+) => !cohortId || weekId === null || cohortWeeks.has(weekId);
+
 export function TaskList({ cohortId }: { cohortId?: string } = {}) {
   const { domain } = useDomain();
   const team = useTeam();
@@ -35,6 +46,8 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
   const instructors = useInstructors();
   const confirm = useConfirm();
   const { run, err } = useRun();
+  // The Mark done and Reply windows keep their own error and stay open until the save worked.
+  const dlg = useRun();
   const [f, setF] = useState({ type: '', assigned: '', urgent: false, mine: false, done: false });
   const [drawer, setDrawer] = useState<string | null>(null);
   const [help, setHelp] = useState<string | null>(null);
@@ -70,9 +83,7 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
   const cohortWeeks = new Set(
     (weeks.data ?? []).filter((w) => w.cohort_id === cohortId).map((w) => w.id),
   );
-  const all = (items.data ?? []).filter(
-    (a) => !cohortId || (a.module_week_id !== null && cohortWeeks.has(a.module_week_id)),
-  );
+  const all = (items.data ?? []).filter((a) => inCohort(a.module_week_id, cohortId, cohortWeeks));
   const filtering = !!(f.type || f.assigned || f.urgent || f.mine || f.done);
   const showFilters = filtering || all.some((a) => a.status !== 'Done');
   const rows = all
@@ -141,6 +152,8 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
       <ErrorText error={err} />
       {items.isLoading ? (
         <SkeletonRows rows={4} />
+      ) : items.error ? (
+        <LoadError what="the tasks" onRetry={() => items.refetch()} />
       ) : rows.length === 0 ? (
         <Empty title={f.done ? 'Nothing done in the last 7 days' : 'Nothing needs your attention'}>
           {f.type || f.assigned || f.urgent || f.mine
@@ -279,12 +292,16 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => (setReplyText(''), setReplyFor(a))}
+                        onClick={() => (setReplyText(''), dlg.setErr(null), setReplyFor(a))}
                       >
                         Reply
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => (setNote(''), setDoneFor(a))}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => (setNote(''), dlg.setErr(null), setDoneFor(a))}
+                    >
                       Mark done
                     </Button>
                   </div>
@@ -298,15 +315,17 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
         <Field label="Note (optional)">
           <Input value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
+        <ErrorText error={dlg.err} />
         <div className="mt-3 flex justify-end">
           <Button
-            onClick={() => (
-              void run(
-                () => rpc('attention_done', { p_item_id: doneFor!.id, p_note: note || undefined }),
-                'Marked done',
-              ),
-              setDoneFor(null)
-            )}
+            loading={dlg.busy}
+            onClick={async () => {
+              const ok = await dlg.run(async () => {
+                await rpc('attention_done', { p_item_id: doneFor!.id, p_note: note || undefined });
+                return true;
+              }, 'Marked done');
+              if (ok) setDoneFor(null);
+            }}
           >
             Mark done
           </Button>
@@ -323,16 +342,19 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
           value={replyText}
           onChange={(e) => setReplyText(e.target.value)}
         />
+        <ErrorText error={dlg.err} />
         <div className="mt-3 flex justify-end">
           <Button
             disabled={!replyText.trim()}
-            onClick={() => (
-              void run(
-                () => rpc('reply_to_instructor', { p_item_id: replyFor!.id, p_text: replyText }),
-                'Reply sent',
-              ),
-              setReplyFor(null)
-            )}
+            loading={dlg.busy}
+            onClick={async () => {
+              // On failure the window stays open with the reason, and the reply is kept.
+              const ok = await dlg.run(async () => {
+                await rpc('reply_to_instructor', { p_item_id: replyFor!.id, p_text: replyText });
+                return true;
+              }, 'Reply sent');
+              if (ok) setReplyFor(null);
+            }}
           >
             Send reply
           </Button>
@@ -348,11 +370,6 @@ const URGENCY: Record<string, string> = {
   NoRush: 'before the class, no rush',
   Within24h: 'within 24 hours',
   Urgent: 'urgent',
-};
-const REPLY_BY: Record<string, string> = {
-  Either: 'Discord or email',
-  Discord: 'Discord',
-  Email: 'email',
 };
 
 /** Working a help request in the app (PRD 10.6). */
@@ -416,8 +433,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
             {req.details && <p className="mt-1 whitespace-pre-line">{req.details}</p>}
           </div>
           <div className="text-muted-foreground">
-            How soon: {URGENCY[req.urgency] ?? req.urgency} · reply by{' '}
-            {REPLY_BY[req.reply_channel] ?? req.reply_channel} · answer by{' '}
+            How soon: {URGENCY[req.urgency] ?? req.urgency} · answer by{' '}
             {fmtLocal(req.response_target_at)} ({fmtAt(req.response_target_at, region)}) · sent to{' '}
             {req.routed_to.map((r) => teamNames.get(r)).join(', ')}
             {req.assigned_to && ` · taken by ${teamNames.get(req.assigned_to)}`}

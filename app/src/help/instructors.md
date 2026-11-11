@@ -13,8 +13,8 @@ Each real person is added once and shared by every domain. The app never books o
 2. Under **Basic details**, enter the full name and email.
 3. If they prefer a limit, enter **Classes a month**. The app warns you before asking them for more, but you can still ask.
 4. Under **Discord**, type their **Discord username**, for example maya.k (without @).
-5. Press **Save**. The app finds their Discord account by itself and shows **Discord found**.
-6. Under **Their channel in each domain**, choose their channel. Type part of the name to find it quickly.
+5. Press **Add instructor**. The app finds their Discord account by itself.
+6. Open the instructor again. When it shows **Discord found**, choose their channel under **Their channel in each domain**. Type part of the name to find it quickly. The channel is saved as soon as you choose it.
 
 They always get email too. Without a channel in a domain, they get a direct message on Discord instead. See [Discord](/help/discord).
 
@@ -24,9 +24,9 @@ The app only asks instructors whose contact details are checked once a domain is
 
 1. Open the instructor and go to **Contact check**.
 2. Press **Send contact check**. They get a short message with one button.
-3. When they press the button, the badge changes to **Contact details checked**.
+3. When they press the button, the list shows **Contact checked** and the instructor shows the date it was checked.
 
-If you checked their details another way, for example on a call, you can mark them as checked by hand and add a note.
+If you checked their details another way, for example on a call, press **Mark as checked**.
 
 ## Days they cannot teach
 

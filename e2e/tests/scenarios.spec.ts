@@ -115,7 +115,7 @@ test('the same instructor teaches in two cohorts', async ({ page }) => {
     `one of ${confirmed.map((c) => c.full_name).join(', ')} in ${options.join(', ')}`,
   ).toBeTruthy();
   await select.selectOption({ label: label(pick!.full_name)! });
-  await dlg.getByRole('button', { name: 'Assign instructor' }).click();
+  await dlg.getByRole('button', { name: 'Assign an instructor' }).click();
   await ifShown(page.getByRole('button', { name: /yes, continue|assign anyway/i }));
   await expect(dlg.getByText(new RegExp(`Confirmed: ${pick!.full_name}`))).toBeVisible();
   const cohorts = await one<{ n: number }>(
@@ -240,7 +240,10 @@ test('settings override at each layer, and reset', async ({ page }) => {
     await expect(f).toHaveValue(s.value);
   }
   const rows = await sql<{ scope: string; value: string }>(
-    `select scope, value::text from public.setting where key = 'window_long_move_h' order by scope`,
+    `select s.scope, s.value::text from public.setting s left join public.cohort c on c.id = s.cohort_id
+      where s.key = 'window_long_move_h'
+        and coalesce(s.domain_id, c.domain_id) = (select id from public.domain where name = 'Backend')
+      order by s.scope`,
   );
   expect(rows.map((r) => r.scope).sort()).toEqual(['Cohort', 'Domain']);
   // Only the domain and its cohorts can be chosen.
@@ -481,6 +484,12 @@ test('a time that happens twice asks which one; a time that does not exist is bl
 test('an instructor busy in a US class cannot take an India class at the same moment', async ({
   page,
 }) => {
+  await sql(
+    `insert into public.cohort (domain_id, name, region, status)
+     select d.id, 'E2E India', 'India', 'Running' from public.domain d
+      where d.name = 'Backend' and not exists (
+        select 1 from public.cohort c where c.domain_id = d.id and c.name = 'E2E India')`,
+  );
   // A confirmed US weekend class, and the same moment written in India time.
   const b = await one<{ name: string; d: string; s: string; e: string }>(
     `select i.full_name name, to_char(s.starts_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD') d,

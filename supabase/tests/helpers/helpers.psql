@@ -14,7 +14,8 @@ begin
 end $$;
 
 -- Sign in as a company Google Workspace account (what Sandbox and Production require).
-create or replace function tests.login_google(p_email text)
+drop function if exists tests.login_google(text);
+create or replace function tests.login_google(p_email text, p_amr text default 'oauth')
 returns void language plpgsql as $$
 declare v_sub uuid;
 begin
@@ -33,6 +34,7 @@ begin
   end if;
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_sub, 'role', 'authenticated', 'email', p_email,
+      'amr', json_build_array(json_build_object('method', p_amr, 'timestamp', extract(epoch from now())::bigint)),
       'app_metadata', json_build_object('provider', 'google'),
       'user_metadata', json_build_object('custom_claims', json_build_object('hd', split_part(p_email, '@', 2))))::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);

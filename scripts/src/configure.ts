@@ -1,14 +1,20 @@
 // Writes the environment settings that live in the database, from environment variables.
 // Run once per environment after the migrations (Sandbox and Production each have their own).
 //
-//   ALLOWED_EMAIL_DOMAIN=yourcompany.com APP_ENVIRONMENT=Production \
-//   DATABASE_URL=postgresql://... npm run configure -w scripts
+//   npm run configure:sandbox -w scripts      (reads .env.sandbox)
+//   npm run configure:production -w scripts   (reads .env.production)
+//
+// The environment comes from `--env Sandbox|Production|Development` (what the two commands above pass),
+// or else from APP_ENVIRONMENT. Nothing is set on the command line itself, so it works in every shell.
 import pg from 'pg';
 
 const url = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
-const environment = process.env.APP_ENVIRONMENT;
+const arg = process.argv.indexOf('--env');
+const environment = (arg > -1 ? process.argv[arg + 1] : undefined) ?? process.env.APP_ENVIRONMENT;
 if (!environment || !['Development', 'Sandbox', 'Production'].includes(environment)) {
-  console.error('Set APP_ENVIRONMENT to Development, Sandbox or Production.');
+  console.error(
+    'Say which environment: --env Development, Sandbox or Production (or set APP_ENVIRONMENT).',
+  );
   process.exit(1);
 }
 if (environment !== 'Development' && !process.env.DATABASE_URL) {

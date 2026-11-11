@@ -1,10 +1,12 @@
 -- Release Milestone 7: Sandbox and Production rules, Sandbox starting data and reset.
 begin;
 \ir ../helpers/helpers.psql
-select plan(18);
+select plan(22);
 
 select tests.scenario('EV', 'Live', '2027-01-31', 1) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'i1') as i1 \gset
+select tests.scenario('EVT', 'Test', '2027-01-31', 1) as jt \gset
+select (:'jt'::jsonb ->> 'domain') as tdom, (:'jt'::jsonb ->> 'i1') as ti1 \gset
 select tests.make_instructor('EV Tester', true, true) as tester \gset
 
 create or replace function tests.out_msg(p_key text, p_channel text, p_instructor uuid, p_to text, p_chan text default null)
@@ -27,6 +29,19 @@ update public.app_config set environment = 'Sandbox', discord_guild_id = '111111
        sandbox_allowed_email_domains = array['allowed.test'], sandbox_allowed_discord_servers = array['111111111111111111'] where id = 1;
 select is(tests.out_msg('ev-3', 'Email', :'i1', 'someone@realcompany.com'), 'Cancelled', 'Sandbox does not email domains that are not allowed');
 select is(tests.out_msg('ev-4', 'Email', :'tester', 'me+a@allowed.test'), 'Pending', 'Sandbox emails allowed domains');
+-- TST-1: a real instructor is never emailed from Sandbox, even at an address on an allowed domain
+-- (staff who also teach have company addresses, and the company domain is usually allowed).
+select is(tests.out_msg('ev-4b', 'Email', :'i1', 'staff@allowed.test'), 'Cancelled',
+  'Sandbox never emails a real instructor, even at an allowed address');
+select ok((select last_error from public.message where unique_key = 'ev-4b') like 'Sandbox never contacts real instructors by email%',
+  'and says why');
+insert into public.message (domain_id, audience, template_id, channel, unique_key, status, to_address, body_text)
+values (:'dom', 'Team', 'T4', 'Email', 'ev-4c', 'Pending', 'ops@allowed.test', 'Hello team') returning status as team_status \gset
+select is(:'team_status'::text, 'Pending', 'team members at an allowed address still get email in Sandbox');
+-- In a domain that is being tested, every copy goes to the testing email, so it may go out.
+insert into public.message (domain_id, audience, template_id, channel, unique_key, status, instructor_id, to_address, body_text)
+values (:'tdom', 'Instructor', 'M1', 'Email', 'ev-4d', 'Pending', :'ti1', 'testing@allowed.test', 'Hello') returning status as test_status \gset
+select is(:'test_status'::text, 'Pending', 'a real instructor''s copy in a domain being tested goes to the testing email');
 insert into public.discord_channel (id, server_id, name) values ('222222222222222222', '111111111111111111', 'testing');
 select is(tests.out_msg('ev-5', 'Discord', :'tester', null, '222222222222222222'), 'Pending', 'Sandbox posts in an allowed Discord server');
 select is(tests.out_msg('ev-5b', 'Discord', :'tester', null, '333333333333333333'), 'Cancelled',
@@ -40,7 +55,7 @@ update public.message set status = 'Pending' where unique_key = 'ev-4';
 select is((select status from public.message where unique_key = 'ev-4'), 'Cancelled', 'the check runs again before a message is sent');
 
 -- =============================================================== Sandbox reset
-select (select count(*) from public.history_event) as hist_before \gset
+create temp table hist_before on commit drop as select id from public.history_event;
 insert into public.holiday (date, name) values ('2028-01-01', 'EV global holiday') on conflict do nothing;
 insert into public.team_member (name, email) select 'EV Ops', 'ops@example.com'
   where not exists (select 1 from public.team_member where email = 'ops@example.com');
@@ -52,7 +67,8 @@ select is((select string_agg(name, ', ' order by name) from public.domain), 'Bac
 select is((select count(*)::int from public.cohort where status = 'Running'), 4, 'with a weekend and a weekday cohort each, running at the same time');
 select is((select count(distinct discord_user_id)::int from public.instructor where is_test), 1,
   'test instructors share one Discord user ID and use plus addresses of one mailbox');
-select ok((select count(*) from public.history_event) > :hist_before, 'Activity history is kept, never deleted');
+select ok(not exists (select id from hist_before except select id from public.history_event),
+  'Activity history is kept, never deleted: every row from before the reset is still there');
 select ok(exists (select 1 from public.team_member where email = 'ops@example.com' and not is_placeholder),
   'real team members keep their access after a reset');
 update public.app_config set environment = 'Production' where id = 1;

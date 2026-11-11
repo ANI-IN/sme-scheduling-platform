@@ -21,7 +21,7 @@ import {
 import type { ModuleRow } from './moduleParts';
 
 export const MODULE_STATUS: Record<string, { label: string; tone: 'success' | 'neutral' }> = {
-  Active: { label: 'Active', tone: 'success' },
+  Active: { label: 'In use', tone: 'success' },
   Inactive: { label: 'Not in use', tone: 'neutral' },
   Archived: { label: 'Archived', tone: 'neutral' },
 };
@@ -41,7 +41,7 @@ export function useModuleWarnings(domainId: string | undefined) {
     const w: string[] = [];
     if (!m.class_pattern_item.some((p) => !p.cohort_id)) w.push('No class times');
     if (active < minActive) w.push(`Needs ${minActive} instructors, has ${active}`);
-    if (ranked[0] && ranked[0].status !== 'Active') w.push('Primary instructor not active');
+    if (ranked[0] && ranked[0].status !== 'Active') w.push('Primary instructor is not in use');
     if (m.module_owner.length === 0) w.push('No owner');
     if (m.module_resource.length === 0) w.push('No materials');
     return w;

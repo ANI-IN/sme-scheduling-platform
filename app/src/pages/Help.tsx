@@ -47,7 +47,7 @@ export default function Help() {
         />
         <Input
           aria-label="Search the help"
-          placeholder="Search, for example: cancel, Discord ID, cohort"
+          placeholder="Search, for example: cancel, Discord username, cohort"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="pl-8"

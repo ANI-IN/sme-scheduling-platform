@@ -278,7 +278,7 @@ export default function History() {
                     {fmtLocal(e.at)}
                     {e.sim_at && (
                       <div className="text-xs text-warning-strong">
-                        test clock: {fmtPT(e.sim_at)}
+                        practice clock: {fmtPT(e.sim_at)}
                       </div>
                     )}
                   </td>

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
+import { instructorStatusLabel } from '@/lib/labels';
 import { useDomains, useInstructors, type Instructor } from '@/lib/data';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
@@ -85,10 +86,10 @@ export function useInstructorContext() {
 }
 
 const STATUS_FILTERS: { value: string; label: string; test: (i: InstructorRow) => boolean }[] = [
-  { value: 'active', label: 'Active', test: (i) => i.status === 'Active' },
-  { value: 'inactive', label: 'Inactive', test: (i) => i.status === 'Inactive' },
+  { value: 'active', label: 'In use', test: (i) => i.status === 'Active' },
+  { value: 'inactive', label: 'Not in use', test: (i) => i.status === 'Inactive' },
   { value: 'archived', label: 'Archived', test: (i) => i.status === 'Archived' },
-  { value: 'all', label: 'All', test: () => true },
+  { value: 'all', label: 'Everyone', test: () => true },
 ];
 const isUnchecked = (i: InstructorRow) => i.status === 'Active' && !i.verified_at && !i.is_test;
 const isFailing = (i: InstructorRow) => !!i.email_bounced_at || !!i.discord_failed_at;
@@ -309,7 +310,7 @@ export default function Instructors() {
 function StatusBadges({ i }: { i: InstructorRow }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {i.status !== 'Active' && <Badge>{i.status}</Badge>}
+      {i.status !== 'Active' && <Badge>{instructorStatusLabel(i.status)}</Badge>}
       {i.verified_at ? (
         <Badge tone="success">Contact checked</Badge>
       ) : (
@@ -519,14 +520,18 @@ export function InstructorDrawer({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
+          {/* UI-9: the reason a save failed shows next to the Save button. */}
+          <div className="basis-full">
+            <ErrorText error={err} />
+          </div>
         </div>
       }
     >
       <div className="space-y-5">
         {dup && (
           <Notice tone="warning">
-            An instructor with this email or Discord ID already exists: {dup.full_name}. Edit that
-            record instead.
+            An instructor with this email or Discord username already exists: {dup.full_name}. Edit
+            that record instead.
           </Notice>
         )}
 
@@ -808,11 +813,11 @@ export function InstructorDrawer({
                             .eq('id', instructor.id)
                             .select(),
                         ),
-                      'Active again',
+                      'In use again',
                     )
                   }
                 >
-                  Make active again
+                  Start using again
                 </Button>
               )}
               {instructor.status !== 'Archived' && (
@@ -837,7 +842,6 @@ export function InstructorDrawer({
             </div>
           </Group>
         )}
-        <ErrorText error={err} />
       </div>
       <Modal
         open={!!deact}

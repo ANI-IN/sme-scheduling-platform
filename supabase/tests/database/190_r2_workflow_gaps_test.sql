@@ -27,14 +27,14 @@ select ok((select count(*) from public.message where module_week_id = :'mw' and 
 select ok(exists (select 1 from public.history_event where module_week_id = :'mw' and note like '%Agreed on a call%'),
   'manual 7. the note from the team is in Activity history');
 select throws_like($$ select public.assign_manually('$$ || :'mw' || $$'::uuid, '$$ || :'i3' || $$'::uuid) $$,
-  '%', 'manual 8. a class week that already has an instructor cannot get a second one by hand');
+  '%already has a confirmed instructor%', 'manual 8. a class week that already has an instructor cannot get a second one by hand');
 
 -- A deactivated instructor cannot be assigned.
 select tests.scenario('WH', 'Live', '2027-01-31', 2) as k \gset
 select (:'k'::jsonb ->> 'mw') as mwh, (:'k'::jsonb ->> 'i2') as h2 \gset
 update public.instructor set status = 'Inactive', version = version where id = :'h2';
 select throws_like($$ select public.assign_manually('$$ || :'mwh' || $$'::uuid, '$$ || :'h2' || $$'::uuid) $$,
-  '%', 'manual 9. an inactive instructor cannot be assigned');
+  '%Inactive%', 'manual 9. an instructor who is not in use cannot be assigned');
 select is((select count(*)::int from public.booking where module_week_id = :'mwh'), 0, 'manual 10. and no booking is left behind');
 
 -- An offline confirmation is recorded as such.

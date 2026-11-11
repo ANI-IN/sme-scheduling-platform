@@ -16,7 +16,7 @@ The app runs an **automatic check** every hour. Each time, it does what is due f
 5. **14 days before:** the module owner is asked if everything is ready.
 6. **10 and 2 days before:** reminders before class. The instructor can answer All set, Need help, or Can't make it.
 
-The exact days are on the Automation page and can differ per cohort, module or class week.
+The exact days are on the Automation page and can differ per cohort.
 
 ## Close and very close to the class
 

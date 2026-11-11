@@ -174,6 +174,7 @@ export function AddClassDialog({
             <Input
               type="time"
               aria-label="Start time"
+              className="min-w-0 flex-1"
               value={f.start}
               onChange={(e) => {
                 setF({ ...f, start: e.target.value });
@@ -184,6 +185,7 @@ export function AddClassDialog({
             <Input
               type="time"
               aria-label="End time"
+              className="min-w-0 flex-1"
               value={f.end}
               onChange={(e) => {
                 setF({ ...f, end: e.target.value });
