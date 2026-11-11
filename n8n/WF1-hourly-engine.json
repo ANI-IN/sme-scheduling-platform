@@ -127,7 +127,7 @@
       "credentials": {
         "gmailOAuth2": {
           "id": "REPLACE_ME",
-          "name": "Gmail scheduling"
+          "name": "Gmail"
         }
       },
       "onError": "continueErrorOutput"
@@ -200,7 +200,7 @@
       "credentials": {
         "gmailOAuth2": {
           "id": "REPLACE_ME",
-          "name": "Gmail scheduling"
+          "name": "Gmail"
         }
       },
       "onError": "continueRegularOutput"
@@ -310,8 +310,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ 'https://discord.com/api/v10/channels/' + $json.channel_id + '/messages?limit=50' + ($json.last_message_id ? '&after=' + $json.last_message_id : '') }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "options": {
           "timeout": 30000,
           "batching": {
@@ -326,12 +325,13 @@
               "neverError": true
             }
           }
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
+        "discordBotApi": {
           "id": "REPLACE_ME",
-          "name": "Discord bot"
+          "name": "Discord Bot"
         }
       },
       "onError": "continueRegularOutput"

@@ -38,7 +38,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-PRODUCTION-PROJECT.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://YOUR-N8N/webhook/sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-PRODUCTION-PROJECT.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://your-instance.app.n8n.cloud/webhook/sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
       }
     },
     {
@@ -86,7 +86,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Production)"
+          "name": "Supabase Production"
         }
       },
       "onError": "continueErrorOutput",
@@ -114,7 +114,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Production)"
+          "name": "Supabase Production"
         }
       },
       "onError": "continueRegularOutput"
@@ -131,18 +131,18 @@
       "parameters": {
         "method": "POST",
         "url": "={{ 'https://discord.com/api/v10/channels/' + $json.admin_discord_channel_id + '/messages' }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ content: ('n8n error in \"' + $('Describe error').first().json.p_workflow + '\" (could not record it in the database): ' + $('Describe error').first().json.p_message + ($('Describe error').first().json.p_url ? '\\n' + $('Describe error').first().json.p_url : '')).slice(0, 2000), allowed_mentions: { parse: [] } }) }}",
         "options": {
           "timeout": 30000
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
-          "name": "Discord bot (Production)"
+        "discordBotApi": {
+          "name": "Discord Bot Production"
         }
       },
       "onError": "continueRegularOutput",

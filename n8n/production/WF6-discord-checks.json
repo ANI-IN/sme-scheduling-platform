@@ -81,7 +81,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Production)"
+          "name": "Supabase Production"
         }
       },
       "alwaysOutputData": true,
@@ -115,8 +115,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ 'https://discord.com/api/v10' + ($json.path || '/unknown') }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "options": {
           "timeout": 30000,
           "batching": {
@@ -131,11 +130,12 @@
               "neverError": true
             }
           }
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
-          "name": "Discord bot (Production)"
+        "discordBotApi": {
+          "name": "Discord Bot Production"
         }
       },
       "onError": "continueRegularOutput"
@@ -185,7 +185,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Production)"
+          "name": "Supabase Production"
         }
       },
       "alwaysOutputData": true,

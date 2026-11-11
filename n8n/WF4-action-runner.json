@@ -374,8 +374,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://discord.com/api/v10/users/@me/channels",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ recipient_id: $json.dmUserId }) }}",
@@ -387,12 +386,13 @@
               "neverError": true
             }
           }
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
+        "discordBotApi": {
           "id": "REPLACE_ME",
-          "name": "Discord bot"
+          "name": "Discord Bot"
         }
       },
       "onError": "continueErrorOutput"
@@ -454,8 +454,7 @@
       "parameters": {
         "method": "POST",
         "url": "={{ 'https://discord.com/api/v10/channels/' + ($json.targetChannelId || 'missing') + '/messages' }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.payload) }}",
@@ -467,12 +466,13 @@
               "neverError": true
             }
           }
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
+        "discordBotApi": {
           "id": "REPLACE_ME",
-          "name": "Discord bot"
+          "name": "Discord Bot"
         }
       },
       "onError": "continueErrorOutput"
@@ -558,7 +558,7 @@
       "credentials": {
         "gmailOAuth2": {
           "id": "REPLACE_ME",
-          "name": "Gmail scheduling"
+          "name": "Gmail"
         }
       },
       "onError": "continueErrorOutput"

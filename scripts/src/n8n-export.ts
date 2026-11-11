@@ -9,10 +9,42 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const DIR = resolve(import.meta.dirname, '../../n8n');
+// The values already known for each environment (docs/CONFIGURATION.md). Not secrets: the poke key stays a
+// placeholder, and production values are filled in later.
 const ENVS = [
-  { key: 'sandbox', label: 'Sandbox', pathPrefix: 'sandbox-' },
-  { key: 'production', label: 'Production', pathPrefix: '' },
+  {
+    key: 'sandbox',
+    label: 'Sandbox',
+    pathPrefix: 'sandbox-',
+    supabaseUrl: 'https://abcdefghijklmnopqrst.supabase.co',
+    n8nUrl: 'https://your-instance.app.n8n.cloud',
+    backupFolderId: 'your-drive-folder-id',
+  },
+  {
+    key: 'production',
+    label: 'Production',
+    pathPrefix: '',
+    supabaseUrl: 'https://YOUR-PRODUCTION-PROJECT.supabase.co',
+    n8nUrl: 'https://your-instance.app.n8n.cloud',
+    backupFolderId: 'REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID',
+  },
 ] as const;
+
+/**
+ * The exact credential names in n8n (decision 264). Sandbox uses the credentials that already exist:
+ * "Gmail Sandbox" (Gmail, Sign in with Google), "Discord Bot Sandbox" (Discord Bot) and "Google Drive Backups"
+ * (Google Drive, Sign in with Google).
+ */
+const CREDENTIALS: Record<string, Record<'sandbox' | 'production', string>> = {
+  Gmail: { sandbox: 'Gmail Sandbox', production: 'Gmail Production' },
+  'Discord Bot': { sandbox: 'Discord Bot Sandbox', production: 'Discord Bot Production' },
+  'Google Drive Backups': {
+    sandbox: 'Google Drive Backups',
+    production: 'Google Drive Backups Production',
+  },
+  'Supabase secret key': { sandbox: 'Supabase Sandbox', production: 'Supabase Production' },
+  'Poke secret': { sandbox: 'Poke Secret Sandbox', production: 'Poke Secret Production' },
+};
 
 /** A stable id per environment, so re-exporting gives the same files. */
 function uuidFor(seed: string): string {
@@ -28,6 +60,8 @@ type Node = {
 };
 type Workflow = { name: string; nodes: Node[]; tags?: unknown[]; [k: string]: unknown };
 
+const p0 = (n: Node) => (n.parameters ?? {}) as Record<string, unknown>;
+
 for (const env of ENVS) {
   const out = join(DIR, env.key);
   mkdirSync(out, { recursive: true });
@@ -38,16 +72,31 @@ for (const env of ENVS) {
     for (const n of wf.nodes) {
       for (const c of Object.values(n.credentials ?? {})) {
         delete c.id;
-        c.name = `${c.name} (${env.label})`;
+        const name = CREDENTIALS[c.name]?.[env.key];
+        if (!name)
+          throw new Error(`No ${env.label} name for the credential "${c.name}" in ${file}`);
+        c.name = name;
       }
+      // The backup folder of this environment (Upload to Google Drive, List backups).
+      for (const v of [
+        p0(n).folderId,
+        (p0(n).filter as Record<string, unknown> | undefined)?.folderId,
+      ])
+        if (
+          v &&
+          typeof v === 'object' &&
+          (v as { value?: string }).value === 'REPLACE_WITH_DRIVE_FOLDER_ID'
+        )
+          (v as { value: string }).value = env.backupFolderId;
       if (n.webhookId) n.webhookId = uuidFor(`${env.key}:${file}:${n.name}`);
       const p = n.parameters ?? {};
       if (typeof p.path === 'string' && env.pathPrefix) p.path = env.pathPrefix + p.path;
       if (typeof p.jsCode === 'string') {
         p.jsCode = p.jsCode
+          .replace('https://YOUR-PROJECT.supabase.co', env.supabaseUrl)
           .replace(
-            'https://YOUR-PROJECT.supabase.co',
-            `https://YOUR-${env.label.toUpperCase()}-PROJECT.supabase.co`,
+            'https://YOUR-N8N/webhook/sme-poke',
+            `${env.n8nUrl}/webhook/${env.pathPrefix}sme-poke`,
           )
           .replace('/webhook/sme-poke', `/webhook/${env.pathPrefix}sme-poke`);
       }

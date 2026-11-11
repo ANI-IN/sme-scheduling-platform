@@ -31,10 +31,10 @@ to build the two sets you import:
 |---|---|---|
 | Workflow names | `[Sandbox] WF1 Hourly engine` and so on | `[Production] WF1 Hourly engine` and so on |
 | Tag | `Sandbox` | `Production` |
-| Credential names | `Supabase secret key (Sandbox)` and so on | `Supabase secret key (Production)` and so on |
+| Credential names | `Gmail Sandbox`, `Discord Bot Sandbox`, `Google Drive Backups`, `Supabase Sandbox`, `Poke Secret Sandbox` | The same with `Production` |
 | WF2 webhook | `/webhook/sandbox-respond` | `/webhook/respond` |
 | WF4 webhook | `/webhook/sandbox-sme-poke` | `/webhook/sme-poke` |
-| Config placeholder | `https://YOUR-SANDBOX-PROJECT.supabase.co` | `https://YOUR-PRODUCTION-PROJECT.supabase.co` |
+| Config values | Filled in: the Sandbox Supabase and n8n addresses | `https://YOUR-PRODUCTION-PROJECT.supabase.co` to replace |
 
 Because names, credentials and webhook paths differ, both sets can run in **one** n8n instance without touching
 each other, or in two separate instances (better when you can afford it). Each set must only ever use its own
@@ -44,29 +44,7 @@ the exported files by hand.
 
 ### Every credential and variable, per environment
 
-| What | Kind | Sandbox | Production |
-|---|---|---|---|
-| `Supabase secret key (<env>)` | n8n credential, Header Auth `apikey` | Sandbox project `sb_secret_…` | Production project `sb_secret_…` |
-| `Discord bot (<env>)` | n8n credential, Header Auth `Authorization: Bot …` | Sandbox bot token (bot only in the test server) | Production bot token |
-| `Gmail scheduling (<env>)` | n8n credential, Gmail OAuth2 | Sandbox mailbox, for example `scheduling-sandbox@…` | Real scheduling mailbox |
-| `Google service account (<env>)` | n8n credential, Google Service Account | Can be the same service account | Production service account |
-| `Poke secret (<env>)` | n8n credential, Header Auth `x-poke-key` | Its own random string | A different random string |
-| `supabaseUrl` | Config node, all six workflows | Sandbox project URL | Production project URL |
-| `pokeUrl` | Config node, WF1 to WF5 (WF6 has only `supabaseUrl`) | `https://<your-n8n>/webhook/sandbox-sme-poke` | `https://<your-n8n>/webhook/sme-poke` |
-| `pokeKey` | Config node, WF1 to WF5 | The Sandbox poke secret | The Production poke secret |
-| Shared drive ID and folder ID | WF3 node "Upload to Google Drive" | A Sandbox backup folder | The Production backup folder |
-| Error workflow | Settings of WF1 to WF4 and WF6 | `[Sandbox] WF5 Error handler` | `[Production] WF5 Error handler` |
-| `RESPONSE_BASE_URL` | `.env.sandbox` or `.env.production`, then `npm run configure:<env> -w scripts` | `https://<your-n8n>/webhook/sandbox-respond` | `https://<your-n8n>/webhook/respond` |
-| `VITE_N8N_POKE_URL`, `VITE_N8N_POKE_KEY` | App hosting variables | Sandbox values | Production values |
-
-The Sandbox database also refuses to send anything outside its allow lists (`SANDBOX_ALLOWED_DISCORD_SERVERS` and
-`SANDBOX_ALLOWED_EMAIL_DOMAINS`, set with `npm run configure -w scripts`), and the Production database never messages
-an instructor marked as a test instructor. These checks are in the database, so they hold even if a workflow is
-pointed at the wrong place.
-
-In the steps below, `(<env>)` means `(Sandbox)` or `(Production)`. Do the steps once per environment.
-
----
+See docs/CONFIGURATION.md: one table of every value, where it goes, and the Sandbox value where it is known.
 
 ## 1. Before you start
 
@@ -75,77 +53,51 @@ You need:
 1. The Supabase project URL, for example `https://abcdefgh.supabase.co`.
 2. Admin access to the company Discord server.
 3. A Google Workspace account for the dedicated scheduling mailbox (for example `scheduling@…`), and access to Google Cloud Console.
-4. A Google Drive folder for the nightly backups.
+4. A Google Drive folder for the nightly backups (Sandbox: `your-drive-folder-id`).
 5. Your n8n address, for example `https://n8n.yourcompany.com` (written as `https://<your-n8n>` below).
 
 ## 2. Create the credentials
 
-In n8n: **Overview → Credentials → Create credential** (or the **+** menu → Credential). Use exactly these names,
-with the environment at the end (for example `Supabase secret key (Sandbox)`), because the workflows look them up by name.
+In n8n: **Overview → Credentials → Create credential**. The workflows look credentials up by these exact names
+(decision 264). Sandbox already has three of them; you only create the other two.
 
-### 2.1 "Supabase secret key (<env>)" (Header Auth)
+| Name (Sandbox) | Name (Production) | Type | State in Sandbox |
+|---|---|---|---|
+| `Gmail Sandbox` | `Gmail Production` | Gmail OAuth2 API, with n8n's own **Sign in with Google** | Done: the B2C mailbox |
+| `Discord Bot Sandbox` | `Discord Bot Production` | Discord Bot API (the bot token) | Done |
+| `Google Drive Backups` | `Google Drive Backups Production` | Google Drive OAuth2 API, with n8n's own **Sign in with Google** | Done |
+| `Supabase Sandbox` | `Supabase Production` | Header Auth | To create (2.1) |
+| `Poke Secret Sandbox` | `Poke Secret Production` | Header Auth | To create (2.2) |
 
-1. In Supabase: **Dashboard → Project Settings → API Keys → Secret keys**. Create one (for example "n8n") or copy the existing `sb_secret_…` key.
-2. In n8n create a credential of type **Header Auth**.
-3. Name: `Supabase secret key (Sandbox)` or `Supabase secret key (Production)`.
-4. Header **Name**: `apikey`
-5. Header **Value**: the `sb_secret_…` key.
-6. Do **not** add an `Authorization: Bearer` header. The new Supabase keys only go in the `apikey` header.
+No Google Cloud OAuth client, client secret, refresh token or service account is needed: n8n Cloud signs in to Gmail
+and Google Drive itself.
 
-Keep this key private: it bypasses all row-level security.
+### 2.1 "Supabase Sandbox" (Header Auth)
 
-### 2.2 "Discord bot (<env>)" (Header Auth)
+1. In Supabase: **Project Settings → API Keys → Secret keys**. Create one named `n8n`, or copy the existing
+   `sb_secret_…` key.
+2. In n8n create a credential of type **Header Auth**, name `Supabase Sandbox`.
+3. Header **Name**: `apikey`. Header **Value**: the `sb_secret_…` key.
+4. Do **not** add an `Authorization: Bearer` header. The new Supabase keys only go in the `apikey` header.
 
-1. Go to <https://discord.com/developers/applications> → **New Application** (for example "SME Scheduling").
-2. Open **Bot** → **Reset Token** → copy the token.
-3. On the same **Bot** page, under **Privileged Gateway Intents**, switch on **SERVER MEMBERS INTENT** (WF6 finds
-   people by their Discord username) and **MESSAGE CONTENT INTENT** (WF1 reads typed replies). Save.
-4. Invite the bot with the link on the app's **Settings, Connections, Discord servers** (it needs `VITE_DISCORD_CLIENT_ID`,
-   the Application ID). It asks for exactly **View Channels**, **Send Messages**, **Embed Links** and
-   **Read Message History** (permissions value 84992). Add it to the server of each domain.
-5. Give the bot's role the same four permissions on the instructors' `1-1` category and on the alert, admin and test
-   channels (private channels need the bot added explicitly).
-6. WF4 sends instructor messages to their channel in the class's domain, or by direct message when they have no
-   channel there, and sends team members their own copies by direct message (or email when they have no Discord).
-7. In n8n create a credential of type **Header Auth**:
-   - Name: `Discord bot (Sandbox)` or `Discord bot (Production)`
-   - Header **Name**: `Authorization`
-   - Header **Value**: `Bot ` followed by the token (the word `Bot`, a space, then the token).
+Keep this key private: it bypasses all row level security.
 
-### 2.3 "Gmail scheduling (<env>)" (Gmail OAuth2)
+### 2.2 "Poke Secret Sandbox" (Header Auth)
 
-1. In Google Cloud Console create (or pick) a project for the integration.
-2. **APIs & Services → Library** → enable **Gmail API**.
-3. **APIs & Services → OAuth consent screen** (Google Auth Platform → Branding/Audience): user type **Internal**, fill in the app name and support email.
-4. **APIs & Services → Credentials → Create credentials → OAuth client ID** → type **Web application**.
-   Under **Authorized redirect URIs** add `https://<your-n8n>/rest/oauth2-credential/callback`
-   (the n8n credential window shows this exact URL as "OAuth Redirect URL" — copy it from there).
-5. Copy the **Client ID** and **Client secret**.
-6. In n8n create a credential of type **Gmail OAuth2 API**, name `Gmail scheduling (Sandbox)` or `Gmail scheduling (Production)`, paste the Client ID and secret,
-   click **Sign in with Google** and sign in **as the scheduling mailbox** (the address messages should come from and replies go to).
+1. Make a long random string (for example from your password manager).
+2. In n8n create a credential of type **Header Auth**, name `Poke Secret Sandbox`, header **Name** `x-poke-key`,
+   header **Value** the random string.
+3. Keep the string: it also goes in every Config node (`pokeKey`, step 4) and in the app (`VITE_N8N_POKE_KEY`).
 
-### 2.4 "Google service account (<env>)" (Google Service Account, for the backups)
+### 2.3 What the existing credentials are used for
 
-The nightly backup is uploaded by a Google service account, so it keeps working when a person leaves.
-A service account has no Drive storage of its own, so the backup folder must be in a **shared drive**.
-
-1. In the same Google Cloud project: **APIs & Services → Library** → enable **Google Drive API**.
-2. **IAM & Admin → Service Accounts → Create service account**, for example `sme-backup`. No roles are needed. Create.
-3. Open it → **Keys → Add key → Create new key → JSON**. A file downloads. Keep it private; it works like a password.
-4. In Google Drive create a shared drive (for example "Scheduling backups"), and in it one folder per environment.
-   Add the service account's email (it ends in `iam.gserviceaccount.com`) to the shared drive as **Content manager**.
-5. In n8n create a credential of type **Google Service Account API**, name `Google service account (Sandbox)` or
-   `Google service account (Production)`. Paste the `client_email` and the `private_key` from the JSON file. Save.
-6. Delete the downloaded JSON file once the credential is saved.
-
-### 2.5 "Poke secret (<env>)" (Header Auth)
-
-1. Make a long random string (for example from a password manager, or `openssl rand -hex 24`).
-2. In n8n create a credential of type **Header Auth**:
-   - Name: `Poke secret (Sandbox)` or `Poke secret (Production)` (a different string for each)
-   - Header **Name**: `x-poke-key`
-   - Header **Value**: the random string.
-3. Keep the string: it also goes in every Config node (step 4) and in the app (step 7).
+- **Discord Bot Sandbox**: every call to Discord (posts, direct messages, reading replies, the server and username
+  checks). The bot needs only View Channels, Send Messages, Embed Links and Read Message History, and the
+  Server Members Intent and Message Content Intent switched on (both are on).
+- **Gmail Sandbox**: sends every email from the B2C mailbox and reads the replies to it.
+- **Google Drive Backups**: WF3 uploads the nightly backup to the Sandbox folder
+  (`your-drive-folder-id`, already filled in) and moves backups older than the newest 30 to the
+  Drive bin.
 
 ## 3. Import the workflows
 
@@ -160,19 +112,19 @@ Import **WF5 first** (the others point to it as their error workflow), then the 
 
 ## 4. Edit the Config node in every workflow
 
-Every workflow starts with a **Config** Code node. It is the only node you edit. Open it and change the three values:
+Every workflow starts with a **Config** Code node. In the Sandbox files the Supabase address
+(`https://abcdefghijklmnopqrst.supabase.co`) and the WF4 address
+(`https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke`) are already filled in. Only one value is left:
 
 ```js
-const supabaseUrl = 'https://YOUR-SANDBOX-PROJECT.supabase.co';   // this environment's Supabase project URL
-const pokeUrl     = 'https://YOUR-N8N/webhook/sandbox-sme-poke';   // this environment's WF4 webhook URL (step 6)
-const pokeKey     = 'REPLACE_WITH_POKE_SECRET';            // the Poke secret value (step 2.5)
+const pokeKey = 'REPLACE_WITH_POKE_SECRET';   // the value of the "Poke Secret Sandbox" credential (step 2.2)
 ```
 
-Do this in WF1 to WF5. WF6's Config has only `supabaseUrl`.
+Do this in WF1 to WF5. WF6's Config has only `supabaseUrl`, already filled in.
 
-WF3 has two more values: open **Upload to Google Drive** and replace `REPLACE_WITH_SHARED_DRIVE_ID` with the shared
-drive ID and `REPLACE_WITH_DRIVE_FOLDER_ID` with the folder ID (each is the last part of the address when you open it
-in Drive: `https://drive.google.com/drive/folders/<this part>`).
+WF3's backup folder is filled in too, in **Upload to Google Drive** and **List backups**. For Production, replace
+`REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID` in both with the Production folder ID (the last part of the folder's address
+in Drive: `https://drive.google.com/drive/folders/<this part>`), and the Supabase address in every Config node.
 
 ## 5. Set the error workflow
 
@@ -223,7 +175,7 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
    the answer is recorded and follow-up messages arrive within seconds.
 5. Type a reply in a test instructor's Discord channel or reply to a test email; after the next hourly run (or run WF1
    manually with **Execute workflow**) it shows up in **Needs Attention**.
-6. Run WF3 manually once and check that `sme-backup-YYYY-MM-DD.json` appears in the shared drive folder.
+6. Run WF3 manually once and check that `sme-backup-YYYY-MM-DD.json` appears in the backup folder. Only the newest 30 backups are kept; older ones go to the Drive bin.
 7. To test WF5, temporarily break the Supabase URL in WF1's Config and run WF1: an admin alert should arrive and a
    History entry should be recorded (put the URL back afterwards).
 

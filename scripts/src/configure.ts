@@ -34,9 +34,15 @@ const link = (name: string) => {
   if (!v) return null;
   if (
     !/^https:\/\/[^/\s]+/.test(v) &&
-    !(environment === 'Development' && /^http:\/\/(localhost|127\.0\.0\.1)/.test(v))
+    // Decision 266: until the Sandbox app is hosted, its "Open the app" links may point at your own computer.
+    !(
+      (environment === 'Development' || (environment === 'Sandbox' && name === 'APP_BASE_URL')) &&
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(v)
+    )
   ) {
-    console.error(`${name} must start with https://.`);
+    console.error(
+      `${name} must start with https://${name === 'APP_BASE_URL' ? ' (or http://localhost:5173 for Sandbox)' : ''}.`,
+    );
     process.exit(1);
   }
   return v;

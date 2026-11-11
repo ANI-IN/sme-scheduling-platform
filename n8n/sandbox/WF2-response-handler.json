@@ -63,7 +63,7 @@
         150
       ],
       "parameters": {
-        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-SANDBOX-PROJECT.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://YOUR-N8N/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://abcdefghijklmnopqrst.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
       }
     },
     {
@@ -140,7 +140,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Sandbox)"
+          "name": "Supabase Sandbox"
         }
       },
       "onError": "continueErrorOutput"
@@ -216,7 +216,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Sandbox)"
+          "name": "Supabase Sandbox"
         }
       },
       "onError": "continueErrorOutput"

@@ -116,8 +116,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ 'https://discord.com/api/v10' + ($json.path || '/unknown') }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "options": {
           "timeout": 30000,
           "batching": {
@@ -132,12 +131,13 @@
               "neverError": true
             }
           }
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
+        "discordBotApi": {
           "id": "REPLACE_ME",
-          "name": "Discord bot"
+          "name": "Discord Bot"
         }
       },
       "onError": "continueRegularOutput"

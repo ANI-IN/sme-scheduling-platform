@@ -46,7 +46,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "// EDIT THIS VALUE (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-SANDBOX-PROJECT.supabase.co';      // Supabase project URL\n\nreturn [{ json: { supabaseUrl: supabaseUrl.replace(/\\/+$/, '') } }];"
+        "jsCode": "// EDIT THIS VALUE (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://abcdefghijklmnopqrst.supabase.co';      // Supabase project URL\n\nreturn [{ json: { supabaseUrl: supabaseUrl.replace(/\\/+$/, '') } }];"
       }
     },
     {
@@ -81,7 +81,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Sandbox)"
+          "name": "Supabase Sandbox"
         }
       },
       "alwaysOutputData": true,
@@ -115,8 +115,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ 'https://discord.com/api/v10' + ($json.path || '/unknown') }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
         "options": {
           "timeout": 30000,
           "batching": {
@@ -131,11 +130,12 @@
               "neverError": true
             }
           }
-        }
+        },
+        "nodeCredentialType": "discordBotApi"
       },
       "credentials": {
-        "httpHeaderAuth": {
-          "name": "Discord bot (Sandbox)"
+        "discordBotApi": {
+          "name": "Discord Bot Sandbox"
         }
       },
       "onError": "continueRegularOutput"
@@ -185,7 +185,7 @@
       },
       "credentials": {
         "httpHeaderAuth": {
-          "name": "Supabase secret key (Sandbox)"
+          "name": "Supabase Sandbox"
         }
       },
       "alwaysOutputData": true,
