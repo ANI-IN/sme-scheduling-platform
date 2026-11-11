@@ -67,10 +67,10 @@ for (const tab of MODULE_TABS) {
   });
 }
 
-test('automation settings for a module', async ({ page }) => {
-  const [m] = await sql<{ id: string }>(`select id from public.module order by name limit 1`);
-  await visit(page, `/settings/automation?scope=Module&id=${m!.id}`);
-  await a11y(page, 'automation settings for a module');
+test('automation settings for a cohort', async ({ page }) => {
+  const [c] = await sql<{ id: string }>(`select id from public.cohort order by name limit 1`);
+  await visit(page, `/settings/automation?scope=Cohort&id=${c!.id}`);
+  await a11y(page, 'automation settings for a cohort');
 });
 
 test('signed out: the sign in page', async ({ browser }) => {

@@ -29,10 +29,10 @@ The class times come from the cohort's own class times if it has them, otherwise
 
 For an extra, makeup or moved class:
 
-1. On [Upcoming classes](/classes), press **Add one class**. To add it to a class week that already has an instructor, open that class week and press **Add a class to this week** instead.
+1. On [Upcoming classes](/classes), press **Add one class**. To add it to a class week that already has an instructor, open that class week, choose **More options** and press **Add a class to this week** instead.
 2. Choose the module, cohort, date, time and class type.
 3. Press **Add class**. A confirmed instructor is asked to confirm the new time.
 
 ## Different instructors for one class week
 
-Usually one instructor teaches every class of a class week. To find a different instructor for each class, open the class week and turn off **The same instructor teaches every class of this week**. This works while nobody is confirmed or being asked.
+Usually one instructor teaches every class of a class week. To find a different instructor for each class, open the class week, choose **More options** and turn off **The same instructor teaches every class of this week**. This works while nobody is confirmed or being asked.

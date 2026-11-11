@@ -1,11 +1,11 @@
 # Prints the distinct problems in e2e/results/results.json, with how many tests hit each one.
+import glob
 import json
 import re
 import sys
 from collections import Counter
 
 sys.stdout.reconfigure(encoding='utf-8')
-d = json.load(open('e2e/results/results.json', encoding='utf-8'))
 seen = Counter()
 names = {}
 
@@ -30,8 +30,10 @@ def walk(s):
         walk(c)
 
 
-for s in d['suites']:
-    walk(s)
-print(d['stats'])
+for f in sorted(glob.glob('e2e/results/results*.json')):
+    d = json.load(open(f, encoding='utf-8'))
+    print(f, d['stats'])
+    for s in d['suites']:
+        walk(s)
 for k, n in seen.most_common():
     print(f'{n:4d}  {k[:400]}\n      e.g. {names[k]}')

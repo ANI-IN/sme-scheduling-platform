@@ -6,7 +6,7 @@ import { DateTime } from 'luxon';
 import { RotateCcw } from 'lucide-react';
 import { rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useCohorts, useModules, useWeeks, type SettingRow } from '@/lib/data';
+import { useCohorts, type SettingRow } from '@/lib/data';
 import { useUnsavedChanges } from '@/lib/unsaved';
 import { PauseAllSection } from '@/components/PauseAll';
 import {
@@ -16,54 +16,88 @@ import {
   ErrorText,
   Field,
   Input,
+  Notice,
   PageHeader,
   Section,
   Select,
   SkeletonRows,
-  TabPanel,
-  Tabs,
+  Switch,
   Textarea,
   cn,
 } from '@/components/ui';
 
-type Scope = 'Domain' | 'Cohort' | 'Module' | 'ModuleWeek';
+type Scope = 'Domain' | 'Cohort';
 
-/** Settings groups shown together on one tab (group names come from the database). */
-const TABS: { value: string; label: string; groups: string[]; description: string }[] = [
+/** The main choices shown first; everything else is under "More options". */
+const ASKING = ['outreach_days', 'default_outreach_mode'];
+const REMINDER_PARTS: { title: string; keys: string[] }[] = [
   {
-    value: 'requests',
-    label: 'Requests and timing',
-    groups: ['Channels', 'Outreach', 'Windows', 'Quiet hours'],
-    description:
-      'How and when instructors are asked, how long we wait for an answer, and when messages are not sent.',
+    title: 'While we wait for an answer',
+    keys: [
+      'answer_reminders',
+      'window_long_reminder_h',
+      'window_mid_reminder_h',
+      'window_short_reminder_h',
+    ],
   },
   {
-    value: 'before',
-    label: 'Before class',
-    groups: ['Check-ins', 'Checklist'],
-    description: 'Reminders before class and the class tasks for the operations team.',
+    title: 'After an instructor is assigned',
+    keys: [
+      'remind_instructor_after_assign',
+      'checkin_days',
+      'remind_team_after_assign',
+      'owner_checkin_days',
+      'checklist_nudge_days',
+    ],
   },
   {
-    value: 'help',
-    label: 'Help and follow up',
-    groups: ['Help', 'Reminders'],
-    description:
-      'How quickly help requests are answered and how the team is reminded about open tasks.',
-  },
-  {
-    value: 'planning',
-    label: 'Planning',
-    groups: ['Planning', 'Modules'],
-    description: 'Warnings about the class plan and the number of instructors per module.',
+    title: 'Open tasks for the team',
+    keys: [
+      'reminder_r2_normal_h',
+      'reminder_r2_urgent_h',
+      'reminder_escalate_normal_h',
+      'reminder_escalate_urgent_h',
+      'daily_summary',
+    ],
   },
 ];
+/** Number fields where 0 switches the reminder off. */
+const ZERO_OFF = new Set([
+  'window_long_reminder_h',
+  'window_mid_reminder_h',
+  'window_short_reminder_h',
+  'owner_checkin_days',
+  'checklist_nudge_days',
+  'reminder_r2_normal_h',
+  'reminder_r2_urgent_h',
+  'reminder_escalate_normal_h',
+  'reminder_escalate_urgent_h',
+]);
+/** Which switch a number belongs to: the number is greyed out while its switch is off. */
+const SWITCH_FOR: Record<string, string> = {
+  window_long_reminder_h: 'answer_reminders',
+  window_mid_reminder_h: 'answer_reminders',
+  window_short_reminder_h: 'answer_reminders',
+  checkin_days: 'remind_instructor_after_assign',
+  owner_checkin_days: 'remind_team_after_assign',
+  checklist_nudge_days: 'remind_team_after_assign',
+};
+const MORE_GROUPS = [
+  'Outreach',
+  'Windows',
+  'Quiet hours',
+  'LastReminder',
+  'Checklist',
+  'Help',
+  'Planning',
+  'Modules',
+];
 
-export const GROUP_LABEL: Record<string, string> = {
-  Channels: 'Message channels',
+const GROUP_LABEL: Record<string, string> = {
   Outreach: 'Asking instructors',
-  Windows: 'Waiting for answers',
+  Windows: 'How long we wait for an answer',
   'Quiet hours': 'Quiet hours',
-  'Check-ins': 'Reminders before class',
+  LastReminder: 'When the last reminder before class gets no answer',
   Checklist: 'Class tasks',
   Help: 'Help requests',
   Reminders: 'Reminders to the team',
@@ -71,7 +105,7 @@ export const GROUP_LABEL: Record<string, string> = {
   Modules: 'Instructors per module',
 };
 
-/** Ready made timing choices. Standard is the default; the exact numbers stay under Advanced. */
+/** Ready made timing choices for asking and moving on. Standard is the default. */
 const PRESETS: {
   id: string;
   label: string;
@@ -85,11 +119,8 @@ const PRESETS: {
     values: {
       outreach_days: 30,
       readiness_days: 45,
-      window_long_reminder_h: 24,
       window_long_move_h: 48,
-      window_mid_reminder_h: 12,
       window_mid_move_h: 24,
-      window_short_reminder_h: 3,
       window_short_move_h: 6,
     },
   },
@@ -100,11 +131,8 @@ const PRESETS: {
     values: {
       outreach_days: 35,
       readiness_days: 50,
-      window_long_reminder_h: 36,
       window_long_move_h: 72,
-      window_mid_reminder_h: 18,
       window_mid_move_h: 36,
-      window_short_reminder_h: 4,
       window_short_move_h: 8,
     },
   },
@@ -115,38 +143,24 @@ const PRESETS: {
     values: {
       outreach_days: 25,
       readiness_days: 40,
-      window_long_reminder_h: 12,
       window_long_move_h: 24,
-      window_mid_reminder_h: 6,
       window_mid_move_h: 12,
-      window_short_reminder_h: 2,
       window_short_move_h: 4,
     },
   },
 ];
-const ADVANCED_GROUPS = new Set(['Windows']);
 
 const SOURCE: Record<string, string> = {
   Default: 'Default',
-  Global: 'From settings for every domain',
   Domain: 'From domain settings',
   Cohort: 'Changed for this cohort',
-  Module: 'Changed for this module',
-  ModuleWeek: 'Changed for this class week',
 };
 const SCOPE_NOUN: Record<Scope, string> = {
   Domain: 'the whole domain',
   Cohort: 'this cohort',
-  Module: 'this module',
-  ModuleWeek: 'this class week',
 };
 
 const ENUM_LABEL: Record<string, string> = {
-  Both: 'Discord and email',
-  DiscordOnly: 'Discord only',
-  EmailOnly: 'Email only',
-  Discord: 'Discord',
-  DiscordAndEmail: 'Discord and email',
   Sequential: 'Instructor order',
   Manual: 'Chosen list',
   Stop: 'Stop and tell me',
@@ -212,7 +226,8 @@ function problem(s: SettingRow, v: unknown): string | undefined {
     if (s.min !== null && s.max !== null && (n < s.min || n > s.max))
       return `Enter a number from ${s.min} to ${s.max}.`;
   }
-  if (s.type === 'int_list' && (v as number[]).length === 0) return 'Enter at least one number.';
+  if (s.type === 'int_list' && (v as number[]).length === 0 && s.key !== 'checkin_days')
+    return 'Enter at least one number.';
   return undefined;
 }
 
@@ -220,12 +235,9 @@ export default function Automation() {
   const { domain } = useDomain();
   const qc = useQueryClient();
   const cohorts = useCohorts(domain?.id);
-  const modules = useModules(domain?.id);
-  const weeks = useWeeks(domain?.id);
   const [params, setParams] = useSearchParams();
   const scope = (params.get('scope') as Scope | null) ?? 'Domain';
   const scopeId = scope === 'Domain' ? domain?.id : (params.get('id') ?? undefined);
-  const [tab, setTab] = useState('requests');
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -285,7 +297,24 @@ export default function Automation() {
     }
   }
 
-  const week = (weeks.data ?? []).find((w) => w.id === scopeId);
+  const fields = (keys: string[]) =>
+    keys.map((k) => {
+      const s = byKey.get(k);
+      if (!s) return null;
+      const sw = SWITCH_FOR[k];
+      return (
+        <SettingField
+          key={k}
+          s={s}
+          scope={scope}
+          value={current(s)}
+          changed={k in draft}
+          off={sw !== undefined && effective(sw) === false}
+          onChange={(v) => stage(k, v)}
+          onReset={() => stage(k, null)}
+        />
+      );
+    });
   const preset = PRESETS.find((p) =>
     Object.entries(p.values).every(([k, v]) => Number(effective(k)) === v),
   );
@@ -306,7 +335,7 @@ export default function Automation() {
         <div className="space-y-5">
           <Section
             title="Settings for"
-            description="Change a setting for the whole domain, or only for one cohort, one module or one class week. More specific settings win."
+            description="Settings apply to the whole domain. A cohort can change any of them for its own classes."
           >
             <Select
               aria-label="Settings for"
@@ -324,21 +353,6 @@ export default function Automation() {
                   ))}
                 </optgroup>
               )}
-              <optgroup label="A module">
-                {(modules.data ?? []).map((m) => (
-                  <option key={m.id} value={`Module:${m.id}`}>
-                    Module: {m.name}
-                  </option>
-                ))}
-              </optgroup>
-              {scope === 'ModuleWeek' && (
-                <option value={`ModuleWeek:${scopeId}`}>
-                  Class week: {week?.module?.name ?? 'one class week'}
-                  {week?.first_class_at
-                    ? `, ${DateTime.fromISO(week.first_class_at).setZone('America/Los_Angeles').toFormat('ccc LLL d')}`
-                    : ''}
-                </option>
-              )}
             </Select>
           </Section>
 
@@ -346,85 +360,81 @@ export default function Automation() {
           {settings.isLoading || !scopeId ? (
             <SkeletonRows rows={8} />
           ) : (
-            <Tabs
-              value={tab}
-              onValueChange={setTab}
-              tabs={TABS.map(({ value, label }) => ({ value, label }))}
-            >
-              {TABS.map((t) => (
-                <TabPanel key={t.value} value={t.value} className="space-y-4">
-                  <p className="text-sm text-muted-foreground">{t.description}</p>
-                  {t.value === 'requests' && (
-                    <>
-                      <Timeline get={effective} />
-                      <Section
-                        title="Timing"
-                        description="Choose how quickly instructors are asked and moved on. You can change each number under Advanced."
-                      >
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          {PRESETS.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              aria-pressed={preset?.id === p.id}
-                              onClick={() => setDraft((d) => ({ ...d, ...p.values }))}
-                              className={cn(
-                                'rounded-lg border p-3 text-left text-sm hover:bg-muted/50',
-                                preset?.id === p.id
-                                  ? 'border-primary ring-1 ring-primary'
-                                  : 'border-border',
-                              )}
-                            >
-                              <div className="font-semibold">{p.label}</div>
-                              <div className="mt-0.5 text-muted-foreground">{p.description}</div>
-                            </button>
-                          ))}
+            <div className="space-y-5">
+              <Timeline get={effective} />
+              <Section
+                title="Asking instructors"
+                description="When we start asking, and how quickly we move on to the next instructor."
+              >
+                <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                  {PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={preset?.id === p.id}
+                      onClick={() => setDraft((d) => ({ ...d, ...p.values }))}
+                      className={cn(
+                        'rounded-lg border p-3 text-left text-sm hover:bg-muted/50',
+                        preset?.id === p.id
+                          ? 'border-primary ring-1 ring-primary'
+                          : 'border-border',
+                      )}
+                    >
+                      <div className="font-semibold">{p.label}</div>
+                      <div className="mt-0.5 text-muted-foreground">{p.description}</div>
+                    </button>
+                  ))}
+                </div>
+                {!preset && (
+                  <p className="mb-4 text-xs text-muted-foreground">
+                    The current numbers are your own mix (see More options).
+                  </p>
+                )}
+                <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">{fields(ASKING)}</div>
+              </Section>
+
+              <Section
+                title="Reminders"
+                description="Switch any reminder off, or set its number to 0."
+              >
+                <Notice tone="info">
+                  Turning reminders off never stops the main automation. Instructors are still asked
+                  in order, the next instructor is still asked when there is no answer, and urgent
+                  alerts (for example a cancellation, or nobody left to ask) are always sent.
+                </Notice>
+                <div className="mt-5 space-y-6">
+                  {REMINDER_PARTS.map((part) => (
+                    <fieldset key={part.title} className="space-y-4">
+                      <legend className="mb-2 text-sm font-semibold">{part.title}</legend>
+                      <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">{fields(part.keys)}</div>
+                    </fieldset>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title="More options" description="Most teams never need to change these.">
+                <details>
+                  <summary className="cursor-pointer text-sm font-medium text-link">
+                    Show more options
+                  </summary>
+                  <div className="mt-5 space-y-8">
+                    {MORE_GROUPS.map((g) => {
+                      const keys = rows
+                        .filter((r) => r.group === g && !ASKING.includes(r.key))
+                        .map((r) => r.key);
+                      if (!keys.length) return null;
+                      return (
+                        <div key={g}>
+                          <h3 className="mb-3 text-sm font-semibold">{GROUP_LABEL[g] ?? g}</h3>
+                          <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">{fields(keys)}</div>
                         </div>
-                        {!preset && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            The current numbers are your own mix (see Advanced).
-                          </p>
-                        )}
-                      </Section>
-                    </>
-                  )}
-                  {t.groups.map((g) => {
-                    const list = rows.filter((s) => s.group === g);
-                    if (!list.length) return null;
-                    const body = (
-                      <div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
-                        {list.map((s) => (
-                          <SettingField
-                            key={s.key}
-                            s={s}
-                            scope={scope}
-                            value={current(s)}
-                            changed={s.key in draft}
-                            onChange={(v) => stage(s.key, v)}
-                            onReset={() => stage(s.key, null)}
-                          />
-                        ))}
-                      </div>
-                    );
-                    return ADVANCED_GROUPS.has(g) ? (
-                      <Section key={g} title={`Advanced: ${GROUP_LABEL[g] ?? g}`}>
-                        <details>
-                          <summary className="cursor-pointer text-sm font-medium text-link">
-                            Show the exact numbers
-                          </summary>
-                          <div className="mt-4">{body}</div>
-                        </details>
-                      </Section>
-                    ) : (
-                      <Section key={g} title={GROUP_LABEL[g] ?? g}>
-                        {body}
-                      </Section>
-                    );
-                  })}
-                  {t.value === 'help' && <PauseAllSection />}
-                </TabPanel>
-              ))}
-            </Tabs>
+                      );
+                    })}
+                  </div>
+                </details>
+              </Section>
+              <PauseAllSection />
+            </div>
           )}
         </div>
       )}
@@ -532,6 +542,7 @@ function SettingField({
   scope,
   value,
   changed,
+  off,
   onChange,
   onReset,
 }: {
@@ -539,6 +550,8 @@ function SettingField({
   scope: Scope;
   value: unknown;
   changed: boolean;
+  /** Its switch is off, so this number is not used. */
+  off?: boolean;
   onChange: (v: unknown) => void;
   onReset: () => void;
 }) {
@@ -572,6 +585,8 @@ function SettingField({
   );
   const hint = (
     <>
+      {ZERO_OFF.has(s.key) && '0 means no reminder. '}
+      {off && 'Not used while the switch above is off. '}
       {[s.help, range].filter(Boolean).join(' ')} Default: {display(s, s.default)}.{meta}
     </>
   );
@@ -606,16 +621,25 @@ function SettingField({
     );
   }
 
+  if (s.type === 'bool') {
+    const on = resetting ? s.value === true : value === true;
+    return (
+      <div className="md:col-span-2">
+        <Switch label={s.label} checked={on} onChange={(v) => onChange(v)} hint={hint} />
+      </div>
+    );
+  }
+
   return (
-    <Field label={s.label} hint={hint} error={err}>
-      {s.type === 'enum' || s.type === 'bool' ? (
+    <Field label={s.label} hint={hint} error={err} className={cn(off && 'opacity-60')}>
+      {s.type === 'enum' ? (
         <Select
           value={resetting ? toText(s, s.value) : String(value)}
           onChange={(e) => onChange(fromText(s, e.target.value))}
         >
-          {(s.type === 'bool' ? ['true', 'false'] : (s.allowed ?? [])).map((o) => (
+          {(s.allowed ?? []).map((o) => (
             <option key={o} value={o}>
-              {o === 'true' ? 'On' : o === 'false' ? 'Off' : (ENUM_LABEL[o] ?? o)}
+              {ENUM_LABEL[o] ?? o}
             </option>
           ))}
         </Select>
@@ -639,6 +663,7 @@ function SettingField({
             setText(e.target.value);
             onChange(fromText(s, e.target.value));
           }}
+          placeholder={s.key === 'checkin_days' ? 'No reminders' : undefined}
           className={s.type === 'int' ? 'w-28' : undefined}
         />
       )}

@@ -182,6 +182,7 @@ test('a one off class, and a warning accepted with a reason', async ({ page }) =
 test('"same instructor" off for one class week', async ({ page }) => {
   await openWeek(page, 'Weekend cohort', /Needs an instructor|Ready to ask|Not started/);
   const dlg = page.getByRole('dialog');
+  await dlg.getByText('More options', { exact: true }).click();
   const sw = dlg.getByLabel('The same instructor teaches every class of this week');
   await expect(sw).toBeChecked();
   await sw.click();
@@ -199,11 +200,11 @@ test('settings override at each layer, and reset', async ({ page }) => {
   const field = async () => {
     await ready(page);
     const f = page.getByLabel(label);
-    // The numbers sit in a folded "Show the exact numbers" section that folds again when the
+    // The numbers sit in the folded "More options" section that folds again when the
     // page reloads its settings, so open it until the field shows.
     await expect(async () => {
       if (!(await f.isVisible())) {
-        const det = page.locator('details', { hasText: 'Show the exact numbers' }).first();
+        const det = page.locator('details', { hasText: 'Show more options' }).first();
         if (!(await det.evaluate((d) => (d as HTMLDetailsElement).open)))
           await det.locator('summary').click();
       }
@@ -214,7 +215,6 @@ test('settings override at each layer, and reset', async ({ page }) => {
   const scopes: { option: RegExp; source: string; value: string }[] = [
     { option: /^The whole domain/, source: 'From domain settings', value: '50' },
     { option: /^Cohort: Weekend cohort/, source: 'Changed for this cohort', value: '60' },
-    { option: /^Module: Database Design/, source: 'Changed for this module', value: '70' },
   ];
   await page.goto('/settings/automation');
   for (const s of scopes) {
@@ -234,11 +234,15 @@ test('settings override at each layer, and reset', async ({ page }) => {
   const rows = await sql<{ scope: string; value: string }>(
     `select scope, value::text from public.setting where key = 'window_long_move_h' order by scope`,
   );
-  expect(rows.map((r) => r.scope).sort()).toEqual(['Cohort', 'Domain', 'Module']);
-  // "Use the value above" removes the module value; the cohort value shows through again.
+  expect(rows.map((r) => r.scope).sort()).toEqual(['Cohort', 'Domain']);
+  // Only the domain and its cohorts can be chosen.
+  await expect(
+    page.getByRole('combobox', { name: 'Settings for' }).locator('option', { hasText: /^Module/ }),
+  ).toHaveCount(0);
+  // "Use the value above" removes the cohort value; the domain value shows through again.
   await page.getByRole('button', { name: 'Use the value above' }).first().click();
   await page.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByText('Changed for this module')).toHaveCount(0);
+  await expect(page.getByText('Changed for this cohort')).toHaveCount(0);
 });
 
 test('two people edit the same module: the second is asked to reload', async ({ browser }) => {

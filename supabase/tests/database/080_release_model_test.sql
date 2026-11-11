@@ -103,19 +103,17 @@ select is((public.create_module_weeks(:'dom', jsonb_build_array(jsonb_build_obje
   'classes', public.generate_classes(:'dom', :'mod_split', array['2027-04-04']::date[], 'Main cohort') -> 0 -> 'classes')), true) ->> 'created')::int, 2,
   'planning a module with "same instructor" off creates one class week per class');
 
--- =============================================================== settings layers
+-- =============================================================== settings layers (Release 2: domain, then cohort)
 select public.set_setting_at('Domain', :'dom', 'window_long_move_h', '60');
-select public.set_setting_at('Cohort', :'coh_b', 'window_long_move_h', '70');
-select public.set_setting_at('Module', :'mod', 'window_long_move_h', '80');
-select public.set_setting_at('ModuleWeek', :'mw_b', 'window_long_move_h', '90', 'Instructor needs longer to decide');
-select is(private.setting_int(:'mw_b', 'window_long_move_h'), 90, 'a single class week override wins');
-select is((select x ->> 'source' from jsonb_array_elements(public.effective_settings_for('ModuleWeek', :'mw_b')) x where x ->> 'key' = 'window_long_move_h'),
-  'ModuleWeek', 'and the app can show where the value comes from');
-select is((private.window_hours(:'mw_b', '2026-12-01 18:00+00')).move_h, 90, 'the automation uses the class week value');
-select public.reset_setting_at('ModuleWeek', :'mw_b', 'window_long_move_h');
-select is(private.setting_int(:'mw_b', 'window_long_move_h'), 80, 'then the module value');
-select public.reset_setting_at('Module', :'mod', 'window_long_move_h');
-select is(private.setting_int(:'mw_b', 'window_long_move_h'), 70, 'then the cohort value');
+select public.set_setting_at('Cohort', :'coh_b', 'window_long_move_h', '70', 'Instructors in this cohort need longer to decide');
+select is(private.setting_int(:'mw_b', 'window_long_move_h'), 70, 'a cohort override wins for its class weeks');
+select is((select x ->> 'source' from jsonb_array_elements(public.effective_settings_for('Cohort', :'coh_b')) x where x ->> 'key' = 'window_long_move_h'),
+  'Cohort', 'and the app can show where the value comes from');
+select is((private.window_hours(:'mw_b', '2026-12-01 18:00+00')).move_h, 70, 'the automation uses the cohort value');
+select throws_ok(format($$ select public.set_setting_at('Module', %L, 'window_long_move_h', '80') $$, :'mod'), '22023', null,
+  'settings cannot be set for one module');
+select throws_ok(format($$ select public.set_setting_at('ModuleWeek', %L, 'window_long_move_h', '90') $$, :'mw_b'), '22023', null,
+  'or for one class week');
 select public.reset_setting_at('Cohort', :'coh_b', 'window_long_move_h');
 select is(private.setting_int(:'mw_b', 'window_long_move_h'), 60, 'then the domain value');
 select public.reset_setting_at('Domain', :'dom', 'window_long_move_h');

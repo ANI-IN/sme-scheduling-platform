@@ -23,4 +23,4 @@ While messages are paused:
 
 Press **Resume messages** in the red bar and confirm. Messages that were waiting go out at the next automatic check. Nothing is lost and nothing is sent twice.
 
-> To pause only one class week, open it and press **Pause requests**. To pause one domain, set its status to Paused on the Domains page.
+> To pause only one class week, open it, choose **More options** and press **Pause requests**. To pause one domain, set its status to Paused on the Domains page.

@@ -13,6 +13,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from 'react';
+import { useId } from 'react';
 
 export function cn(...c: (string | false | null | undefined)[]): string {
   return twMerge(clsx(c));
@@ -169,6 +170,60 @@ export function Field({
         </span>
       )}
     </label>
+  );
+}
+
+/** An on and off switch with its label (for settings that are simply on or off). */
+export function Switch({
+  label,
+  checked,
+  onChange,
+  disabled,
+  hint,
+}: {
+  label: ReactNode;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  hint?: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className={cn('flex items-start gap-3', disabled && 'opacity-60')}>
+      <button
+        type="button"
+        role="switch"
+        id={id}
+        aria-checked={checked}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          checked ? 'bg-primary' : 'bg-muted-foreground/40',
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            'inline-block h-4 w-4 rounded-full bg-white shadow transition-transform',
+            checked ? 'translate-x-4' : 'translate-x-0.5',
+          )}
+        />
+      </button>
+      <label htmlFor={id} className="text-sm">
+        <span id={`${id}-label`} className="font-medium text-foreground">
+          {label}
+        </span>
+        <span className="ml-2 text-xs text-muted-foreground">{checked ? 'On' : 'Off'}</span>
+        {hint && (
+          <span id={`${id}-hint`} className="mt-0.5 block text-xs text-muted-foreground">
+            {hint}
+          </span>
+        )}
+      </label>
+    </div>
   );
 }
 

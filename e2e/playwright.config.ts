@@ -5,11 +5,14 @@ const desktop = { viewport: { width: 1280, height: 800 } };
 const mobile = { ...devices['Pixel 7'] };
 const executablePath = chromePath();
 const keys = localKeys();
+// npm run e2e runs two phases; each keeps its own results.
+const phase = process.env.E2E_PHASE ? `-${process.env.E2E_PHASE}` : '';
 
 export default defineConfig({
   testDir: './tests',
-  outputDir: './results/artifacts',
-  // The tests share one database, so they run one at a time.
+  outputDir: `./results/artifacts${phase}`,
+  // The tests share one database, so they run one at a time (npm run e2e runs the read only
+  // page tests four at a time).
   workers: 1,
   fullyParallel: false,
   timeout: 120_000,
@@ -17,8 +20,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [
     ['list'],
-    ['json', { outputFile: 'results/results.json' }],
-    ['html', { open: 'never', outputFolder: 'results/html' }],
+    ['json', { outputFile: `results/results${phase}.json` }],
+    ['html', { open: 'never', outputFolder: `results/html${phase}` }],
   ],
   globalSetup: './global-setup.ts',
   use: {

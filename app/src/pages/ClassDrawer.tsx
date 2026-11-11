@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { DateTime } from 'luxon';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -269,134 +268,6 @@ export function ClassDrawer({
           )}
         </DrawerGroup>
 
-        <DrawerGroup title="Actions">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                run(
-                  () =>
-                    rpc('pause_outreach', { p_module_week_id: week.id, p_paused: !week.paused }),
-                  week.paused ? 'Requests resumed' : 'Requests paused',
-                )
-              }
-            >
-              {week.paused ? 'Resume requests' : 'Pause requests'}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!lastInstructorMsg}
-              title={
-                lastInstructorMsg
-                  ? `${messageTitle(lastInstructorMsg.template_id)} to ${lastInstructorMsg.recipient_label} by ${lastInstructorMsg.channel}`
-                  : 'No message sent yet'
-              }
-              onClick={() =>
-                run(
-                  () => rpc('resend_message', { p_message_id: lastInstructorMsg!.id }),
-                  'Message sent again',
-                )
-              }
-            >
-              Send last message again
-            </Button>
-            {!booking && !state.asking && week.status !== 'Cancelled' && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() =>
-                  run(() => rpc('start_asking_now', { p_module_week_id: week.id }), 'Asking now')
-                }
-              >
-                Start asking now
-              </Button>
-            )}
-            {week.status !== 'Cancelled' && (
-              <Button size="sm" variant="secondary" onClick={() => setAddingClass(true)}>
-                Add a class to this week
-              </Button>
-            )}
-          </div>
-          <Link
-            to={`/settings/automation?scope=ModuleWeek&id=${week.id}`}
-            className="inline-block text-sm font-medium text-link hover:underline"
-          >
-            Change settings for this class week only
-          </Link>
-          {week.status !== 'Cancelled' && (
-            <Checkbox
-              label="The same instructor teaches every class of this week"
-              hint={
-                week.same_instructor
-                  ? 'Turn off to find a different instructor for each class (only while nobody is confirmed or being asked).'
-                  : 'Each class has its own instructor and its own request.'
-              }
-              checked={week.same_instructor}
-              onChange={async (on) => {
-                if (
-                  await confirm({
-                    title: on
-                      ? 'Use one instructor for the whole class week?'
-                      : 'Find a different instructor for each class?',
-                    body: on
-                      ? 'The classes are joined back into one class week with one request.'
-                      : 'Each class becomes its own class week with its own request and instructor.',
-                  })
-                )
-                  await run(
-                    () =>
-                      rpc('set_week_same_instructor', {
-                        p_module_week_id: week.id,
-                        p_on: on,
-                      }),
-                    on ? 'One instructor for the whole week' : 'Each class has its own instructor',
-                  );
-              }}
-            />
-          )}
-          <div className="flex flex-wrap items-end gap-2">
-            <Field label="Move this and later class weeks by">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={-26}
-                  max={26}
-                  value={shiftN}
-                  onChange={(e) => setShiftN(Number(e.target.value))}
-                  className="w-20"
-                  aria-label="Number of weeks"
-                />
-                <span className="text-muted-foreground">weeks</span>
-              </div>
-            </Field>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={async () => {
-                if (
-                  await confirm({
-                    title: `Move this and all later class weeks by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
-                    body: 'Classes keep their Pacific times. Confirmed instructors are asked to confirm the new dates, and requests are planned again.',
-                  })
-                )
-                  await run(
-                    () =>
-                      rpc('shift_classes', {
-                        p_module_week_id: week.id,
-                        p_weeks: shiftN,
-                        p_include_later: true,
-                      }),
-                    'Dates moved',
-                  );
-              }}
-            >
-              Move dates
-            </Button>
-          </div>
-        </DrawerGroup>
-
         <DrawerGroup title="Tasks for the operations team">
           {(checklist.data ?? []).length === 0 && (
             <p className="text-muted-foreground">
@@ -484,65 +355,200 @@ export function ClassDrawer({
           })}
         </DrawerGroup>
 
-        <DrawerGroup
-          title="Add a help request"
-          description="For example, after an instructor asked for help on a phone call."
-        >
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {helpCategories.map((c) => (
-              <Checkbox
-                key={c.code}
-                label={c.label}
-                checked={help.cats.includes(c.code)}
-                onChange={(v) =>
-                  setHelp({
-                    ...help,
-                    cats: v ? [...help.cats, c.code] : help.cats.filter((x) => x !== c.code),
-                  })
-                }
+        <details className="group border-t border-border pt-4">
+          <summary className="cursor-pointer font-semibold text-link">More options</summary>
+          <div className="mt-2 space-y-4">
+            <DrawerGroup title="Class week">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    run(
+                      () =>
+                        rpc('pause_outreach', {
+                          p_module_week_id: week.id,
+                          p_paused: !week.paused,
+                        }),
+                      week.paused ? 'Requests resumed' : 'Requests paused',
+                    )
+                  }
+                >
+                  {week.paused ? 'Resume requests' : 'Pause requests'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!lastInstructorMsg}
+                  title={
+                    lastInstructorMsg
+                      ? `${messageTitle(lastInstructorMsg.template_id)} to ${lastInstructorMsg.recipient_label} by ${lastInstructorMsg.channel}`
+                      : 'No message sent yet'
+                  }
+                  onClick={() =>
+                    run(
+                      () => rpc('resend_message', { p_message_id: lastInstructorMsg!.id }),
+                      'Message sent again',
+                    )
+                  }
+                >
+                  Send last message again
+                </Button>
+                {!booking && !state.asking && week.status !== 'Cancelled' && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      run(
+                        () => rpc('start_asking_now', { p_module_week_id: week.id }),
+                        'Asking now',
+                      )
+                    }
+                  >
+                    Start asking now
+                  </Button>
+                )}
+                {week.status !== 'Cancelled' && (
+                  <Button size="sm" variant="secondary" onClick={() => setAddingClass(true)}>
+                    Add a class to this week
+                  </Button>
+                )}
+              </div>
+              {week.status !== 'Cancelled' && (
+                <Checkbox
+                  label="The same instructor teaches every class of this week"
+                  hint={
+                    week.same_instructor
+                      ? 'Turn off to find a different instructor for each class (only while nobody is confirmed or being asked).'
+                      : 'Each class has its own instructor and its own request.'
+                  }
+                  checked={week.same_instructor}
+                  onChange={async (on) => {
+                    if (
+                      await confirm({
+                        title: on
+                          ? 'Use one instructor for the whole class week?'
+                          : 'Find a different instructor for each class?',
+                        body: on
+                          ? 'The classes are joined back into one class week with one request.'
+                          : 'Each class becomes its own class week with its own request and instructor.',
+                      })
+                    )
+                      await run(
+                        () =>
+                          rpc('set_week_same_instructor', {
+                            p_module_week_id: week.id,
+                            p_on: on,
+                          }),
+                        on
+                          ? 'One instructor for the whole week'
+                          : 'Each class has its own instructor',
+                      );
+                  }}
+                />
+              )}
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Move this and later class weeks by">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={-26}
+                      max={26}
+                      value={shiftN}
+                      onChange={(e) => setShiftN(Number(e.target.value))}
+                      className="w-20"
+                      aria-label="Number of weeks"
+                    />
+                    <span className="text-muted-foreground">weeks</span>
+                  </div>
+                </Field>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        title: `Move this and all later class weeks by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
+                        body: 'Classes keep their Pacific times. Confirmed instructors are asked to confirm the new dates, and requests are planned again.',
+                      })
+                    )
+                      await run(
+                        () =>
+                          rpc('shift_classes', {
+                            p_module_week_id: week.id,
+                            p_weeks: shiftN,
+                            p_include_later: true,
+                          }),
+                        'Dates moved',
+                      );
+                  }}
+                >
+                  Move dates
+                </Button>
+              </div>
+            </DrawerGroup>
+
+            <DrawerGroup
+              title="Add a help request"
+              description="For example, after an instructor asked for help on a phone call."
+            >
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {helpCategories.map((c) => (
+                  <Checkbox
+                    key={c.code}
+                    label={c.label}
+                    checked={help.cats.includes(c.code)}
+                    onChange={(v) =>
+                      setHelp({
+                        ...help,
+                        cats: v ? [...help.cats, c.code] : help.cats.filter((x) => x !== c.code),
+                      })
+                    }
+                  />
+                ))}
+              </div>
+              <Textarea
+                placeholder="Details"
+                aria-label="Details"
+                maxLength={1000}
+                value={help.details}
+                onChange={(e) => setHelp({ ...help, details: e.target.value })}
               />
-            ))}
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  aria-label="How soon"
+                  value={help.urgency}
+                  onChange={(e) => setHelp({ ...help, urgency: e.target.value })}
+                  className="w-56"
+                >
+                  <option value="NoRush">Before the class, no rush</option>
+                  <option value="Within24h">Within 24 hours</option>
+                  <option value="Urgent">Urgent</option>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={help.cats.length === 0}
+                  onClick={async () => {
+                    await run(
+                      () =>
+                        rpc('create_help_request', {
+                          p_module_week_id: week.id,
+                          p_categories: help.cats,
+                          p_details: help.details,
+                          p_urgency: help.urgency,
+                        }),
+                      'Help request added',
+                    );
+                    setHelp({ cats: [], details: '', urgency: 'NoRush' });
+                  }}
+                >
+                  Add help request
+                </Button>
+              </div>
+            </DrawerGroup>
           </div>
-          <Textarea
-            placeholder="Details"
-            aria-label="Details"
-            maxLength={1000}
-            value={help.details}
-            onChange={(e) => setHelp({ ...help, details: e.target.value })}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Select
-              aria-label="How soon"
-              value={help.urgency}
-              onChange={(e) => setHelp({ ...help, urgency: e.target.value })}
-              className="w-56"
-            >
-              <option value="NoRush">Before the class, no rush</option>
-              <option value="Within24h">Within 24 hours</option>
-              <option value="Urgent">Urgent</option>
-            </Select>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={help.cats.length === 0}
-              onClick={async () => {
-                await run(
-                  () =>
-                    rpc('create_help_request', {
-                      p_module_week_id: week.id,
-                      p_categories: help.cats,
-                      p_details: help.details,
-                      p_urgency: help.urgency,
-                    }),
-                  'Help request added',
-                );
-                setHelp({ cats: [], details: '', urgency: 'NoRush' });
-              }}
-            >
-              Add help request
-            </Button>
-          </div>
-        </DrawerGroup>
+        </details>
 
         <ErrorText error={err} />
 
