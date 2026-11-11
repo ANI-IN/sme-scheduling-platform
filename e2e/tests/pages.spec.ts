@@ -31,7 +31,7 @@ const PAGES = [
   ...guides,
 ];
 
-const MODULE_TABS = ['times', 'order', 'owners', 'operations', 'materials', 'next'];
+const MODULE_TABS = ['times', 'order', 'owners', 'operations', 'next'];
 
 async function firstModule() {
   const [m] = await sql<{ id: string }>(

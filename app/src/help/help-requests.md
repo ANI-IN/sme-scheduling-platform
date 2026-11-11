@@ -3,7 +3,7 @@ summary: When an instructor needs something, how it reaches you and how to answe
 order: 10
 ---
 
-Instructors can press **Need help** in a reminder before class. They choose what they need (for example the Zoom link or the class materials) and how urgent it is. Your reply always goes to their Discord channel (or a direct message) and by email.
+Instructors can press **Need help** in a reminder before class. They choose what they need (for example the Zoom link, or **Class materials or content**, which goes to the module owner) and how urgent it is. Your reply always goes to their Discord channel (or a direct message) and by email.
 
 ![A help request](/help/help-request.png)
 

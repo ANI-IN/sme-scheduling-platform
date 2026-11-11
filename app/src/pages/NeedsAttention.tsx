@@ -7,6 +7,7 @@ import { useDomain } from '@/lib/domain';
 import { useInstructors, useMe, useTeam, useWeeks, type AttentionItem } from '@/lib/data';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
+import { discordNames } from '@/lib/discordNames';
 import { messageTitle, plain, plainLabel } from '@/lib/plain';
 import { attentionTypeLabel, helpCategories, helpStatusLabel } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
@@ -451,7 +452,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                       : `${messageTitle(m.template_id)} to ${m.recipient_label} (${m.channel})`}
                   </strong>{' '}
                   · {fmtLocal(m.created_at)}
-                  <div className="whitespace-pre-line">{m.body_text}</div>
+                  <div className="whitespace-pre-line">{discordNames(m.body_text)}</div>
                 </li>
               ))}
             </ul>

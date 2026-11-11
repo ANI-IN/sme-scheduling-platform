@@ -33,7 +33,6 @@ const ROUTES = [
   'MODULE?tab=order',
   'MODULE?tab=owners',
   'MODULE?tab=operations',
-  'MODULE?tab=materials',
   'MODULE?tab=next',
   '/setup/instructors',
   '/setup/team',

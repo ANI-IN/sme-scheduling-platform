@@ -1,6 +1,7 @@
 // Plain-language layer for text that is written by the database (task titles, History actions,
 // error messages). The database keeps its wording; the app shows it in the team's words.
 // See docs/GLOSSARY.md.
+import { discordNames } from './discordNames';
 
 /** Names of the messages the system sends (template ids in the database). */
 export const messageName: Record<string, string> = {
@@ -96,7 +97,7 @@ const REPLACEMENTS: [RegExp, string][] = [
 /** Rewrite database text into the team's plain words (no dashes, glossary terms). */
 export function plain(text: string | null | undefined): string {
   if (!text) return '';
-  let s = text;
+  let s = discordNames(text);
   for (const [re, to] of REPLACEMENTS) s = s.replace(re, to as string);
   return s.replace(/\s{2,}/g, ' ').trim();
 }

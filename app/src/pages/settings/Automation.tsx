@@ -174,7 +174,7 @@ const ROUTE_LABEL: Record<string, string> = {
   Both: 'Both',
 };
 const CATEGORY_LABEL: Record<string, string> = {
-  materials: 'Class materials',
+  materials: 'Class materials or content',
   zoom: 'Zoom link or calendar invite',
   platform: 'Platform access',
   assignment: 'Assignment or test review',

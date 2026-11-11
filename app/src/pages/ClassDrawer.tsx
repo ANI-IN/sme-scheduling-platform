@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useNameBook, type WeekRow } from '@/lib/data';
+import { discordNames } from '@/lib/discordNames';
 import { messageTitle, plain } from '@/lib/plain';
 import { describeHistory } from '@/lib/historyText';
 import { fmtLocal } from '@/lib/time';
@@ -590,7 +591,9 @@ export function ClassDrawer({
                         {m.channel} · {fmtLocal(m.sent_at ?? m.created_at)}
                       </span>
                     </div>
-                    <div className="mt-1 whitespace-pre-line text-foreground">{m.body_text}</div>
+                    <div className="mt-1 whitespace-pre-line text-foreground">
+                      {discordNames(m.body_text)}
+                    </div>
                     {m.last_error && (
                       <div className="text-danger-strong">Problem: {plain(m.last_error)}</div>
                     )}

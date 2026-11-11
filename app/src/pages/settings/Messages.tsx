@@ -44,7 +44,7 @@ const DETAILS: Record<string, string> = {
   weekday: 'Weekday of the first class',
   deadline: 'When to reply by',
   reply_by: 'A "Please reply by" line, when there is a reply time',
-  materials: 'Links to the materials, when the module has any',
+  help: 'How to get help before class (Need help, or a reply to the module owners)',
   contact: 'Module owners',
   days: 'Days until the class',
   what: 'What was cancelled',

@@ -16,7 +16,7 @@ You set things up once: modules, instructors, your team and the timing. After th
 1. **Planned.** You plan classes for a cohort on the Upcoming classes page.
 2. **Setup check.** About 45 days before, the app checks the module has class times, an owner and instructors who can be asked.
 3. **Asking instructors.** About 30 days before, it asks the Primary instructor. If they say no or do not reply in time, it asks Backup 1, then Backup 2, one at a time.
-4. **Confirmed.** The first instructor who says Yes is confirmed. They get a confirmation with the class times and materials.
+4. **Confirmed.** The first instructor who says Yes is confirmed. They get a confirmation with the class times and how to get help before class.
 5. **Reminders before class.** The instructor gets reminders before the class and can say they are all set or ask for help.
 6. **Taught.** After the class, the class week is marked as completed.
 

@@ -45,7 +45,6 @@ export function useModuleWarnings(domainId: string | undefined) {
     if (active < minActive) w.push(`Needs ${minActive} instructors, has ${active}`);
     if (ranked[0] && ranked[0].status !== 'Active') w.push('Primary instructor is not in use');
     if (m.module_owner.length === 0) w.push('No owner');
-    if (m.module_resource.length === 0) w.push('No materials');
     return w;
   };
 }

@@ -48,8 +48,6 @@ begin
     if m.n = 1 then v_first := v_mod; end if;
     insert into public.module_owner (module_id, team_member_id) values (v_mod, p_me);
     insert into public.module_operations (module_id, team_member_id) values (v_mod, p_me);
-    insert into public.module_resource (module_id, title, url, include_in_confirmation, sort_order)
-    values (v_mod, m.name || ' materials', m.link, true, 1);
     -- US cohort (module default, Pacific): Saturday live class, Sunday assignment review.
     insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time, duration_minutes, sort_order)
     values (v_mod, 'Live class', '{module}: Live class', 0, '09:00', 180, 1),

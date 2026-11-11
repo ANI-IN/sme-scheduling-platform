@@ -1,3 +1,4 @@
+import { useDiscordNames } from '@/lib/useDiscordNames';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -101,6 +102,7 @@ const liveTables = [
 const COLLAPSE_KEY = 'ik-sidebar-collapsed';
 
 export function AppShell() {
+  useDiscordNames();
   const qc = useQueryClient();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);

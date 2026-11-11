@@ -2,7 +2,7 @@
 -- and instructor messages say how to get help instead of listing the materials.
 begin;
 \ir ../helpers/helpers.psql
-select plan(9);
+select plan(12);
 
 select tests.scenario('DMX', 'Live', '2027-01-31', 1) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'mw') as mw, (:'j'::jsonb ->> 'module') as mod,
@@ -30,6 +30,13 @@ select ok((select body_text like '%Need anything before class? Press Need help b
 select ok(not exists (select 1 from public.message where module_week_id = :'mw' and audience = 'Instructor'
                         and (body_text like '%Materials:%' or coalesce(body_html, '') like '%Materials:%')),
   'help 2. no instructor message lists the materials any more');
+
+select is(private.page_materials(:'mw'), '', 'help 3. the answer pages show no materials');
+delete from public.module_resource where module_id = :'mod';
+select ok(not exists (select 1 from jsonb_array_elements(private.readiness_problems(:'mw')) x where x ->> 'text' ilike '%material%'),
+  'help 4. the setup check does not ask for materials');
+select ok((select bool_and(x ->> 'body' not like '%{materials}%') from jsonb_each(private.template_defaults()) t(k, x)),
+  'help 5. no message template uses materials any more');
 
 -- The channel post fails for good: the team is told in plain words, the admin channel gets the technical error.
 update public.app_config set admin_discord_channel_id = '777000000000000099' where id = 1;

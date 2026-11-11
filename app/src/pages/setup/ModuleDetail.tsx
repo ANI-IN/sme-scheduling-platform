@@ -25,7 +25,7 @@ import {
   TabPanel,
   Tabs,
 } from '@/components/ui';
-import { PatternEditor, RankingEditor, Resources, WhoIsNext, type ModuleRow } from './moduleParts';
+import { PatternEditor, RankingEditor, WhoIsNext, type ModuleRow } from './moduleParts';
 import { MODULE_STATUS, useModuleWarnings } from './Modules';
 
 export const MODULE_TABS = [
@@ -34,7 +34,6 @@ export const MODULE_TABS = [
   { value: 'order', label: 'Instructor order' },
   { value: 'owners', label: 'Owners' },
   { value: 'operations', label: 'Operations team' },
-  { value: 'materials', label: 'Materials' },
   { value: 'next', label: 'Who we ask next' },
 ];
 
@@ -155,14 +154,6 @@ export default function ModuleDetail() {
         </TabPanel>
         <TabPanel value="operations">
           <OperationsTeam module={m} run={run} />
-        </TabPanel>
-        <TabPanel value="materials">
-          <Section
-            title="Materials"
-            description="Links sent to instructors in the confirmation and reminders, and shown when they ask for help."
-          >
-            <Resources module={m} run={run} />
-          </Section>
         </TabPanel>
         <TabPanel value="next">
           <Section

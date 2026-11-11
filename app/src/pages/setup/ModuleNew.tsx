@@ -20,7 +20,7 @@ import {
   Select,
 } from '@/components/ui';
 import { InstructorDrawer } from '../Instructors';
-import { PatternEditor, RankingEditor, Resources, dayLabel, type ModuleRow } from './moduleParts';
+import { PatternEditor, RankingEditor, dayLabel, type ModuleRow } from './moduleParts';
 import { Owners } from './ModuleDetail';
 
 const STEPS = [
@@ -28,7 +28,6 @@ const STEPS = [
   'Class times',
   'Instructor order',
   'Owners and operations team',
-  'Materials',
   'Review and save',
 ];
 
@@ -126,17 +125,9 @@ export default function ModuleNew() {
           {step === 2 && <OrderStep module={m} />}
           {step === 3 && <PeopleStep module={m} run={run} />}
           {step === 4 && (
-            <Section
-              title="Materials"
-              description="Links sent to instructors with the confirmation and reminders, and shown when they ask for help."
-            >
-              <Resources module={m} run={run} />
-            </Section>
-          )}
-          {step === 5 && (
             <Review module={m} onFinish={(active, another) => finish(active, another)} />
           )}
-          {step < 5 && (
+          {step < 4 && (
             <div className="mt-5 flex justify-between">
               <Button variant="secondary" onClick={() => setStep(step - 1)}>
                 Back
@@ -422,19 +413,6 @@ function Review({
               {!r.ok && <span className="text-muted-foreground">(required)</span>}
             </li>
           ))}
-          <li
-            className={cn(
-              'flex items-center gap-2',
-              m.module_resource.length ? 'text-success-strong' : 'text-warning-strong',
-            )}
-          >
-            {m.module_resource.length ? (
-              <CircleCheck className="h-4 w-4" aria-hidden />
-            ) : (
-              <CircleAlert className="h-4 w-4" aria-hidden />
-            )}
-            Materials {m.module_resource.length ? '' : '(recommended)'}
-          </li>
         </ul>
       </Section>
       <Section title="Summary">
@@ -468,7 +446,6 @@ function Review({
             'Owners',
             m.module_owner.map((o) => names.get(o.team_member_id)).join(', ') || 'None',
           )}
-          {row('Materials', m.module_resource.map((r) => r.title).join(', ') || 'None')}
         </dl>
       </Section>
       <Section
