@@ -79,7 +79,7 @@ select id as dm_id from public.message where unique_key like 'rf-dm:%' \gset
 select public.report_message_result(:'dm_id', false, null, 'Discord 403: 50007', true);
 select is((select count(*)::int from public.message where unique_key like 'rf-dm:%:fallback%' and channel = 'Email'), 1,
   'DIS-10 a team member whose direct message failed gets the same message by email');
-select ok((select detail like '%They get it by email instead.%' from public.attention_item where dedupe_key = 'msgfail:' || :'dm_id'),
+select ok((select detail like '% gets it by email instead.%' from public.attention_item where dedupe_key = 'msgfail:' || :'dm_id'),
   'DIS-10 the task says what really reached them');
 
 -- DIS-1: alerts with nowhere to post do not create failing posts.

@@ -136,7 +136,7 @@
         "authentication": "predefinedCredentialType",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ content: ('n8n error in \"' + $('Describe error').first().json.p_workflow + '\" (could not record it in the database): ' + $('Describe error').first().json.p_message + ($('Describe error').first().json.p_url ? '\\n' + $('Describe error').first().json.p_url : '')).slice(0, 2000), allowed_mentions: { parse: [] } }) }}",
+        "jsonBody": "={{ JSON.stringify({ content: ('n8n error in \"' + $('Describe error').first().json.p_workflow + '\" (could not record it in the database): ' + $('Describe error').first().json.p_message + ($('Describe error').first().json.p_url ? '\\n' + $('Describe error').first().json.p_url : '')).slice(0, 2000), allowed_mentions: { parse: [] }, flags: 4 }) }}",
         "options": {
           "timeout": 30000
         },

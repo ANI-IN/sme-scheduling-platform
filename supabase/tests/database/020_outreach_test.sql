@@ -76,8 +76,8 @@ select is(tests.booked(:'mw'), 'BE1 Instr3', 'booking created for the instructor
 select is((select count(*)::int from public.booking_slot s join public.booking b on b.id = s.booking_id where b.module_week_id = :'mw' and s.active), 2,
   'booking covers both classes of the module week');
 select is(tests.msgs(:'mw', 'M4'), 2, 'confirmation (M4) sent on both channels');
-select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email') like '%Materials:%',
-  'confirmation includes materials');
+select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email') like '%Need anything before class? Press Need help below%',
+  'confirmation says how to get help (it no longer lists the materials, decision 268)');
 select ok(tests.msgs(:'mw', 'T2') = 0 and tests.copies(:'mw', 'T2') >= 1
           and cardinality((select mention_user_ids from public.message where module_week_id = :'mw' and template_id = 'M4' and discord_channel_id is not null)) > 1,
   'owner tagged on confirmation in the instructor''s channel, plus their own copy (T2)');
