@@ -2,7 +2,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { useRemovePart } from '@/components/Lifecycle';
 import {
   DndContext,
   closestCenter,
@@ -74,12 +75,17 @@ export function PatternEditor({
           .order('name'),
       ),
   });
-  const [n, setN] = useState({
+  const blank = {
     class_type: 'Live class',
     day_offset: 0,
     start_time: '09:00',
     duration_minutes: 240,
-  });
+  };
+  const [n, setN] = useState(blank);
+  // Editing one class time fills the form below; saving changes it in place (decision 257).
+  const [editId, setEditId] = useState<string | null>(null);
+  const removePart = useRemovePart();
+  const qc = useQueryClient();
   const items = [...m.class_pattern_item]
     .filter((p) => (p.cohort_id ?? undefined) === cohortId)
     .sort((a, b) => a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time));
@@ -92,45 +98,69 @@ export function PatternEditor({
           minutes and Thursday 6:00 PM for 120 minutes.
         </p>
       ) : (
-        <table className="mb-4 w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className={th}>Class</th>
-              <th className={th}>Day</th>
-              <th className={th}>Starts (local time)</th>
-              <th className={th}>Length</th>
-              <th className={th}>
-                <span className="sr-only">Remove</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id} className="border-b border-border last:border-0">
-                <td className={td}>{p.class_type}</td>
-                <td className={td}>{dayLabel(p.day_offset)}</td>
-                <td className={td}>{time(p.start_time)}</td>
-                <td className={td}>{p.duration_minutes} minutes</td>
-                <td className={`${td} text-right`}>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Remove the ${p.class_type.toLowerCase()}`}
-                    onClick={() =>
-                      run(
-                        async () =>
-                          check(await supabase.from('class_pattern_item').delete().eq('id', p.id)),
-                        'Class removed',
-                      )
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </td>
+        <div className="mb-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className={th}>Class</th>
+                <th className={th}>Day</th>
+                <th className={th}>Starts (local time)</th>
+                <th className={th}>Length</th>
+                <th className={th}>
+                  <span className="sr-only">Remove</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((p) => (
+                <tr key={p.id} className="border-b border-border last:border-0">
+                  <td className={td}>{p.class_type}</td>
+                  <td className={td}>{dayLabel(p.day_offset)}</td>
+                  <td className={td}>{time(p.start_time)}</td>
+                  <td className={td}>{p.duration_minutes} minutes</td>
+                  <td className={`${td} text-right whitespace-nowrap`}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Edit the ${p.class_type.toLowerCase()}`}
+                      onClick={() => {
+                        setEditId(p.id);
+                        setN({
+                          class_type: p.class_type,
+                          day_offset: p.day_offset,
+                          start_time: p.start_time.slice(0, 5),
+                          duration_minutes: p.duration_minutes,
+                        });
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Remove the ${p.class_type.toLowerCase()}`}
+                      onClick={async () => {
+                        if (
+                          await removePart(
+                            `the ${p.class_type.toLowerCase()} on ${dayLabel(p.day_offset)}`,
+                            async () =>
+                              check(
+                                await supabase.from('class_pattern_item').delete().eq('id', p.id),
+                              ),
+                            'Class time removed. Classes already planned stay as they are.',
+                          )
+                        )
+                          await qc.invalidateQueries();
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Class type">
@@ -174,22 +204,43 @@ export function PatternEditor({
         </Field>
         <Button
           variant="secondary"
-          onClick={() =>
-            run(async () =>
-              check(
-                await supabase.from('class_pattern_item').insert({
-                  module_id: m.id,
-                  cohort_id: cohortId ?? null,
-                  ...n,
-                  title_template: '{module}: {class_type}',
-                  sort_order: items.length + 1,
-                }),
-              ),
-            )
-          }
+          onClick={async () => {
+            await run(
+              async () =>
+                editId
+                  ? check(
+                      await supabase.from('class_pattern_item').update(n).eq('id', editId).select(),
+                    )
+                  : check(
+                      await supabase.from('class_pattern_item').insert({
+                        module_id: m.id,
+                        cohort_id: cohortId ?? null,
+                        ...n,
+                        title_template: '{module}: {class_type}',
+                        sort_order: items.length + 1,
+                      }),
+                    ),
+              editId
+                ? 'Class time saved. Classes already planned stay as they are.'
+                : 'Class time added',
+            );
+            setEditId(null);
+            setN(blank);
+          }}
         >
-          Add class
+          {editId ? 'Save class time' : 'Add class'}
         </Button>
+        {editId && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setEditId(null);
+              setN(blank);
+            }}
+          >
+            Go back
+          </Button>
+        )}
       </div>
     </section>
   );

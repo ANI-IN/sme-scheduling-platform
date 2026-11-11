@@ -11,6 +11,7 @@ import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { PeoplePicker } from '@/components/PeoplePicker';
+import { ArchiveButton, DeleteButton, useRemovePart } from '@/components/Lifecycle';
 import { statusLabel, statusTone } from '@/components/AppShell';
 import {
   Badge,
@@ -51,7 +52,10 @@ export default function Domains() {
   });
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
+  const archivedCount = (domains.data ?? []).filter((d) => d.archived_at).length;
+  const shown = (domains.data ?? []).filter((d) => showArchived || !d.archived_at);
   const people = (d: string, role: string) =>
     (roles.data ?? [])
       .filter((r) => r.domain_id === d && r.role === role)
@@ -69,9 +73,18 @@ export default function Domains() {
           <Plus className="h-4 w-4" aria-hidden /> Create domain
         </Button>
       </PageHeader>
+      {archivedCount > 0 && (
+        <div className="mb-3">
+          <Checkbox
+            label={`Show archived domains (${archivedCount})`}
+            checked={showArchived}
+            onChange={setShowArchived}
+          />
+        </div>
+      )}
       {domains.isLoading ? (
         <SkeletonRows rows={3} />
-      ) : (domains.data ?? []).length === 0 ? (
+      ) : shown.length === 0 ? (
         <Empty
           title="No domains yet"
           icon={<Globe2 className="h-5 w-5" />}
@@ -90,7 +103,7 @@ export default function Domains() {
               </tr>
             </thead>
             <tbody>
-              {(domains.data ?? []).map((d) => (
+              {shown.map((d) => (
                 <tr key={d.id} className={trowClick} onClick={() => setOpen(d.id)}>
                   <td className={`${td} font-medium`}>
                     <button
@@ -105,7 +118,11 @@ export default function Domains() {
                     </button>
                   </td>
                   <td className={td}>
-                    <Badge tone={statusTone[d.status]}>{statusLabel[d.status]}</Badge>
+                    {d.archived_at ? (
+                      <Badge tone="neutral">Archived</Badge>
+                    ) : (
+                      <Badge tone={statusTone[d.status]}>{statusLabel[d.status]}</Badge>
+                    )}
                   </td>
                   <td className={td}>
                     {people(d.id, 'Escalation') || (
@@ -281,26 +298,38 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
     );
   }
 
+  const removePart = useRemovePart();
+  const who = (id: string) => (team.data ?? []).find((t) => t.id === id)?.name ?? 'this person';
+  const roleName = (r: string) => (r === 'Escalation' ? 'escalation contacts' : 'operations team');
   const role = (r: 'Escalation' | 'Operations') => ({
     onAdd: (id: string) =>
-      run(async () =>
-        check(
-          await supabase
-            .from('domain_team')
-            .insert({ domain_id: domain.id, team_member_id: id, role: r }),
-        ),
+      run(
+        async () =>
+          check(
+            await supabase
+              .from('domain_team')
+              .insert({ domain_id: domain.id, team_member_id: id, role: r }),
+          ),
+        `${who(id)} added to the ${roleName(r)}`,
       ),
-    onRemove: (id: string) =>
-      run(async () =>
-        check(
-          await supabase
-            .from('domain_team')
-            .delete()
-            .eq('domain_id', domain.id)
-            .eq('team_member_id', id)
-            .eq('role', r),
-        ),
-      ),
+    onRemove: async (id: string) => {
+      if (
+        await removePart(
+          `${who(id)} from the ${roleName(r)}`,
+          async () =>
+            check(
+              await supabase
+                .from('domain_team')
+                .delete()
+                .eq('domain_id', domain.id)
+                .eq('team_member_id', id)
+                .eq('role', r),
+            ),
+          `${who(id)} removed from the ${roleName(r)}`,
+        )
+      )
+        await qc.invalidateQueries();
+    },
   });
 
   return (
@@ -413,6 +442,24 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
         <ClassTypes domainId={domain.id} />
         <Holidays domainId={domain.id} domainName={domain.name} />
         <ErrorText error={err} />
+        <Section
+          title={domain.archived_at ? 'Archived' : 'Archive or delete'}
+          description={
+            domain.archived_at
+              ? 'This domain is archived: it is not in the domain menu, and nothing is sent for it. Restore it to use it again.'
+              : 'Archive hides the domain and stops its automation; you can restore it. Delete removes it and everything in it for good.'
+          }
+        >
+          <div className="flex flex-wrap gap-2">
+            <ArchiveButton
+              kind="domain"
+              id={domain.id}
+              name={domain.name}
+              archived={!!domain.archived_at}
+            />
+            <DeleteButton kind="domain" id={domain.id} onDeleted={onClose} />
+          </div>
+        </Section>
       </div>
     </Drawer>
   );
@@ -421,6 +468,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
 /** The kinds of class this domain teaches (used when adding class times and single classes). */
 function ClassTypes({ domainId }: { domainId: string }) {
   const qc = useQueryClient();
+  const removePart = useRemovePart();
   const types = useQuery({
     queryKey: ['class_type', domainId],
     queryFn: async () =>
@@ -453,14 +501,14 @@ function ClassTypes({ domainId }: { domainId: string }) {
               aria-label={`Remove ${t.name}`}
               className="text-muted-foreground hover:text-danger-strong"
               onClick={async () => {
-                setErr(null);
-                try {
-                  check(await supabase.from('class_type').delete().eq('id', t.id));
-                  toast.success('Class type removed');
+                if (
+                  await removePart(
+                    `the class type ${t.name}`,
+                    async () => check(await supabase.from('class_type').delete().eq('id', t.id)),
+                    'Class type removed',
+                  )
+                )
                   await refresh();
-                } catch (e) {
-                  setErr(e);
-                }
               }}
             >
               <X className="h-3.5 w-3.5" aria-hidden />
@@ -504,59 +552,169 @@ function ClassTypes({ domainId }: { domainId: string }) {
 /** Each cohort is taught in one region: US (US Pacific time) or India (India time). */
 function Cohorts({ domainId }: { domainId: string }) {
   const qc = useQueryClient();
-  const cohorts = useCohorts(domainId);
+  const cohorts = useCohorts(domainId, true);
   const [err, setErr] = useState<unknown>(null);
+  const [adding, setAdding] = useState({ name: '', region: 'US', start: '' });
+  const [touched, setTouched] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const refresh = () => qc.invalidateQueries({ queryKey: ['cohort'] });
+  const nameErr = !adding.name.trim()
+    ? 'Give the cohort a name, for example Weekend cohort.'
+    : undefined;
   return (
     <Section
       title="Cohorts and regions"
       description="New classes of a cohort are planned in its time zone. Changing the region does not move classes already planned; change one class under More options in its details."
     >
       {(cohorts.data ?? []).length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No cohorts yet. A cohort is created when you plan its classes.
-        </p>
+        <p className="mb-3 text-sm text-muted-foreground">No cohorts yet. Add one below.</p>
       ) : (
-        <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
+        <ul className="mb-4 space-y-2 text-sm">
           {(cohorts.data ?? []).map((c) => (
-            <li
-              key={c.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-1.5"
-            >
-              <span className="flex items-center gap-2">
-                <span className="font-medium">{c.name}</span>
-                <RegionBadge region={c.region} />
-              </span>
-              <Select
-                aria-label={`Region of ${c.name}`}
-                value={c.region}
-                className="h-8 w-48"
-                onChange={async (e) => {
-                  setErr(null);
-                  try {
-                    check(
-                      await supabase
-                        .from('cohort')
-                        .update({ region: e.target.value, version: c.version })
-                        .eq('id', c.id)
-                        .select()
-                        .single(),
-                    );
-                    toast.success(
-                      `${c.name} is now planned in ${e.target.value === 'India' ? 'India time' : 'US Pacific time'}`,
-                    );
-                    await qc.invalidateQueries({ queryKey: ['cohort'] });
-                  } catch (x) {
-                    setErr(x);
-                  }
-                }}
-              >
-                <option value="US">US Pacific time</option>
-                <option value="India">India time (IST)</option>
-              </Select>
+            <li key={c.id} className="rounded-md border border-border px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {editing?.id === c.id ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Input
+                      aria-label="Cohort name"
+                      value={editing.name}
+                      onChange={(e) => setEditing({ id: c.id, name: e.target.value })}
+                      className="h-8 w-48"
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!editing.name.trim()}
+                      onClick={async () => {
+                        setErr(null);
+                        try {
+                          check(
+                            await supabase
+                              .from('cohort')
+                              .update({ name: editing.name.trim(), version: c.version })
+                              .eq('id', c.id)
+                              .select()
+                              .single(),
+                          );
+                          toast.success(`Cohort renamed to ${editing.name.trim()}`);
+                          setEditing(null);
+                          await refresh();
+                        } catch (x) {
+                          setErr(x);
+                          toast.error('The cohort was not renamed');
+                        }
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                      Go back
+                    </Button>
+                  </span>
+                ) : (
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{c.name}</span>
+                    <RegionBadge region={c.region} />
+                    {c.archived_at && <Badge tone="neutral">Archived</Badge>}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditing({ id: c.id, name: c.name })}
+                    >
+                      Rename
+                    </Button>
+                  </span>
+                )}
+                <Select
+                  aria-label={`Region of ${c.name}`}
+                  value={c.region}
+                  className="h-8 w-48"
+                  onChange={async (e) => {
+                    setErr(null);
+                    try {
+                      check(
+                        await supabase
+                          .from('cohort')
+                          .update({ region: e.target.value, version: c.version })
+                          .eq('id', c.id)
+                          .select()
+                          .single(),
+                      );
+                      toast.success(
+                        `${c.name} is now planned in ${e.target.value === 'India' ? 'India time' : 'US Pacific time'}`,
+                      );
+                      await refresh();
+                    } catch (x) {
+                      setErr(x);
+                    }
+                  }}
+                >
+                  <option value="US">US Pacific time</option>
+                  <option value="India">India time (IST)</option>
+                </Select>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <ArchiveButton kind="cohort" id={c.id} name={c.name} archived={!!c.archived_at} />
+                <DeleteButton kind="cohort" id={c.id} />
+              </div>
             </li>
           ))}
         </ul>
       )}
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="New cohort" error={touched ? nameErr : undefined}>
+          <Input
+            value={adding.name}
+            onChange={(e) => setAdding({ ...adding, name: e.target.value })}
+            className="w-56"
+          />
+        </Field>
+        <Field label="Region">
+          <Select
+            aria-label="Region of the new cohort"
+            value={adding.region}
+            onChange={(e) => setAdding({ ...adding, region: e.target.value })}
+            className="w-48"
+          >
+            <option value="US">US Pacific time</option>
+            <option value="India">India time (IST)</option>
+          </Select>
+        </Field>
+        <Field label="Starts (optional)">
+          <DateInput
+            value={adding.start}
+            onChange={(start) => setAdding({ ...adding, start })}
+            className="w-56"
+          />
+        </Field>
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            setTouched(true);
+            if (nameErr) return;
+            setErr(null);
+            try {
+              check(
+                await supabase.from('cohort').insert({
+                  domain_id: domainId,
+                  name: adding.name.trim(),
+                  region: adding.region,
+                  start_date: adding.start || null,
+                }),
+              );
+              toast.success(`Cohort ${adding.name.trim()} added`);
+              setAdding({ name: '', region: adding.region, start: '' });
+              setTouched(false);
+              await refresh();
+            } catch (x) {
+              setErr(x);
+              toast.error('The cohort was not added');
+            }
+          }}
+        >
+          Add cohort
+        </Button>
+      </div>
       <ErrorText error={err} />
     </Section>
   );
@@ -565,6 +723,8 @@ function Cohorts({ domainId }: { domainId: string }) {
 /** Holidays for this domain, plus those that apply to every domain. Shown when planning. */
 function Holidays({ domainId, domainName }: { domainId: string; domainName: string }) {
   const qc = useQueryClient();
+  const removePart = useRemovePart();
+  const [editId, setEditId] = useState<string | null>(null);
   const holidays = useQuery({
     queryKey: ['holiday', domainId],
     queryFn: async () =>
@@ -606,22 +766,39 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
                   {x.domain_id ? `only ${domainName}` : 'every domain'}
                 </span>
               </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={async () => {
-                  setErr(null);
-                  try {
-                    check(await supabase.from('holiday').delete().eq('id', x.id));
-                    toast.success('Holiday removed');
-                    await refresh();
-                  } catch (e) {
-                    setErr(e);
-                  }
-                }}
-              >
-                Remove
-              </Button>
+              <span className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditId(x.id);
+                    setH({
+                      date: x.date,
+                      name: x.name,
+                      onlyHere: !!x.domain_id,
+                      region: x.region ?? '',
+                    });
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    if (
+                      await removePart(
+                        `the holiday ${x.name}`,
+                        async () => check(await supabase.from('holiday').delete().eq('id', x.id)),
+                        'Holiday removed',
+                      )
+                    )
+                      await refresh();
+                  }}
+                >
+                  Remove
+                </Button>
+              </span>
             </li>
           ))}
         </ul>
@@ -659,26 +836,40 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
             setTouched(true);
             if (errors.date || errors.name) return;
             setErr(null);
+            const row = {
+              date: h.date,
+              name: h.name.trim(),
+              domain_id: h.onlyHere ? domainId : null,
+              region: h.region || null,
+            };
             try {
-              check(
-                await supabase.from('holiday').insert({
-                  date: h.date,
-                  name: h.name.trim(),
-                  domain_id: h.onlyHere ? domainId : null,
-                  region: h.region || null,
-                }),
-              );
+              if (editId)
+                check(await supabase.from('holiday').update(row).eq('id', editId).select());
+              else check(await supabase.from('holiday').insert(row));
               setH({ date: '', name: '', onlyHere: h.onlyHere, region: h.region });
               setTouched(false);
-              toast.success('Holiday added');
+              toast.success(editId ? 'Holiday saved' : 'Holiday added');
+              setEditId(null);
               await refresh();
             } catch (e) {
               setErr(e);
+              toast.error(editId ? 'The holiday was not saved' : 'The holiday was not added');
             }
           }}
         >
-          Add holiday
+          {editId ? 'Save holiday' : 'Add holiday'}
         </Button>
+        {editId && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setEditId(null);
+              setH({ date: '', name: '', onlyHere: true, region: 'US' });
+            }}
+          >
+            Go back
+          </Button>
+        )}
       </div>
       <ErrorText error={err} />
     </Section>

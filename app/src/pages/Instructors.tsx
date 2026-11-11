@@ -14,6 +14,7 @@ import { cleanUsername, usernameProblem } from '@/lib/discord';
 import { ChannelPicker, DiscordStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
+import { DeleteButton } from '@/components/Lifecycle';
 import { useAuth } from '@/lib/auth';
 import {
   Badge,
@@ -417,7 +418,7 @@ export function InstructorDrawer({
       (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
   const refresh = () => qc.invalidateQueries();
 
-  async function save() {
+  async function save(another = false) {
     setErr(null);
     if (!v.submit() || dup) return;
     setSaving(true);
@@ -458,10 +459,26 @@ export function InstructorDrawer({
             : 'Instructor added',
       );
       await refresh();
+      if (another) {
+        // Save and add another: an empty form for the next person (decision 259).
+        setF({
+          full_name: '',
+          primary_email: '',
+          discord_username: '',
+          phone: '',
+          notes: '',
+          is_test: f.is_test,
+          monthly_class_limit: '',
+        });
+        setExtras([]);
+        v.reset();
+        return;
+      }
       onSaved?.(id!);
       onClose();
     } catch (e) {
       setErr(e);
+      toast.error(instructor ? 'The changes were not saved' : 'The instructor was not added');
     } finally {
       setSaving(false);
     }
@@ -517,6 +534,16 @@ export function InstructorDrawer({
           <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
             {instructor ? 'Save changes' : 'Add instructor'}
           </Button>
+          {!instructor && (
+            <Button
+              variant="secondary"
+              onClick={() => void save(true)}
+              loading={saving}
+              disabled={!!dup}
+            >
+              Save and add another
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
@@ -828,7 +855,7 @@ export function InstructorDrawer({
                     if (
                       await confirm({
                         title: `Archive ${instructor.full_name}?`,
-                        body: 'Instructors with history are archived, never deleted. They no longer appear in lists.',
+                        body: 'They are no longer asked and no longer appear in lists. You can start using them again at any time.',
                         danger: true,
                         confirmLabel: 'Archive',
                       })
@@ -839,6 +866,7 @@ export function InstructorDrawer({
                   Archive
                 </Button>
               )}
+              <DeleteButton kind="instructor" id={instructor.id} onDeleted={onClose} />
             </div>
           </Group>
         )}

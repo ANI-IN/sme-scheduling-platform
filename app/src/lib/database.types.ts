@@ -285,14 +285,14 @@ isOneToOne: false
                   ]
                 },"cohort": {
                   Row: {
-                    "created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -333,28 +333,28 @@ isOneToOne: false
                   ]
                 },"discord_server": {
                   Row: {
-                    "id": string,"name": string,"refreshed_at": string
+                    "archived_at": string | null,"id": string,"name": string,"refreshed_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "id": string,"name": string,"refreshed_at"?: string
+                    "archived_at"?: string | null,"id": string,"name": string,"refreshed_at"?: string
                   }
                   Update: {
-                    "id"?: string,"name"?: string,"refreshed_at"?: string
+                    "archived_at"?: string | null,"id"?: string,"name"?: string,"refreshed_at"?: string
                   }
                   Relationships: [
                     
                   ]
                 },"domain": {
                   Row: {
-                    "alert_discord_channel_id": string | null,"created_at": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                    "alert_discord_channel_id": string | null,"archived_at": string | null,"created_at": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "alert_discord_channel_id"?: string | null,"archived_at"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "alert_discord_channel_id"?: string | null,"archived_at"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -795,14 +795,14 @@ isOneToOne: false
                   ]
                 },"module_week": {
                   Row: {
-                    "at_risk": boolean,"at_risk_reason": string | null,"cohort": string,"cohort_id": string,"created_at": string,"domain_id": string,"first_class_at": string | null,"id": string,"last_class_end_at": string | null,"manual_end_behaviour": string,"module_id": string,"outreach_mode": string,"outreach_started_at": string | null,"owner_checkin_sent_at": string | null,"paused": boolean,"readiness_checked_at": string | null,"readiness_escalated_at": string | null,"readiness_problems": Json | null,"same_instructor": boolean,"seq": number,"split_group": string | null,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number,"week_start_date": string
+                    "archive_paused": boolean,"at_risk": boolean,"at_risk_reason": string | null,"cohort": string,"cohort_id": string,"created_at": string,"domain_id": string,"first_class_at": string | null,"id": string,"last_class_end_at": string | null,"manual_end_behaviour": string,"module_id": string,"outreach_mode": string,"outreach_started_at": string | null,"owner_checkin_sent_at": string | null,"paused": boolean,"readiness_checked_at": string | null,"readiness_escalated_at": string | null,"readiness_problems": Json | null,"same_instructor": boolean,"seq": number,"split_group": string | null,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number,"week_start_date": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id": string,"created_at"?: string,"domain_id": string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id": string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor": boolean,"seq"?: number,"split_group"?: string | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date": string
+                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id": string,"created_at"?: string,"domain_id": string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id": string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor": boolean,"seq"?: number,"split_group"?: string | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date": string
                   }
                   Update: {
-                    "at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id"?: string,"created_at"?: string,"domain_id"?: string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id"?: string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor"?: boolean,"seq"?: number,"split_group"?: string | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date"?: string
+                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id"?: string,"created_at"?: string,"domain_id"?: string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id"?: string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor"?: boolean,"seq"?: number,"split_group"?: string | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date"?: string
                   }
                   Relationships: [
                     {
@@ -1116,6 +1116,12 @@ isOneToOne: false
 "deactivate_instructor":
 { Args: { "p_decisions"?: Json,"p_instructor_id": string,"p_status"?: string }; Returns: Json
                            },
+"delete_item":
+{ Args: { "p_id": string,"p_kind": string,"p_typed_name"?: string }; Returns: Json
+                           },
+"delete_preview":
+{ Args: { "p_id": string,"p_kind": string }; Returns: Json
+                           },
 "discord_watchlist":
 { Args: Record<PropertyKey, never>; Returns: {
               "channel_id": string,"discord_user_id": string,"instructor_id": string,"last_message_id": string
@@ -1274,6 +1280,9 @@ isOneToOne: false
 "response_page_text":
 { Args: { "p_token": string }; Returns: string
                            },
+"restore_module_week":
+{ Args: { "p_module_week_id": string }; Returns: Json
+                           },
 "run_check_now":
 { Args: { "p_domain_id": string }; Returns: Json
                            },
@@ -1297,6 +1306,9 @@ isOneToOne: false
                            },
 "set_app_config":
 { Args: { "p_config": Json }; Returns: undefined
+                           },
+"set_archived":
+{ Args: { "p_archived": boolean,"p_id": string,"p_kind": string }; Returns: Json
                            },
 "set_checklist_item":
 { Args: { "p_done": boolean,"p_item_id": string }; Returns: undefined

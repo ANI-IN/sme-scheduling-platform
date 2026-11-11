@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronRight, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -7,6 +8,7 @@ import { useInstructors, useModules, useSettingsMap, useTeam } from '@/lib/data'
 import {
   Badge,
   Button,
+  Checkbox,
   Empty,
   ErrorText,
   Notice,
@@ -66,6 +68,10 @@ export default function Modules() {
   });
   const owners = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   const status = new Map((instructors.data ?? []).map((i) => [i.id, i]));
+  // Archived modules are listed only when asked for (decision 256).
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = (modules.data ?? []).filter((m) => m.status === 'Archived').length;
+  const shown = (modules.data ?? []).filter((m) => showArchived || m.status !== 'Archived');
 
   // One summary instead of the same warning on every module.
   const ranked = new Set(
@@ -107,11 +113,20 @@ export default function Modules() {
         </div>
       )}
       <ErrorText error={modules.error} />
+      {archivedCount > 0 && (
+        <div className="mb-3">
+          <Checkbox
+            label={`Show archived modules (${archivedCount})`}
+            checked={showArchived}
+            onChange={setShowArchived}
+          />
+        </div>
+      )}
       {!domain ? (
         <Empty title="No domain yet">Create a domain on the Domains page first.</Empty>
       ) : modules.isLoading ? (
         <SkeletonRows />
-      ) : (modules.data ?? []).length === 0 ? (
+      ) : shown.length === 0 ? (
         <Empty
           title="No modules yet"
           icon={<BookOpen className="h-5 w-5" />}
@@ -134,7 +149,7 @@ export default function Modules() {
               </tr>
             </thead>
             <tbody>
-              {modules.data!.map((m) => {
+              {shown.map((m) => {
                 const w = warnings(m);
                 const active = m.module_ranking.filter(
                   (r) => !r.cohort_id && status.get(r.instructor_id)?.status === 'Active',

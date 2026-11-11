@@ -133,7 +133,9 @@ export default function ModuleNew() {
               <Resources module={m} run={run} />
             </Section>
           )}
-          {step === 5 && <Review module={m} onFinish={(active) => finish(active)} />}
+          {step === 5 && (
+            <Review module={m} onFinish={(active, another) => finish(active, another)} />
+          )}
           {step < 5 && (
             <div className="mt-5 flex justify-between">
               <Button variant="secondary" onClick={() => setStep(step - 1)}>
@@ -147,7 +149,7 @@ export default function ModuleNew() {
     </div>
   );
 
-  async function finish(active: boolean) {
+  async function finish(active: boolean, another = false) {
     if (!m) return;
     if (active) {
       await run(
@@ -163,6 +165,13 @@ export default function ModuleNew() {
       );
     } else {
       toast.success('Module saved as not in use');
+    }
+    if (another) {
+      // Save and add another: start the wizard again for the next module (decision 259).
+      setModuleId(null);
+      setStep(0);
+      window.scrollTo({ top: 0 });
+      return;
     }
     navigate(`/setup/modules/${m.id}`);
   }
@@ -363,7 +372,7 @@ function Review({
   onFinish,
 }: {
   module: ModuleRow;
-  onFinish: (active: boolean) => void;
+  onFinish: (active: boolean, another?: boolean) => void;
 }) {
   const team = useTeam();
   const instructors = useInstructors();
@@ -489,6 +498,9 @@ function Review({
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={() => onFinish(false)}>
           Save as not in use
+        </Button>
+        <Button variant="secondary" disabled={!ready} onClick={() => onFinish(true, true)}>
+          Save and add another
         </Button>
         <Button disabled={!ready} onClick={() => onFinish(true)}>
           Save and start using

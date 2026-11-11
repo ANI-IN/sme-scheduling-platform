@@ -13,6 +13,7 @@ import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/co
 import { weekState } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
+import { DeleteButton } from '@/components/Lifecycle';
 import { useDomain } from '@/lib/domain';
 import { AddClassDialog } from './AddClassDialog';
 import {
@@ -613,34 +614,54 @@ export function ClassDrawer({
           )}
         </DrawerGroup>
 
-        <DrawerGroup title="Cancel this class week" tone="danger">
+        <DrawerGroup
+          title={week.status === 'Cancelled' ? 'Cancelled' : 'Cancel or delete this class week'}
+          tone="danger"
+        >
           <p className="text-muted-foreground">
-            Open requests are withdrawn politely, and a confirmed instructor is told that the class
-            is cancelled. This cannot be undone.
+            {week.status === 'Cancelled'
+              ? 'This class week is cancelled. Restore it to plan its classes still to come again; the automation then asks for an instructor as for any new class week.'
+              : 'Cancel: open requests are withdrawn politely, and a confirmed instructor is told that the class is cancelled. You can restore it later. Delete removes it for good, after doing the same.'}
           </p>
-          <div>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={week.status === 'Cancelled'}
-              onClick={async () => {
-                if (
-                  await confirm({
-                    title: 'Cancel this whole class week?',
-                    body: 'Open requests are withdrawn politely, and a confirmed instructor is told that the class is cancelled. This cannot be undone.',
-                    danger: true,
-                    confirmLabel: 'Cancel the class week',
-                    cancelLabel: 'Keep the class week',
-                  })
-                )
-                  await run(
-                    () => rpc('cancel_module_week', { p_module_week_id: week.id }),
-                    'Class week cancelled',
-                  );
-              }}
-            >
-              Cancel class week
-            </Button>
+          <div className="flex flex-wrap gap-2">
+            {week.status === 'Cancelled' ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  run(
+                    () => rpc('restore_module_week', { p_module_week_id: week.id }),
+                    'Class week restored',
+                  )
+                }
+              >
+                Restore class week
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={week.status === 'Completed'}
+                onClick={async () => {
+                  if (
+                    await confirm({
+                      title: 'Cancel this whole class week?',
+                      body: 'Open requests are withdrawn politely, and a confirmed instructor is told that the class is cancelled. You can restore it later, but they are not told again.',
+                      danger: true,
+                      confirmLabel: 'Cancel the class week',
+                      cancelLabel: 'Keep the class week',
+                    })
+                  )
+                    await run(
+                      () => rpc('cancel_module_week', { p_module_week_id: week.id }),
+                      'Class week cancelled',
+                    );
+                }}
+              >
+                Cancel class week
+              </Button>
+            )}
+            <DeleteButton kind="class_week" id={week.id} onDeleted={onClose} />
           </div>
         </DrawerGroup>
       </div>

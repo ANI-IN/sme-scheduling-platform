@@ -48,9 +48,10 @@ export const useInstructors = () =>
       ),
   });
 
-export const useCohorts = (domainId: string | undefined) =>
+/** A domain's cohorts. Archived ones are left out unless asked for (the domain page lists them). */
+export const useCohorts = (domainId: string | undefined, withArchived = false) =>
   useQuery({
-    queryKey: ['cohort', domainId],
+    queryKey: ['cohort', domainId, withArchived],
     enabled: !!domainId,
     queryFn: async () =>
       check(
@@ -60,7 +61,7 @@ export const useCohorts = (domainId: string | undefined) =>
           .eq('domain_id', domainId!)
           .order('start_date', { ascending: false, nullsFirst: false })
           .order('name'),
-      ),
+      ).filter((c) => withArchived || !c.archived_at),
   });
 
 export const useModules = (domainId: string | undefined) =>

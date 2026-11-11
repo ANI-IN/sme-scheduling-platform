@@ -39,7 +39,7 @@ const PAGE = 100;
 export default function History() {
   const { domain } = useDomain();
   const modules = useModules(domain?.id);
-  const cohorts = useCohorts(domain?.id);
+  const cohorts = useCohorts(domain?.id, true);
   const [limit, setLimit] = useState(PAGE);
   const instructors = useInstructors();
   const team = useTeam();

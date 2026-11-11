@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { BellRing, Users } from 'lucide-react';
+import { BellRing, Plus, Users } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useConfirm } from '@/components/Confirm';
+import { DeleteButton } from '@/components/Lifecycle';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useTeam, type TeamMember } from '@/lib/data';
@@ -47,14 +48,22 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        description="Everyone who uses SME Scheduling. People appear here after they sign in for the first time with their company Google account. Module owners, the operations team and escalation contacts are chosen from this list."
-      />
+        description="Everyone who uses SME Scheduling. Add people here, or they appear after they sign in for the first time with their company Google account. Module owners, the operations team and escalation contacts are chosen from this list."
+      >
+        <Button onClick={() => setEditing('new')}>
+          <Plus className="h-4 w-4" aria-hidden /> Add team member
+        </Button>
+      </PageHeader>
       <ErrorText error={error} />
       {isLoading ? (
         <SkeletonRows />
       ) : (data ?? []).length === 0 ? (
-        <Empty title="No team members yet" icon={<Users className="h-5 w-5" />}>
-          Ask your colleagues to sign in once with their company Google account.
+        <Empty
+          title="No team members yet"
+          icon={<Users className="h-5 w-5" />}
+          action={<Button onClick={() => setEditing('new')}>Add team member</Button>}
+        >
+          Add them here, or ask your colleagues to sign in once with their company Google account.
         </Empty>
       ) : (
         <div className={tableWrap}>
@@ -154,7 +163,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
     discord_username: usernameProblem(f.discord_username),
   });
 
-  async function save() {
+  async function save(another = false) {
     setErr(null);
     if (!v.submit()) return;
     setSaving(true);
@@ -176,11 +185,18 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
       } else {
         check(await supabase.from('team_member').insert(row));
       }
-      toast.success(member ? 'Changes saved' : 'Team member added');
+      toast.success(member ? 'Changes saved' : `${row.name} added`);
       await qc.invalidateQueries();
+      if (another) {
+        // Save and add another: an empty form for the next person (decision 259).
+        setF({ ...f, name: '', email: '', discord_username: '', job_title: '' });
+        v.reset();
+        return;
+      }
       onClose();
     } catch (e) {
       setErr(e);
+      toast.error(member ? 'The changes were not saved' : 'The team member was not added');
     } finally {
       setSaving(false);
     }
@@ -201,6 +217,11 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
           <Button onClick={() => void save()} loading={saving}>
             {member ? 'Save changes' : 'Add team member'}
           </Button>
+          {!member && (
+            <Button variant="secondary" onClick={() => void save(true)} loading={saving}>
+              Save and add another
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
@@ -309,6 +330,16 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
         />
         <ErrorText error={err} />
         {member && <AccessSection member={member} onDone={onClose} />}
+        {member && !member.access_removed_at && (
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <div className="text-sm font-semibold">Delete</div>
+            <p className="text-sm text-muted-foreground">
+              Deletes this person and their roles for good. To keep them from signing in again,
+              remove their access instead.
+            </p>
+            <DeleteButton kind="team_member" id={member.id} onDeleted={onClose} />
+          </div>
+        )}
       </div>
     </Drawer>
   );

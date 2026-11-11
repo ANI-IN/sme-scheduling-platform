@@ -18,7 +18,8 @@ export function DomainProvider({ children }: { children: ReactNode }) {
   const { data } = useDomains();
   const [id, setId] = useState<string | null>(readSaved);
   const value = useMemo<DomainCtx>(() => {
-    const domains = data ?? [];
+    // Archived domains are not in the domain menu (Setup, Domains still lists them).
+    const domains = (data ?? []).filter((d) => !d.archived_at);
     const domain = domains.find((d) => d.id === id) ?? domains[0] ?? null;
     return {
       domain,

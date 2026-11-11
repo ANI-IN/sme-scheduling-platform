@@ -8,8 +8,8 @@ import { useDomain } from '@/lib/domain';
 import { useCohorts, useModules, useTeam } from '@/lib/data';
 import { LastChanged } from '@/components/LastChanged';
 import { useFormErrors } from '@/lib/useFormErrors';
-import { useConfirm } from '@/components/Confirm';
 import { PeoplePicker } from '@/components/PeoplePicker';
+import { ArchiveButton, DeleteButton, useRemovePart } from '@/components/Lifecycle';
 import {
   Badge,
   Button,
@@ -180,7 +180,6 @@ export default function ModuleDetail() {
 type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
 function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
-  const confirm = useConfirm();
   const navigate = useNavigate();
   const [f, setF] = useState({
     name: m.name,
@@ -273,48 +272,28 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
           <LastChanged at={m.updated_at} by={m.updated_by} />
         </div>
       </Section>
-      {m.status !== 'Archived' && (
-        <Section
-          tone="danger"
-          title="Archive this module"
-          description="Modules with past classes are archived, never deleted. It stops being used for new plans and requests."
-        >
-          <Button
-            variant="destructive"
-            onClick={async () => {
-              if (
-                await confirm({
-                  title: `Archive ${m.name}?`,
-                  body: 'It will no longer be planned or used for instructor requests. Its history stays.',
-                  danger: true,
-                  confirmLabel: 'Archive module',
-                })
-              ) {
-                await run(
-                  async () =>
-                    check(
-                      await supabase
-                        .from('module')
-                        .update({ status: 'Archived', version: m.version })
-                        .eq('id', m.id)
-                        .select(),
-                    ),
-                  'Module archived',
-                );
-                navigate('/setup/modules');
-              }
-            }}
-          >
-            Archive module
-          </Button>
-        </Section>
-      )}
+      <Section
+        title={m.status === 'Archived' ? 'Archived' : 'Archive or delete'}
+        description={
+          m.status === 'Archived'
+            ? 'This module is archived: it is not planned, and its class weeks are paused. Restore it to use it again.'
+            : 'Archive stops using the module and pauses its class weeks; you can restore it. Delete removes it, its class times and its class weeks for good.'
+        }
+      >
+        <div className="flex flex-wrap gap-2">
+          <ArchiveButton kind="module" id={m.id} name={m.name} archived={m.status === 'Archived'} />
+          <DeleteButton kind="module" id={m.id} onDeleted={() => navigate('/setup/modules')} />
+        </div>
+      </Section>
     </div>
   );
 }
 
 export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
   const team = useTeam();
+  const qc = useQueryClient();
+  const removePart = useRemovePart();
+  const who = (id: string) => (team.data ?? []).find((t) => t.id === id)?.name ?? 'this person';
   return (
     <Section
       title="Owners"
@@ -334,19 +313,23 @@ export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
             'Owner added',
           )
         }
-        onRemove={(id) =>
-          run(
-            async () =>
-              check(
-                await supabase
-                  .from('module_owner')
-                  .delete()
-                  .eq('module_id', m.id)
-                  .eq('team_member_id', id),
-              ),
-            'Owner removed',
+        onRemove={async (id) => {
+          if (
+            await removePart(
+              `${who(id)} as an owner`,
+              async () =>
+                check(
+                  await supabase
+                    .from('module_owner')
+                    .delete()
+                    .eq('module_id', m.id)
+                    .eq('team_member_id', id),
+                ),
+              'Owner removed',
+            )
           )
-        }
+            await qc.invalidateQueries();
+        }}
       />
     </Section>
   );
@@ -392,6 +375,8 @@ function ForCohort({
 /** Operations team for the module, and for a cohort when it differs. Empty means the domain default. */
 function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
   const team = useTeam();
+  const qc = useQueryClient();
+  const removePart = useRemovePart();
   const cohorts = useCohorts(m.domain_id);
   const rows = useQuery({
     queryKey: ['module_operations', m.id],
@@ -436,17 +421,24 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
           'Added to the operations team',
         )
       }
-      onRemove={(id) =>
-        run(async () => {
-          let q = supabase
-            .from('module_operations')
-            .delete()
-            .eq('module_id', m.id)
-            .eq('team_member_id', id);
-          q = cohortId ? q.eq('cohort_id', cohortId) : q.is('cohort_id', null);
-          check(await q);
-        }, 'Removed from the operations team')
-      }
+      onRemove={async (id) => {
+        if (
+          await removePart(
+            `${names.get(id) ?? 'this person'} from the operations team`,
+            async () => {
+              let q = supabase
+                .from('module_operations')
+                .delete()
+                .eq('module_id', m.id)
+                .eq('team_member_id', id);
+              q = cohortId ? q.eq('cohort_id', cohortId) : q.is('cohort_id', null);
+              check(await q);
+            },
+            'Removed from the operations team',
+          )
+        )
+          await qc.invalidateQueries();
+      }}
     />
   );
   return (

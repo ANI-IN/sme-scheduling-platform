@@ -9,7 +9,9 @@ import { loadDemoData, ready, sql, test } from './fixtures.ts';
 const CONTROLS =
   'button, [role="tab"], [role="switch"], [role="checkbox"], [role="menuitem"], [role="menuitemradio"], summary, input[type="checkbox"], select, a[href^="/"]';
 /** Never clicked: these end the session or need typed confirmation by design. */
-const SKIP = /sign out|reset sandbox data/i;
+// Archive, restore and delete change the test data for every later page; the scenario tests cover them
+// (decision 260).
+const SKIP = /sign out|reset sandbox data|^archive$|^restore$|delete permanently|restore class week/i;
 /** Set E2E_VERBOSE=1 to print each click with the time it took. */
 const verbose = process.env.E2E_VERBOSE === '1';
 let last = Date.now();
