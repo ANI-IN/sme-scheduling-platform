@@ -1,40 +1,45 @@
-// Runs the end to end tests on known data, then puts your local data back.
+// Runs the end to end tests in their own local stack (decision 250), never on the app database.
 //
-//   npm run e2e                     every project
-//   npm run e2e -- --project=scenarios
+//   npm run e2e                                   every project
+//   npm run e2e -- --project=scenarios            Playwright options after --
+//   npm run e2e -- --keep --project=scenarios     keep the test stack running afterwards (faster reruns)
 //
-// On a developer machine: saves the local app data, loads the Sandbox starting data plus a few
-// confirmed and asked class weeks, runs Playwright, and restores the saved data (even when tests fail).
-// In CI (CI=true) there is nothing to keep, so it only loads the data and runs the tests.
+// It starts the test stack (scripts/src/test-stack.ts, ports 5552x) or empties it if it is running, loads
+// the test data, runs Playwright against an app server on port 5174 that talks to the test stack, and
+// stops the test stack and deletes its data at the end (unless --keep).
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+import { down, keys, TEST_APP_URL, TEST_DB_URL, up } from './test-stack.ts';
 
 const ROOT = join(import.meta.dirname, '..', '..');
-const ci = !!process.env.CI;
-const run = (cmd: string, args: string[], cwd = ROOT, env: Record<string, string> = {}) =>
-  spawnSync(cmd, args, {
-    cwd,
-    stdio: 'inherit',
-    shell: false,
-    env: { ...process.env, E2E_WRAPPED: '1', ...env },
-  }).status ?? 1;
-const demo = (step: string) =>
-  run(
-    process.execPath,
-    [join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), 'src/demo-data.ts', step],
-    join(ROOT, 'scripts'),
-  );
+const all = process.argv.slice(2);
+const keep = all.includes('--keep') || process.env.E2E_KEEP_STACK === '1';
+const args = all.filter((a) => a !== '--keep');
 
-if (!ci && demo('snapshot') !== 0) process.exit(1);
-const playwright = (args: string[], phase = '') =>
+up();
+const k = keys();
+const env = {
+  ...process.env,
+  E2E_WRAPPED: '1',
+  DATABASE_URL: TEST_DB_URL,
+  E2E_APP_URL: TEST_APP_URL,
+  E2E_SUPABASE_KEYS: JSON.stringify(k),
+};
+const run = (cmd: string, a: string[], cwd = ROOT, extra: Record<string, string> = {}) =>
+  spawnSync(cmd, a, { cwd, stdio: 'inherit', shell: false, env: { ...env, ...extra } }).status ?? 1;
+const playwright = (a: string[], phase = '') =>
   run(
     process.execPath,
-    [join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js'), 'test', ...args],
+    [join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js'), 'test', ...a],
     join(ROOT, 'e2e'),
     phase ? { E2E_PHASE: phase } : {},
   );
-const args = process.argv.slice(2);
-let status = demo('load');
+
+let status = run(
+  process.execPath,
+  [join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), 'src/demo-data.ts', 'load'],
+  join(ROOT, 'scripts'),
+);
 if (status === 0) {
   if (args.length > 0) {
     status = playwright(args);
@@ -53,5 +58,5 @@ if (status === 0) {
     status = status || rest;
   }
 }
-if (!ci && demo('restore') !== 0) status = status || 1;
+if (!keep) down();
 process.exit(status);

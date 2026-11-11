@@ -98,11 +98,11 @@ export async function noDashes(page: Page, label: string) {
   expect.soft(text, `${label}: dashes in user facing text`).toEqual([]);
 }
 
-/** Test data replaces the local data, so only `npm run e2e` (which saves and restores it) may load it. */
+/** Only `npm run e2e` starts the separate test stack the tests use, so only it may run them. */
 export function requireWrapper() {
   if (!process.env.CI && process.env.E2E_WRAPPED !== '1')
     throw new Error(
-      'Run the end to end tests with "npm run e2e" (add -- and Playwright options after it). It saves your local data first and puts it back afterwards.',
+      'Run the end to end tests with "npm run e2e" (add -- and Playwright options after it). It starts the separate test stack they use, so your own data is never touched.',
     );
 }
 

@@ -22,7 +22,8 @@
     "help-shots": "tsx src/help-screenshots.ts",
     "n8n-export": "tsx src/n8n-export.ts",
     "integration:sandbox": "tsx --env-file=../.env.sandbox src/integration-sandbox.ts",
-    "integration:rehearse": "tsx src/integration-sandbox.ts --rehearse"
+    "integration:rehearse": "tsx src/test-stack.ts up && tsx src/demo-data.ts load && (tsx src/integration-sandbox.ts --rehearse; s=$?; tsx src/test-stack.ts down; exit $s)",
+    "test-stack": "tsx src/test-stack.ts"
   },
   "dependencies": {
     "pg": "^8.23.1"

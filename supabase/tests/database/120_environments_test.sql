@@ -1,7 +1,7 @@
--- Release Milestone 7: Sandbox and Production rules, Sandbox starting data and reset.
+-- Release Milestone 7: Sandbox and Production rules, and the Sandbox reset (to empty since decision 251).
 begin;
 \ir ../helpers/helpers.psql
-select plan(22);
+select plan(23);
 
 select tests.scenario('EV', 'Live', '2027-01-31', 1) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'i1') as i1 \gset
@@ -61,16 +61,21 @@ insert into public.team_member (name, email) select 'EV Ops', 'ops@example.com'
   where not exists (select 1 from public.team_member where email = 'ops@example.com');
 select tests.login_google('ops@example.com');
 select throws_ok($$ select public.reset_sandbox_data('yes') $$, '22023', null, 'resetting needs RESET typed');
-select public.reset_sandbox_data('RESET', 'me@allowed.test', '333333333333333333') as reset \gset
+insert into public.team_member (name, email, is_placeholder) values ('EV Placeholder', 'ev.placeholder@example.com', true);
+select public.reset_sandbox_data('RESET') as reset \gset
 select tests.as_postgres();
-select is((select string_agg(name, ', ' order by name) from public.domain), 'Backend, Fullstack', 'Sandbox has Backend and Fullstack');
-select is((select count(*)::int from public.cohort where status = 'Running'), 4, 'with a weekend and a weekday cohort each, running at the same time');
-select is((select count(distinct discord_user_id)::int from public.instructor where is_test), 1,
-  'test instructors share one Discord user ID and use plus addresses of one mailbox');
+select is(:'reset'::jsonb, '{"emptied": true}'::jsonb, 'a reset says the Sandbox was emptied');
+select is((select count(*)::int from public.domain) + (select count(*)::int from public.cohort)
+          + (select count(*)::int from public.module) + (select count(*)::int from public.module_week),
+  0, 'a reset leaves no domains, cohorts, modules or classes: no practice data is loaded');
+select is((select count(*)::int from public.instructor) + (select count(*)::int from public.holiday), 0,
+  'and no instructors, test instructors or holidays');
 select ok(not exists (select id from hist_before except select id from public.history_event),
   'Activity history is kept, never deleted: every row from before the reset is still there');
 select ok(exists (select 1 from public.team_member where email = 'ops@example.com' and not is_placeholder),
   'real team members keep their access after a reset');
+select ok(not exists (select 1 from public.team_member where email = 'ev.placeholder@example.com'),
+  'placeholder team members are removed');
 update public.app_config set environment = 'Production' where id = 1;
 select tests.login_google('ops@example.com');
 select throws_ok($$ select public.reset_sandbox_data('RESET') $$, '42501', null, 'Production data can never be reset');

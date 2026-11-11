@@ -28,17 +28,29 @@ export function chromePath(): string | undefined {
   return undefined;
 }
 
-export function localKeys(): { api: string; secret: string } {
+/** Address and keys of the separate test stack (scripts/src/test-stack.ts), never the app database. */
+export function localKeys(): { api: string; secret: string; publishable: string } {
   const out = execFileSync(
     'node',
-    [join(ROOT, 'node_modules', 'supabase', 'dist', 'supabase.js'), 'status', '-o', 'json'],
+    [
+      join(ROOT, 'node_modules', 'supabase', 'dist', 'supabase.js'),
+      'status',
+      '-o',
+      'json',
+      '--workdir',
+      join(ROOT, '.test-stack'),
+    ],
     {
       cwd: ROOT,
       encoding: 'utf8',
     },
   );
   const j = JSON.parse(out.slice(out.indexOf('{'))) as Record<string, string>;
-  return { api: j.API_URL!, secret: j.SECRET_KEY ?? j.SERVICE_ROLE_KEY! };
+  return {
+    api: j.API_URL!,
+    secret: j.SECRET_KEY ?? j.SERVICE_ROLE_KEY!,
+    publishable: j.PUBLISHABLE_KEY ?? j.ANON_KEY!,
+  };
 }
 
 export async function signInLink(

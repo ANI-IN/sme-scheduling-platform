@@ -1,9 +1,10 @@
 // Pictures for the in app Help guides (app/public/help/*.png), light theme, desktop width, with
-// numbered markers and highlight boxes. Run through `npm run help:screenshots` (it loads demo data
-// first and puts the local data back afterwards). Needs the local stack and the app on :5173.
+// numbered markers and highlight boxes. Run through `npm run help:screenshots`: it starts the separate
+// test stack, loads the test data, starts an app server on :5174 for it, and removes the stack afterwards.
 //
 //   npm run help:screenshots            # every picture
 //   npm run help-shots -w scripts -- plan   # only pictures whose name starts with "plan"
+import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Locator, type Page } from 'playwright';
@@ -12,9 +13,10 @@ import { chromePath, localKeys, signInLink } from './browser.ts';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const OUT = join(ROOT, 'app', 'public', 'help');
-const APP = process.env.APP_URL ?? 'http://localhost:5173';
+const APP = process.env.APP_URL ?? 'http://localhost:5174';
 const EMAIL = process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com';
-const DB = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
+const DB =
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55522/postgres';
 
 type Mark = (p: Page) => Locator;
 type Pic = {
@@ -294,8 +296,47 @@ async function drawMarks(page: Page, marks: Mark[]) {
 async function main() {
   const only = process.argv.slice(2);
   const pics = only.length ? PICS.filter((p) => only.some((o) => p.file.startsWith(o))) : PICS;
-  const { api, secret } = localKeys();
+  const { api, secret, publishable } = localKeys();
   mkdirSync(OUT, { recursive: true });
+  // An app server for the test stack, unless one is already running on the test port.
+  const up = await fetch(APP).then(
+    () => true,
+    () => false,
+  );
+  const vite = up
+    ? undefined
+    : spawn(
+        process.execPath,
+        [
+          join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'),
+          join(ROOT, 'app'),
+          '--config',
+          join(ROOT, 'app', 'vite.config.ts'),
+          '--port',
+          new URL(APP).port,
+          '--strictPort',
+        ],
+        {
+          stdio: 'ignore',
+          env: {
+            ...process.env,
+            VITE_SUPABASE_URL: api,
+            VITE_SUPABASE_PUBLISHABLE_KEY: publishable,
+            VITE_ALLOWED_EMAIL_DOMAIN: 'example.com',
+            VITE_ENABLE_DEV_LOGIN: 'false',
+          },
+        },
+      );
+  for (let n = 0; vite && n < 60; n++) {
+    if (
+      await fetch(APP).then(
+        () => true,
+        () => false,
+      )
+    )
+      break;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
   const browser = await chromium
     .launch()
     .catch(() => chromium.launch({ executablePath: chromePath() }));
@@ -334,6 +375,7 @@ async function main() {
     }
   }
   await browser.close();
+  vite?.kill();
 }
 
 main().catch((e) => {

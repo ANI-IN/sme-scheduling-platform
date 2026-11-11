@@ -57,7 +57,7 @@ export default defineConfig({
   ],
   webServer: {
     command:
-      'node ../node_modules/vite/bin/vite.js ../app --config ../app/vite.config.ts --port 5173 --strictPort',
+      'node ../node_modules/vite/bin/vite.js ../app --config ../app/vite.config.ts --port 5174 --strictPort',
     url: APP,
     reuseExistingServer: true,
     timeout: 120_000,

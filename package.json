@@ -11,7 +11,7 @@
     "db:start": "node node_modules/supabase/dist/supabase.js start",
     "db:stop": "node node_modules/supabase/dist/supabase.js stop",
     "db:reset": "node node_modules/supabase/dist/supabase.js db reset",
-    "db:test": "node node_modules/supabase/dist/supabase.js test db",
+    "db:test": "npm run db:test:scratch -w scripts",
     "db:login": "node node_modules/supabase/dist/supabase.js login",
     "db:link": "node node_modules/supabase/dist/supabase.js link --project-ref",
     "db:push": "node node_modules/supabase/dist/supabase.js db push",
@@ -23,7 +23,7 @@
     "format:check": "prettier --check .",
     "mock": "npm run mock -w scripts --",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run check-build -w scripts",
-    "help:screenshots": "npm run demo -w scripts -- snapshot && npm run demo -w scripts -- load && (npm run help-shots -w scripts; s=$?; npm run demo -w scripts -- restore; exit $s)",
+    "help:screenshots": "npm run test-stack -w scripts -- up && npm run demo -w scripts -- load && (npm run help-shots -w scripts; s=$?; npm run test-stack -w scripts -- down; exit $s)",
     "e2e": "tsx scripts/src/e2e-run.ts"
   },
   "devDependencies": {

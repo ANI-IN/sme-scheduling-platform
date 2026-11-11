@@ -47,14 +47,16 @@ export default function Home() {
     queryKey: ['domain', 'setup-status', domain?.id],
     enabled: !!domain,
     queryFn: async () =>
-      (await rpc('domain_setup_status', { p_domain_id: domain!.id })) as unknown as {
-        key: string;
-        label: string;
-        link: string;
-        done: boolean;
-      }[],
+      (await rpc('domain_setup_status', { p_domain_id: domain!.id })) as unknown as Step[],
   });
   const missing = (setup.data ?? []).filter((x) => !x.done);
+  // The app starts empty (decision 251): the first steps for the whole app, until every one is done.
+  const started = useQuery({
+    queryKey: ['get-started'],
+    queryFn: async () => (await rpc('get_started', {})) as unknown as Step[],
+  });
+  const firstSteps = started.data ?? [];
+  const gettingStarted = firstSteps.some((x) => !x.done);
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
@@ -140,6 +142,17 @@ export default function Home() {
           </Select>
         )}
       </PageHeader>
+      {gettingStarted && (
+        <Section
+          title="Get started"
+          description="The app starts empty. Add these in order; each step opens the page where you do it."
+        >
+          <StepList steps={firstSteps} />
+        </Section>
+      )}
+      {!domain && !gettingStarted && started.isSuccess && (
+        <Empty title="No domain chosen">Choose a domain at the top of the menu.</Empty>
+      )}
       {domain && missing.length > 0 && (
         <Section
           title={
@@ -151,135 +164,148 @@ export default function Home() {
               : 'A few things are still missing. The automation may skip classes until they are done.'
           }
         >
-          <ol className="space-y-2">
-            {(setup.data ?? []).map((x) => (
-              <li key={x.key} className="flex items-center gap-2 text-sm">
-                {x.done ? (
-                  <CheckCircle2 className="h-4 w-4 text-success-strong" aria-label="Done" />
-                ) : (
-                  <Circle className="h-4 w-4 text-muted-foreground" aria-label="Not done yet" />
-                )}
-                {x.done ? (
-                  <span className="text-muted-foreground line-through">{x.label}</span>
-                ) : (
-                  <Link to={x.link} className="font-medium text-link hover:underline">
-                    {x.label}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ol>
+          <StepList steps={setup.data ?? []} />
         </Section>
       )}
-      <div className="flex flex-wrap gap-3">
-        <Stat
-          label="Urgent tasks"
-          value={taskCounts.urgent}
-          tone="danger"
-          hint="Answer these first"
-          onClick={scrollToTasks}
-        />
-        <Stat
-          label="Open tasks"
-          value={taskCounts.open}
-          tone="info"
-          hint={`${taskCounts.doneToday} done today`}
-          onClick={scrollToTasks}
-        />
-        <Stat
-          label="Classes this week"
-          value={thisWeek.length}
-          tone="neutral"
-          hint={`Week of ${weekStart.toFormat('LLL d')}`}
-          to="/classes"
-        />
-        <Stat
-          label="Still need an instructor"
-          value={looking.length}
-          tone="warning"
-          hint={`In the next 30 days, ${asking} being asked`}
-          to="/requests"
-        />
-        <Stat
-          label="Open help requests"
-          value={help}
-          tone="accent"
-          hint="From instructors, not yet resolved"
-          onClick={scrollToTasks}
-        />
-      </div>
-
-      <Section
-        id="tasks"
-        title="Needs your attention"
-        description="Tasks the automation could not finish on its own. Urgent tasks are listed first."
-      >
-        <TaskList cohortId={cohortId || undefined} />
-      </Section>
-
-      <Section
-        title="This week's classes"
-        description="Each class shows the time where it is taught. US classes also show the India time."
-        actions={
-          <Link to="/classes" className="text-sm font-medium text-link hover:underline">
-            All upcoming classes
-          </Link>
-        }
-      >
-        {weeks.isLoading ? (
-          <SkeletonRows rows={3} />
-        ) : allWeeks.error ? (
-          <LoadError what="this week's classes" onRetry={() => allWeeks.refetch()} />
-        ) : thisWeek.length === 0 ? (
-          <Empty title="No classes this week" icon={<CalendarDays className="h-5 w-5" />}>
-            Plan classes on the Upcoming classes page.
-          </Empty>
-        ) : (
-          <div className={tableWrap}>
-            <table className="w-full">
-              <thead className={thead}>
-                <tr>
-                  <th className={th}>When</th>
-                  <th className={th}>Class</th>
-                  <th className={th}>Instructor</th>
-                  <th className={th}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {thisWeek.map(({ w, c }) => {
-                  const st = weekState(w, names);
-                  return (
-                    <tr key={c.id} className={trow}>
-                      <td className={td}>
-                        <ClassTime start={c.starts_at} end={c.ends_at} region={c.region} />
-                      </td>
-                      <td className={td}>
-                        <div className="font-medium">{w.module?.name}</div>
-                        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                          {c.class_type}
-                          {w.cohort && <span>· {w.cohort}</span>}
-                          <RegionBadge region={c.region} />
-                        </div>
-                      </td>
-                      <td className={td}>
-                        {st.confirmed ??
-                          (st.asking ? (
-                            `Asking: ${st.asking}`
-                          ) : (
-                            <span className="text-muted-foreground">Not confirmed</span>
-                          ))}
-                      </td>
-                      <td className={td}>
-                        <Badge tone={st.tone}>{st.short}</Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {domain && (
+        <>
+          <div className="flex flex-wrap gap-3">
+            <Stat
+              label="Urgent tasks"
+              value={taskCounts.urgent}
+              tone="danger"
+              hint="Answer these first"
+              onClick={scrollToTasks}
+            />
+            <Stat
+              label="Open tasks"
+              value={taskCounts.open}
+              tone="info"
+              hint={`${taskCounts.doneToday} done today`}
+              onClick={scrollToTasks}
+            />
+            <Stat
+              label="Classes this week"
+              value={thisWeek.length}
+              tone="neutral"
+              hint={`Week of ${weekStart.toFormat('LLL d')}`}
+              to="/classes"
+            />
+            <Stat
+              label="Still need an instructor"
+              value={looking.length}
+              tone="warning"
+              hint={`In the next 30 days, ${asking} being asked`}
+              to="/requests"
+            />
+            <Stat
+              label="Open help requests"
+              value={help}
+              tone="accent"
+              hint="From instructors, not yet resolved"
+              onClick={scrollToTasks}
+            />
           </div>
-        )}
-      </Section>
+
+          <Section
+            id="tasks"
+            title="Needs your attention"
+            description="Tasks the automation could not finish on its own. Urgent tasks are listed first."
+          >
+            <TaskList cohortId={cohortId || undefined} />
+          </Section>
+
+          <Section
+            title="This week's classes"
+            description="Each class shows the time where it is taught. US classes also show the India time."
+            actions={
+              <Link to="/classes" className="text-sm font-medium text-link hover:underline">
+                All upcoming classes
+              </Link>
+            }
+          >
+            {weeks.isLoading ? (
+              <SkeletonRows rows={3} />
+            ) : allWeeks.error ? (
+              <LoadError what="this week's classes" onRetry={() => allWeeks.refetch()} />
+            ) : thisWeek.length === 0 ? (
+              <Empty title="No classes this week" icon={<CalendarDays className="h-5 w-5" />}>
+                Plan classes on the Upcoming classes page.
+              </Empty>
+            ) : (
+              <div className={tableWrap}>
+                <table className="w-full">
+                  <thead className={thead}>
+                    <tr>
+                      <th className={th}>When</th>
+                      <th className={th}>Class</th>
+                      <th className={th}>Instructor</th>
+                      <th className={th}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {thisWeek.map(({ w, c }) => {
+                      const st = weekState(w, names);
+                      return (
+                        <tr key={c.id} className={trow}>
+                          <td className={td}>
+                            <ClassTime start={c.starts_at} end={c.ends_at} region={c.region} />
+                          </td>
+                          <td className={td}>
+                            <div className="font-medium">{w.module?.name}</div>
+                            <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                              {c.class_type}
+                              {w.cohort && <span>· {w.cohort}</span>}
+                              <RegionBadge region={c.region} />
+                            </div>
+                          </td>
+                          <td className={td}>
+                            {st.confirmed ??
+                              (st.asking ? (
+                                `Asking: ${st.asking}`
+                              ) : (
+                                <span className="text-muted-foreground">Not confirmed</span>
+                              ))}
+                          </td>
+                          <td className={td}>
+                            <Badge tone={st.tone}>{st.short}</Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Section>
+        </>
+      )}
     </div>
+  );
+}
+
+type Step = { key: string; label: string; link: string; done: boolean };
+
+/** A numbered list of setup steps: done ones crossed out, the rest link to where they are done. */
+function StepList({ steps }: { steps: Step[] }) {
+  return (
+    <ol className="space-y-2">
+      {steps.map((x) => (
+        <li key={x.key} className="flex items-center gap-2 text-sm">
+          {x.done ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-success-strong" aria-label="Done" />
+          ) : (
+            <Circle className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Not done yet" />
+          )}
+          {x.done ? (
+            <span className="text-muted-foreground line-through">{x.label}</span>
+          ) : (
+            <Link to={x.link} className="font-medium text-link hover:underline">
+              {x.label}
+            </Link>
+          )}
+        </li>
+      ))}
+    </ol>
   );
 }

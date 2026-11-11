@@ -19,3 +19,6 @@ coverage/
 .env.production
 e2e/results/
 .ui-demo-snapshot*.sql
+
+# The separate local stack the automated tests build and remove (scripts/src/test-stack.ts)
+.test-stack/

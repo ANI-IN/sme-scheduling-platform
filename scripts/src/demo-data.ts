@@ -1,75 +1,18 @@
-// Demo data for screenshots (UI Milestone 7), with a safe way back.
+// Test data for the end to end tests and the help pictures, loaded into the separate test stack only
+// (decision 250). The app database and the hosted projects are never touched: the app itself starts empty.
 //
-//   npm run demo -w scripts -- snapshot   # save the app's data (public and private schemas)
-//   npm run demo -w scripts -- load       # plan classes and simulate answers in a testing domain
-//   npm run demo -w scripts -- restore    # put the saved data back exactly as it was
+//   npm run demo -w scripts -- load    # empty the test stack, then load the test data and a few answers
 //
-// The demo starts from the Sandbox starting data (reset_sandbox_data) and then uses the app's own
-// functions (engine_tick,
-// submit_response_page, create_help_request), so what the screenshots show is what the team
-// would see. Needs Docker (the local Supabase database container).
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+// The test data comes from supabase/tests/fixtures/starting_data.sql (two domains, cohorts, modules, test
+// instructors and eight weeks of classes). Then the app's own functions (engine_tick, submit_response_page,
+// create_help_request) ask, answer and confirm, so what the tests see is what the team would see.
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import pg from 'pg';
+import { TEST_DB_URL } from './test-stack.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
-const SNAPSHOT = join(ROOT, '.ui-demo-snapshot.sql');
-const DB = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
-const projectId =
-  /^project_id\s*=\s*"([^"]+)"/m.exec(
-    readFileSync(join(ROOT, 'supabase/config.toml'), 'utf8'),
-  )?.[1] ?? 'sme-scheduling';
-const CONTAINER = `supabase_db_${projectId}`;
-const SCHEMAS = ['public', 'private'];
-
-function docker(args: string[], input?: string): string {
-  return execFileSync('docker', ['exec', '-i', CONTAINER, ...args], {
-    input,
-    encoding: 'utf8',
-    maxBuffer: 512 * 1024 * 1024,
-  });
-}
-
-function snapshot() {
-  const dump = docker([
-    'pg_dump',
-    '-U',
-    'supabase_admin',
-    '-d',
-    'postgres',
-    '--data-only',
-    '--disable-triggers',
-    ...SCHEMAS.flatMap((s) => ['--schema', s]),
-  ]);
-  // Keep the previous copy too, so one mistake can never lose the only saved copy.
-  if (existsSync(SNAPSHOT)) renameSync(SNAPSHOT, SNAPSHOT.replace(/\.sql$/, '.previous.sql'));
-  writeFileSync(SNAPSHOT, dump);
-  console.log(`Saved the app data to ${SNAPSHOT} (${Math.round(dump.length / 1024)} KB).`);
-}
-
-function restore() {
-  if (!existsSync(SNAPSHOT)) throw new Error(`No snapshot at ${SNAPSHOT}. Run "snapshot" first.`);
-  const tables = docker([
-    'psql',
-    '-U',
-    'supabase_admin',
-    '-d',
-    'postgres',
-    '-tAc',
-    `select string_agg(format('%I.%I', schemaname, tablename), ', ') from pg_tables where schemaname in (${SCHEMAS.map((s) => `'${s}'`).join(',')})`,
-  ]).trim();
-  const sql = [
-    '\\set ON_ERROR_STOP on',
-    'begin;',
-    'set session_replication_role = replica;',
-    `truncate ${tables};`,
-    readFileSync(SNAPSHOT, 'utf8'),
-    'commit;',
-  ].join('\n');
-  docker(['psql', '-q', '-U', 'supabase_admin', '-d', 'postgres'], sql);
-  console.log('Restored the app data from the snapshot.');
-}
+const DB = TEST_DB_URL;
 
 async function load() {
   const c = new pg.Client({ connectionString: DB });
@@ -101,8 +44,14 @@ async function load() {
     return true;
   };
 
-  // Start from the Sandbox starting data (Backend and Fullstack, weekend and weekday cohorts).
+  // Refuse anything but a local development database (the test stack is one).
+  const env = await one<{ e: string }>(`select environment e from public.app_config where id = 1`);
+  if (env.e !== 'Development')
+    throw new Error(`Test data only goes into a local test stack, not ${env.e}.`);
+  // Empty it, then load the test data (Backend and Fullstack, weekend and weekday cohorts).
   await c.query(`select public.reset_sandbox_data('RESET')`);
+  await c.query(readFileSync(join(ROOT, 'supabase/tests/fixtures/starting_data.sql'), 'utf8'));
+  await c.query(`select tests.load_starting_data()`);
   // The screenshot account plays the Sandbox operations person and skips the Discord question.
   // A reset keeps real people, so first remove an earlier copy of the screenshot account.
   await c.query(`delete from public.team_member where email = $1`, [
@@ -165,10 +114,8 @@ async function load() {
 }
 
 const cmd = process.argv[2];
-if (cmd === 'snapshot') snapshot();
-else if (cmd === 'restore') restore();
-else if (cmd === 'load') await load();
+if (cmd === 'load') await load();
 else {
-  console.log('Use: snapshot | load | restore');
+  console.log('Use: load');
   process.exitCode = 1;
 }

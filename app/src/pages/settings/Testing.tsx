@@ -443,7 +443,7 @@ function PracticeClass({ domain }: { domain: Domain }) {
   );
 }
 
-/** Sandbox only: put every domain, module, instructor and class back to the starting data. */
+/** Sandbox only: empty the Sandbox (decision 251). Nothing is loaded afterwards. */
 function ResetSandbox() {
   const { account } = useAuth();
   const qc = useQueryClient();
@@ -455,7 +455,7 @@ function ResetSandbox() {
     <Section
       tone="danger"
       title="Reset Sandbox data"
-      description="Removes every domain, module, instructor, class and task in this Sandbox and loads the starting data again: Backend and Fullstack, a weekend and a weekday cohort, and test instructors. Activity history is kept. This is not possible in Production."
+      description="Removes every domain, cohort, module, instructor, class, holiday and task in this Sandbox, so it is empty again. Nothing is loaded afterwards: you add everything yourself. Team members who sign in and settings for every domain stay, and Activity history is kept. This is not possible in Production."
     >
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Type RESET to confirm">
@@ -470,7 +470,7 @@ function ResetSandbox() {
             setErr(null);
             try {
               await rpc('reset_sandbox_data', { p_confirm: typed });
-              toast.success('Sandbox data is back to the starting point');
+              toast.success('The Sandbox is empty again');
               setTyped('');
               await qc.invalidateQueries();
             } catch (e) {

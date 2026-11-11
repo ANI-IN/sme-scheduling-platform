@@ -19,14 +19,24 @@
 // Cleanup: the bot deletes its test posts and the test emails are moved to the bin. Activity
 // history is kept, as always.
 //
-//   npm run integration:rehearse -w scripts      (local database only)
+//   npm run integration:rehearse -w scripts      (the separate test stack only)
 //
-// Rehearsal: the same journey on your local database, with this script standing in for n8n
+// Rehearsal: the same journey in the test stack, with the test data loaded, with this script standing in for n8n
 // (it marks messages as delivered and presses the confirm button the way WF2 does). It needs no
 // credentials and checks the database side of the journey; CI runs it on every push.
 import pg from 'pg';
+import { TEST_DB_URL } from './test-stack.ts';
 
 const REHEARSE = process.argv.includes('--rehearse');
+// Decision 252: automated tests never write to the hosted Sandbox, and there is no direct Gmail access
+// (n8n signs in to Gmail itself). The real journey is off; docs/READY_FOR_TESTING.md has the same journey as
+// manual steps, and docs/DEFERRED.md says what turning it back on needs.
+if (!REHEARSE) {
+  console.error(
+    'The journey on the hosted Sandbox is switched off (decision 252). Use the manual checks in docs/READY_FOR_TESTING.md.',
+  );
+  process.exit(2);
+}
 
 const env = (k: string, required = true) => {
   const v = process.env[k];
@@ -38,7 +48,8 @@ const env = (k: string, required = true) => {
   }
   return v ?? '';
 };
-const DB = env('DATABASE_URL') || 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
+// The rehearsal runs in the separate test stack (npm run integration:rehearse starts and removes it).
+const DB = REHEARSE ? TEST_DB_URL : env('DATABASE_URL');
 const BOT = env('SANDBOX_DISCORD_BOT_TOKEN');
 const G_ID = env('SANDBOX_GMAIL_CLIENT_ID');
 const G_SECRET = env('SANDBOX_GMAIL_CLIENT_SECRET');

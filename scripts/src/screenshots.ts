@@ -1,7 +1,8 @@
 // Screenshots of every page, drawer and dialog in light and dark themes, desktop and mobile.
 //   npm run screenshots -w scripts                 # everything into docs/screenshots/
 //   npm run screenshots -w scripts -- home classes # only shots whose name starts with these
-// Needs the local stack (npm run db:start) and the app dev server on http://localhost:5173.
+// Needs the separate test stack (npm run test-stack -w scripts -- up, then npm run demo -w scripts -- load)
+// and an app server for it on http://localhost:5174 (see scripts/src/help-screenshots.ts).
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,9 +12,10 @@ import pg from 'pg';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const OUT = join(ROOT, 'docs', 'screenshots');
-const APP = process.env.APP_URL ?? 'http://localhost:5173';
+const APP = process.env.APP_URL ?? 'http://localhost:5174';
 const EMAIL = process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com';
-const DB = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
+const DB =
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55522/postgres';
 const DEMO_MODULE = 'Screenshot module';
 
 /** Remove modules made by the new module flow shots, so later shots do not show them. */

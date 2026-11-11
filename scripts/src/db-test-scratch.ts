@@ -15,7 +15,10 @@ const TESTS = join(import.meta.dirname, '..', '..', 'supabase', 'tests');
 
 const wanted = process.argv.slice(2);
 const files = readdirSync(join(TESTS, 'database'))
-  .filter((f) => f.endsWith('.sql') && (wanted.length === 0 || wanted.includes(f)))
+  .filter(
+    (f) =>
+      f.endsWith('.sql') && (wanted.length === 0 || wanted.some((w) => f === w || f.startsWith(w))),
+  )
   .sort();
 if (files.length === 0) {
   console.error(`No test files match: ${wanted.join(', ')}`);
