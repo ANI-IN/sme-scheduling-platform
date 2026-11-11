@@ -89,7 +89,17 @@ export async function layoutProblems(page: Page): Promise<LayoutProblem[]> {
         'button, a[href], input:not([type="hidden"]), select, textarea, [role="tab"], [role="switch"], [role="checkbox"]',
       ),
     ].filter(visible);
-    const rects = controls.map((c) => ({ el: c, r: c.getBoundingClientRect(), clip: clipBox(c) }));
+    // A link that wraps onto two lines has one box per line; its outer box would wrongly cover the
+    // words between them, so each line box is compared on its own.
+    const rects = controls.map((c) => ({
+      el: c,
+      r: c.getBoundingClientRect(),
+      lines: [...c.getClientRects()].filter((x) => x.width > 1 && x.height > 1),
+      clip: clipBox(c),
+    }));
+    const hit = (x: DOMRect, y: DOMRect) =>
+      Math.min(x.right, y.right) - Math.max(x.left, y.left) > 4 &&
+      Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top) > 4;
     for (let i = 0; i < rects.length; i++) {
       for (let j = i + 1; j < rects.length; j++) {
         const a = rects[i]!;
@@ -98,15 +108,17 @@ export async function layoutProblems(page: Page): Promise<LayoutProblem[]> {
         if (a.clip !== b.clip) continue;
         // A label wrapping its own checkbox or input counts as one control.
         if (a.el.closest('label') && a.el.closest('label') === b.el.closest('label')) continue;
-        const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
-        const h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
-        if (w > 4 && h > 4) {
+        for (const x of a.lines) {
+          const y = b.lines.find((l) => hit(x, l));
+          if (!y) continue;
           // Only a real problem when the top control hides the other one at its centre.
-          const cx = (Math.max(a.r.left, b.r.left) + Math.min(a.r.right, b.r.right)) / 2;
-          const cy = (Math.max(a.r.top, b.r.top) + Math.min(a.r.bottom, b.r.bottom)) / 2;
+          const cx = (Math.max(x.left, y.left) + Math.min(x.right, y.right)) / 2;
+          const cy = (Math.max(x.top, y.top) + Math.min(x.bottom, y.bottom)) / 2;
           const top = document.elementFromPoint(cx, cy);
-          if (top && (a.el.contains(top) || b.el.contains(top)))
+          if (top && (a.el.contains(top) || b.el.contains(top))) {
             out.push({ kind: 'overlap', what: `${describe(a.el)} overlaps ${describe(b.el)}` });
+            break;
+          }
         }
       }
     }

@@ -51,11 +51,11 @@ the exported files by hand.
 | `Gmail scheduling (<env>)` | n8n credential, Gmail OAuth2 | Sandbox mailbox, for example `scheduling-sandbox@…` | Real scheduling mailbox |
 | `Google service account (<env>)` | n8n credential, Google Service Account | Can be the same service account | Production service account |
 | `Poke secret (<env>)` | n8n credential, Header Auth `x-poke-key` | Its own random string | A different random string |
-| `supabaseUrl` | Config node, all five workflows | Sandbox project URL | Production project URL |
-| `pokeUrl` | Config node, all five workflows | `https://<your-n8n>/webhook/sandbox-sme-poke` | `https://<your-n8n>/webhook/sme-poke` |
-| `pokeKey` | Config node, all five workflows | The Sandbox poke secret | The Production poke secret |
+| `supabaseUrl` | Config node, all six workflows | Sandbox project URL | Production project URL |
+| `pokeUrl` | Config node, all six workflows | `https://<your-n8n>/webhook/sandbox-sme-poke` | `https://<your-n8n>/webhook/sme-poke` |
+| `pokeKey` | Config node, all six workflows | The Sandbox poke secret | The Production poke secret |
 | Shared drive ID and folder ID | WF3 node "Upload to Google Drive" | A Sandbox backup folder | The Production backup folder |
-| Error workflow | Settings of WF1 to WF4 | `[Sandbox] WF5 Error handler` | `[Production] WF5 Error handler` |
+| Error workflow | Settings of WF1 to WF4 and WF6 | `[Sandbox] WF5 Error handler` | `[Production] WF5 Error handler` |
 | `response_base_url` | Database, app Settings | `https://<your-n8n>/webhook/sandbox-respond` | `https://<your-n8n>/webhook/respond` |
 | `VITE_N8N_POKE_URL`, `VITE_N8N_POKE_KEY` | App hosting variables | Sandbox values | Production values |
 
@@ -154,7 +154,7 @@ Import **WF5 first** (the others point to it as their error workflow), then the 
 
 1. In n8n: **Overview → Create → Workflow** (or **Workflows → Add workflow**), then the **…** menu (top right) → **Import from File…**.
 2. Choose `WF5-error-handler.json`. Save.
-3. Repeat for `WF4-action-runner.json`, `WF2-response-handler.json`, `WF1-hourly-engine.json`, `WF3-daily-jobs.json` (one new workflow each).
+3. Repeat for `WF4-action-runner.json`, `WF2-response-handler.json`, `WF1-hourly-engine.json`, `WF3-daily-jobs.json`, `WF6-discord-checks.json` (one new workflow each).
 4. In each workflow, open every node that shows a red credential warning and pick the matching credential from the list
    (the imported files only carry the credential *names*; n8n usually matches them automatically).
 
@@ -168,7 +168,7 @@ const pokeUrl     = 'https://YOUR-N8N/webhook/sandbox-sme-poke';   // this envir
 const pokeKey     = 'REPLACE_WITH_POKE_SECRET';            // the Poke secret value (step 2.5)
 ```
 
-Do this in **all five** workflows (WF4 only uses `supabaseUrl`, but keep them identical).
+Do this in **all six** workflows (WF4 only uses `supabaseUrl`, but keep them identical).
 
 WF3 has two more values: open **Upload to Google Drive** and replace `REPLACE_WITH_SHARED_DRIVE_ID` with the shared
 drive ID and `REPLACE_WITH_DRIVE_FOLDER_ID` with the folder ID (each is the last part of the address when you open it
@@ -176,7 +176,7 @@ in Drive: `https://drive.google.com/drive/folders/<this part>`).
 
 ## 5. Set the error workflow
 
-For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
+For **WF1, WF2, WF3, WF4 and WF6**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
 **[Sandbox] WF5 Error handler** (or **[Production] WF5 Error handler**) → Save. (WF5 itself has no error workflow.)
 
 ## 6. Publish (activate) the workflows

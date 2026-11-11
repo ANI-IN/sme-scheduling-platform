@@ -249,7 +249,17 @@ export default function Instructors() {
                 return (
                   <tr key={i.id} className={trowClick} onClick={() => setEditing(i)}>
                     <td className={td}>
-                      <div className="font-medium">{i.full_name}</div>
+                      {/* A real button, so the instructor can also be opened with the keyboard. */}
+                      <button
+                        type="button"
+                        className="text-left font-medium text-link hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditing(i);
+                        }}
+                      >
+                        {i.full_name}
+                      </button>
                       <div className="text-xs text-muted-foreground">{i.primary_email}</div>
                     </td>
                     <td className={td}>

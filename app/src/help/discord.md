@@ -17,6 +17,8 @@ The app uses the Discord servers you already have. It never creates servers or c
 
 ## Instructors
 
+![An instructor's Discord username and channel](/help/instructor-discord.png)
+
 1. Open [Instructors](/setup/instructors) and open the instructor.
 2. Type their **Discord username**, for example maya.k (without @). You see it under their name in Discord.
 3. Press **Save**. The app finds their Discord account by itself and shows **Discord found**. If it shows **Not found on Discord**, check the spelling and that they joined the server, then press **Check Discord**.

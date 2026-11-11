@@ -201,6 +201,7 @@ const PICS: Pic[] = [
   {
     file: 'instructor-discord.png',
     path: '/setup/instructors',
+    before: discordDemo,
     act: async (p) => {
       const show = p.getByLabel('Show test instructors');
       if (!(await show.isChecked())) await show.check();
@@ -209,6 +210,7 @@ const PICS: Pic[] = [
       await p
         .getByRole('dialog')
         .getByText('Their channel in each domain')
+        .first()
         .scrollIntoViewIfNeeded();
       await p.waitForTimeout(300);
     },

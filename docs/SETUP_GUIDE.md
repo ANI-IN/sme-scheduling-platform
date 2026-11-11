@@ -256,10 +256,10 @@ n8n only moves messages in and out. Every decision is made by the database.
    1. Create five credentials with exactly these names: `Supabase secret key (<env>)`, `Discord bot (<env>)`,
       `Gmail scheduling (<env>)`, `Google service account (<env>)`, `Poke secret (<env>)`.
       For the poke secret, make a long random string (for example from the password manager's generator).
-   2. Import the five files from `n8n/sandbox/` (or `n8n/production/`), WF5 first.
+   2. Import the six files from `n8n/sandbox/` (or `n8n/production/`), WF5 first.
    3. In every workflow open the **Config** node and set `supabaseUrl`, `pokeUrl` and `pokeKey`.
    4. In WF3 **Upload to Google Drive**, set the shared drive ID and the folder ID.
-   5. Set WF5 as the **Error workflow** of WF1 to WF4. Publish WF5 and WF4 first, then the rest.
+   5. Set WF5 as the **Error workflow** of WF1 to WF4 and WF6. Publish WF5 and WF4 first, then the rest.
 3. Copy the two webhook addresses:
 
    | Webhook | Sandbox | Production | Where it goes |
@@ -402,7 +402,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 25 | Workflows imported and published | `n8n/sandbox/`, `n8n/production/` | n8n | | | ☐ |
 | 26 | WF2 confirm page address | n8n WF2 webhook | `RESPONSE_BASE_URL` (1.4) | | | ☐ |
 | 27 | WF4 poke address | n8n WF4 webhook | Vercel `VITE_N8N_POKE_URL`; n8n Config `pokeUrl` | | | ☐ |
-| 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 | | | ☐ |
+| 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 and WF6 | | | ☐ |
 | 29 | OpenAI key (optional, secret) | platform.openai.com → API keys | n8n `OpenAI (<env>)` | skip | in password manager | ☐ |
 | 30 | Hosting project | Vercel Pro or Cloudflare Pages | | | | ☐ |
 | 31 | Hosting variables | Tables in 7.2 | Vercel or Cloudflare | | | ☐ |
