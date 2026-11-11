@@ -268,7 +268,10 @@ function ServerList() {
       return m;
     },
   });
-  const all = servers.data ?? [];
+  // Natural order: "Program server 2" before "Program server 10".
+  const all = [...(servers.data ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+  );
   const archivedCount = all.filter((s) => s.archived_at).length;
   const t = q.trim().toLowerCase();
   const shown = all.filter(

@@ -52,9 +52,9 @@ const sql = async (q: string, params: unknown[] = []) => {
  */
 const discordDemo = () =>
   sql(`
-    insert into public.discord_server (id, name, refreshed_at)
-    values ('900000000000000001', 'Backend program', now())
-    on conflict (id) do update set name = excluded.name, refreshed_at = now();
+    insert into public.discord_server (id, name, refreshed_at, status, checked_at)
+    values ('900000000000000001', 'Backend program', now(), 'Ready', now())
+    on conflict (id) do update set name = excluded.name, refreshed_at = now(), status = 'Ready', checked_at = now();
     insert into public.discord_channel (id, server_id, name, category, position)
     select '9000000000000001' || n, '900000000000000001', 'test-instructor-' || chr(96 + n), '1-1', n
       from generate_series(1, 6) n
