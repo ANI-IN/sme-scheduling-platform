@@ -44,7 +44,7 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 | Someone cannot sign in | Not a company Google account, or the Supabase redirect address is missing | Only company Google accounts work. Check Supabase, **Authentication, URL Configuration**. The refusal is in Activity history. |
 | "This changed, reload" | Someone else saved the same record | Reload the page and make your change again. |
 | Requests do not start for a class week | Setup is not finished (no owner, nobody can be asked, and so on) | **Needs your attention** says why. Fix it and asking starts at the next automatic check. |
-| "Needs an instructor" | Everyone in the instructor order said no, did not reply or cannot be asked | Phone people, then open the class week and press **Assign an instructor** or **Record a phone or chat confirmation**. Or add instructors to the module's instructor order: asking starts again by itself. |
+| "Needs an instructor" | Everyone in the instructor order said no, did not reply or cannot be asked | Phone people, then open the class week and press **Assign and confirm instructor** or **Record a phone or chat confirmation**. Or add instructors to the module's instructor order: asking starts again by itself. |
 | A written reply shows in Needs your attention | An instructor wrote instead of pressing a button | Read it and decide. Press **Reply** to answer them in their channel and by email. |
 
 ## After an outage

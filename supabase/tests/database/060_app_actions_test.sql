@@ -19,7 +19,7 @@ select throws_ok(format('select public.pause_outreach(%L, true)', :'mw'), '42501
 select tests.as_postgres();
 select tests.login_as('ops@example.com');
 select lives_ok(format('select public.pause_outreach(%L, true)', :'mw'), 'a company account can act');
-select ok(exists (select 1 from public.history_event where action = 'Outreach paused' and actor_kind = 'TeamMember' and actor_label = 'ops@example.com'),
+select ok(exists (select 1 from public.history_event where action = 'Asking paused' and actor_kind = 'TeamMember' and actor_label = 'ops@example.com'),
   'the action is recorded with the member who did it (AUTH-3)');
 select public.pause_outreach(:'mw', false);
 select tests.as_postgres();

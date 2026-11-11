@@ -81,7 +81,23 @@ describe('History in plain sentences', () => {
       },
       book,
     );
-    expect(d.sentence).toBe('Sent the request to teach to Shelly Carver by Discord');
+    expect(d.sentence).toBe('Request to teach sent to Shelly Carver by Discord');
+  });
+
+  it('names messages whose route has several words (decision 272)', () => {
+    const say = (action: string) =>
+      describeHistory({ ...base, actor_kind: 'System', category: 'Messages', action }, book)
+        .sentence;
+    expect(say('M4 sent to Maya Rao via Discord (#test-instructor-a)')).toBe(
+      'Confirmation sent to Maya Rao by Discord in #test-instructor-a',
+    );
+    expect(say('T2 sent to Andrew Keane via Discord direct message')).toBe(
+      'Confirmation alert sent to Andrew Keane by Discord direct message',
+    );
+    expect(say('M14 sent to Maya Rao via Email')).toBe('Reply sent to Maya Rao by email');
+    expect(say('M4 failed to Maya Rao via Discord (#test-instructor-a)')).toBe(
+      'Could not send the confirmation to Maya Rao by Discord in #test-instructor-a',
+    );
   });
 
   it('describes settings with their labels', () => {

@@ -142,7 +142,7 @@ try {
 
   // The testing channel's ID comes from Discord: ask WF6 to check the server and wait for it (up to 3 minutes).
   await c.query(`select private.queue_server_check($1)`, [SERVER_ID]);
-  console.log('Asked n8n (WF6) to check the Sandbox server, to find #testing...');
+  console.log('Asked n8n (WF4) to check the Sandbox server, to find #testing...');
   let testing: { id: string } | undefined;
   for (let i = 0; i < 36 && !testing; i++) {
     await new Promise((res) => setTimeout(res, 5000));

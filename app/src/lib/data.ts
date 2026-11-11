@@ -21,6 +21,9 @@ export type AttentionItem = Tables<'attention_item'>;
 export type HelpRequest = Tables<'help_request'>;
 export type HistoryEvent = Tables<'history_event'>;
 
+/** How often open task lists and Activity history check for news, in case a live update was missed. */
+export const LIVE_CHECK_MS = 30_000;
+
 export const useDomains = () =>
   useQuery({
     queryKey: ['domain'],

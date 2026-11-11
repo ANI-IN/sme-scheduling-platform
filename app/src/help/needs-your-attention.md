@@ -9,7 +9,7 @@ A **task** is something the automation could not finish by itself, for example n
 
 1. Read the task. It says what happened and which class it is about.
 2. Press **I'm on it** so the team knows you are handling it. Reminders about it pause for a day.
-3. Do what is needed. The buttons help: **Assign an instructor**, **Open class**, **Open help request** or **Reply**.
+3. Do what is needed. The buttons help: **Assign and confirm instructor**, **Open class**, **Open help request** or **Reply**.
 4. Press **Mark done** when it is finished, with a short note if useful.
 
 ## Hand a task to someone else

@@ -32,7 +32,7 @@ import { DiscordPrompt } from './DiscordPrompt';
 import { usePauseAll } from './PauseAll';
 import { confirmLeave } from '@/lib/unsaved';
 import { useDomain } from '@/lib/domain';
-import { type Domain } from '@/lib/data';
+import { LIVE_CHECK_MS, type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
 import { Badge, Button, cn, type Tone } from './ui';
 import { ThemeMenuChoice } from './ThemeSwitch';
@@ -98,6 +98,7 @@ const liveTables = [
   'class_session',
   'system_state',
   'domain',
+  'history_event',
 ];
 const COLLAPSE_KEY = 'ik-sidebar-collapsed';
 
@@ -200,6 +201,8 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () =>
   const { domain } = useDomain();
   const urgent = useQuery({
     queryKey: ['attention_item', 'urgent-count', domain?.id],
+    // Checks for new tasks every 30 seconds while open, in case a live update was missed.
+    refetchInterval: LIVE_CHECK_MS,
     queryFn: async () => {
       let q = supabase
         .from('attention_item')

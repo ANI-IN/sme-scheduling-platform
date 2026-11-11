@@ -13,7 +13,7 @@
       "parameters": {
         "width": 900,
         "height": 220,
-        "content": "## WF6 Discord checks\nEvery minute: takes the Discord checks people asked for in the app (list the bot's servers, check a domain's server and channels, find a person by Discord username), asks Discord, and saves the raw answers with `record_discord_result`. The database decides what each answer means.\n\nCredentials: **Supabase secret key** and **Discord bot** (Header Auth, `Authorization: Bot <token>`). The bot needs **Server Members Intent** (to find people by username) and **Message Content Intent** (to read replies)."
+        "content": "## WF6 Discord checks (not published)\nWF4 now runs these checks on every run (decision 270). Keep this workflow unpublished; publish it only if WF4 cannot run the checks."
       }
     },
     {

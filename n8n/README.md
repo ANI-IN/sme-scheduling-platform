@@ -7,11 +7,11 @@ serves the pages they render and passes inbound replies to them.
 
 | File | Workflow | Trigger | What it does |
 |---|---|---|---|
-| `WF1-hourly-engine.json` | WF1 Hourly engine | Every hour | Runs `engine_tick_all` (all checks for all domains), reads Gmail replies and bounces and instructor Discord replies, then pokes WF4. |
+| `WF1-hourly-engine.json` | WF1 Hourly engine | Every hour | Runs `engine_tick_all` (all checks for all domains). WF4 delivers what it queues within 6 minutes. |
 | `WF2-response-handler.json` | WF2 Response handler | Webhook `GET` and `POST` `/webhook/respond` | Shows the confirm page (`response_page`), records the answer when the button on the page is pressed (`submit_response_page`), then pokes WF4. |
 | `WF3-daily-jobs.json` | WF3 Daily jobs | Every day 09:00 IST | Runs `daily_jobs` (heartbeat), pokes WF4, exports a backup (`export_snapshot`) to Google Drive as `sme-backup-YYYY-MM-DD.json`. |
-| `WF4-action-runner.json` | WF4 Action runner | Webhook `POST /webhook/sme-poke` and every 5 minutes | Processes app actions (`next_actions` / `complete_action`) and **delivers all queued messages** by Discord and Gmail (`claim_outbound_messages` / `report_message_result`). This is the only place messages are sent. |
-| `WF6-discord-checks.json` | WF6 Discord checks | Every minute | Takes the Discord checks people asked for in the app (`next_discord_lookups`): lists the servers the bot is in, checks a domain's server and its channels, and finds people by Discord username (member search). Saves the raw answers with `record_discord_result`; the database decides what they mean. Never creates servers or channels. |
+| `WF4-action-runner.json` | WF4 Action runner (the heartbeat) | Webhook `POST /webhook/sme-poke` and every 6 minutes | Processes app actions (`next_actions` / `complete_action`) and **delivers all queued messages** by Discord and Gmail (`claim_outbound_messages` / `report_message_result`); runs the Discord checks people asked for (`next_discord_lookups` / `record_discord_result`); reads typed replies: Gmail replies to the +scheduling address and bounces, and the instructors' Discord channels. This is the only place messages are sent (decision 270). |
+| `WF6-discord-checks.json` | WF6 Discord checks (**not published**) | None: WF4 does this now (decision 270). Publish only if WF4 cannot. | Takes the Discord checks people asked for in the app (`next_discord_lookups`): lists the servers the bot is in, checks a domain's server and its channels, and finds people by Discord username (member search). Saves the raw answers with `record_discord_result`; the database decides what they mean. Never creates servers or channels. |
 | `WF5-error-handler.json` | WF5 Error handler | n8n error trigger | Records any workflow failure in History (`log_system_error`, which also queues an admin alert) and pokes WF4 so the alert goes out. If the database can't be reached, posts straight to the admin Discord channel. |
 
 "Poke" = an empty `POST` to the WF4 webhook with the header `x-poke-key`. It carries no data; it only tells
@@ -106,7 +106,7 @@ Import **WF5 first** (the others point to it as their error workflow), then the 
 
 1. In n8n: **Overview → Create → Workflow** (or **Workflows → Add workflow**), then the **…** menu (top right) → **Import from File…**.
 2. Choose `WF5-error-handler.json`. Save.
-3. Repeat for `WF4-action-runner.json`, `WF2-response-handler.json`, `WF1-hourly-engine.json`, `WF3-daily-jobs.json`, `WF6-discord-checks.json` (one new workflow each).
+3. Repeat for `WF4-action-runner.json`, `WF2-response-handler.json`, `WF1-hourly-engine.json`, `WF3-daily-jobs.json` (one new workflow each). You may import `WF6-discord-checks.json` too, but leave it unpublished.
 4. In each workflow, open every node that shows a red credential warning and pick the matching credential from the list
    (the imported files only carry the credential *names*; n8n usually matches them automatically).
 
@@ -120,7 +120,7 @@ Every workflow starts with a **Config** Code node. In the Sandbox files the Supa
 const pokeKey = 'REPLACE_WITH_POKE_SECRET';   // the value of the "Poke Secret Sandbox" credential (step 2.2)
 ```
 
-Do this in WF1 to WF5. WF6's Config has only `supabaseUrl`, already filled in.
+Do this in WF2 to WF5 (WF1 no longer pokes WF4).
 
 WF3's backup folder is filled in too, in **Upload to Google Drive** and **List backups**. For Production, replace
 `REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID` in both with the Production folder ID (the last part of the folder's address
@@ -128,7 +128,7 @@ in Drive: `https://drive.google.com/drive/folders/<this part>`), and the Supabas
 
 ## 5. Set the error workflow
 
-For **WF1, WF2, WF3, WF4 and WF6**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
+For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
 **[Sandbox] WF5 Error handler** (or **[Production] WF5 Error handler**) → Save. (WF5 itself has no error workflow.)
 
 ## 6. Publish (activate) the workflows

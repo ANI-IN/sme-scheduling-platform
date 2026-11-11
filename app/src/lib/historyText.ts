@@ -3,6 +3,15 @@
 import { DateTime } from 'luxon';
 import { messageName, plain, plainLabel } from './plain';
 
+/** "Discord (#alerts)" reads "Discord in #alerts"; "Email" reads "email". */
+function route(r: string): string {
+  return r.replace(/^Discord \((#[^)]+)\)$/, 'Discord in $1').replace(/^Email$/, 'email');
+}
+
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export type HistoryLike = {
   actor_kind: string;
   actor_label: string | null;
@@ -246,12 +255,19 @@ const rewrites: [
   (m: RegExpMatchArray, ctx: { actor: string; module: string }) => string,
 ][] = [
   [
-    /^(\w+) sent to (.+) via (\w+)$/,
-    (m) => `Sent the ${messageName[m[1]!] ?? 'message'} to ${m[2]} by ${m[3]}`,
+    /^([A-Z]+\d*) sent to (.+?) via (.+)$/,
+    (m) => `${capitalise(messageName[m[1]!] ?? 'message')} sent to ${m[2]} by ${route(m[3]!)}`,
   ],
   [
-    /^(\w+) failed to (.+) via (\w+)$/,
-    (m) => `Could not send the ${messageName[m[1]!] ?? 'message'} to ${m[2]} by ${m[3]}`,
+    /^([A-Z]+\d*) failed to (.+?) via (.+)$/,
+    (m) => `Could not send the ${messageName[m[1]!] ?? 'message'} to ${m[2]} by ${route(m[3]!)}`,
+  ],
+  [/^Nobody left to ask$/, (_m, c) => `Nobody left to ask for ${c.module}`],
+  [/^Asking paused$/, (_m, c) => `${c.actor} paused asking for ${c.module}`],
+  [/^Asking resumed$/, (_m, c) => `${c.actor} resumed asking for ${c.module}`],
+  [
+    /^Class at risk task closed$/,
+    (_m, c) => `Class at risk task closed for ${c.module}: nobody left to ask`,
   ],
   [/^Asked (.+)$/, (m, c) => `Asked ${m[1]} to teach ${c.module}`],
   [/^(.+) said yes$/, (m, c) => `${m[1]} said yes to ${c.module}`],
@@ -322,8 +338,8 @@ const rewrites: [
     (m, c) =>
       `${c.actor} set who to ask for ${c.module} to ${m[1] === 'Manual' ? 'a chosen list' : 'the instructor order'}`,
   ],
-  [/^Outreach paused$/, (_m, c) => `${c.actor} paused instructor requests for ${c.module}`],
-  [/^Outreach resumed$/, (_m, c) => `${c.actor} resumed instructor requests for ${c.module}`],
+  [/^Outreach paused$/, (_m, c) => `${c.actor} paused asking for ${c.module}`],
+  [/^Outreach resumed$/, (_m, c) => `${c.actor} resumed asking for ${c.module}`],
   [/^Class time changed$/, (_m, c) => `${c.actor} moved a ${c.module} class`],
   [/^Class cancelled: (.+)$/, (m, c) => `${c.actor} cancelled ${plain(m[1])}`],
   [/^Module week cancelled$/, (_m, c) => `${c.actor} cancelled the class week for ${c.module}`],

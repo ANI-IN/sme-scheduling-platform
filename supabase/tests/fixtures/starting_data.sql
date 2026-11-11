@@ -26,12 +26,20 @@ begin
   perform set_config('app.actor_kind', 'System', true);
   perform set_config('app.actor_label', 'Sandbox data', true);
 
+  -- Reloading reuses the made up team members if a test left them behind (a reset keeps people who signed in
+  -- or whose access was removed).
   insert into public.team_member (name, email, job_title, is_placeholder)
-  values ('Sandbox Owner', 'sandbox.owner@' || v_mail_domain, 'Product manager', true) returning id into v_owner;
+  values ('Sandbox Owner', 'sandbox.owner@' || v_mail_domain, 'Product manager', true)
+  on conflict ((lower(email))) do update set name = excluded.name, job_title = excluded.job_title, is_placeholder = true,
+    access_removed_at = null, access_removed_by = null, version = public.team_member.version returning id into v_owner;
   insert into public.team_member (name, email, job_title, is_placeholder)
-  values ('Sandbox Operations', 'sandbox.operations@' || v_mail_domain, 'Operations', true) returning id into v_ops;
+  values ('Sandbox Operations', 'sandbox.operations@' || v_mail_domain, 'Operations', true)
+  on conflict ((lower(email))) do update set name = excluded.name, job_title = excluded.job_title, is_placeholder = true,
+    access_removed_at = null, access_removed_by = null, version = public.team_member.version returning id into v_ops;
   insert into public.team_member (name, email, job_title, is_placeholder)
-  values ('Sandbox Escalation', 'sandbox.escalation@' || v_mail_domain, 'Lead', true) returning id into v_esc;
+  values ('Sandbox Escalation', 'sandbox.escalation@' || v_mail_domain, 'Lead', true)
+  on conflict ((lower(email))) do update set name = excluded.name, job_title = excluded.job_title, is_placeholder = true,
+    access_removed_at = null, access_removed_by = null, version = public.team_member.version returning id into v_esc;
 
   for k in 1 .. 6 loop
     insert into public.instructor (full_name, primary_email, discord_user_id, is_test, verified_at, notes)

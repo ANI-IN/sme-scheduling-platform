@@ -11,8 +11,8 @@
         -420
       ],
       "parameters": {
-        "content": "## WF4 Action runner\nRuns when the app (or WF1/WF2/WF3/WF5) **pokes** it, and every 5 minutes as a safety net.\n\n1. Takes queued app actions (`next_actions`). For \"run check now\" it first runs the engine.\n2. Delivers queued messages: `claim_outbound_messages(25)` then sends each row on its one channel.\n3. Every claimed row gets `report_message_result` (success or failure). The database handles retries and alerts.\n4. Marks the actions done (`complete_action`).\n\nIf more than 25 messages are waiting, the rest go out on the next poke or 5-minute run.\n\n**Edit only the Config node.**",
-        "height": 380,
+        "content": "## WF4 Action runner (the heartbeat)\nRuns when the app (or WF1, WF2, WF3, WF5) **pokes** it, and every 6 minutes.\n\n1. Takes queued app actions (`next_actions`). For \"run check now\" it first runs the engine.\n2. Delivers queued messages: `claim_outbound_messages(25)` then sends each row on its one channel.\n3. Every claimed row gets `report_message_result`. The database handles retries and alerts.\n4. Marks the actions done (`complete_action`).\n5. Runs the Discord checks people asked for (servers, channels, usernames).\n6. Reads typed replies: replies to the +scheduling address and bounces in Gmail, and the instructors' Discord channels and direct messages.\n\nSteps 5 and 6 used to be WF6 (every minute) and WF1 (every hour); doing them here keeps the n8n executions within the plan (decision 270).\n\n**Edit only the Config node.**",
+        "height": 460,
         "width": 760,
         "color": 5
       }
@@ -46,7 +46,7 @@
     },
     {
       "id": "d19f496f-f5d4-4f06-af8e-ae18328e3db8",
-      "name": "Every 5 minutes",
+      "name": "Every 6 minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -58,7 +58,7 @@
           "interval": [
             {
               "field": "minutes",
-              "minutesInterval": 5
+              "minutesInterval": 6
             }
           ]
         }
@@ -687,21 +687,526 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
+    },
+    {
+      "id": "ffa0822f-a6cf-5c54-826e-a76b86a16df8",
+      "name": "Note: Discord checks",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        260,
+        1140
+      ],
+      "parameters": {
+        "width": 900,
+        "height": 220,
+        "content": "## WF6 Discord checks\nEvery minute: takes the Discord checks people asked for in the app (list the bot's servers, check a domain's server and channels, find a person by Discord username), asks Discord, and saves the raw answers with `record_discord_result`. The database decides what each answer means.\n\nCredentials: **Supabase secret key** and **Discord bot** (Header Auth, `Authorization: Bot <token>`). The bot needs **Server Members Intent** (to find people by username) and **Message Content Intent** (to read replies)."
+      }
+    },
+    {
+      "id": "23498b33-897b-5e8e-9f49-04ed2b8f9e63",
+      "name": "Get Discord work",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        1500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/next_discord_lookups",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limit: 20 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "a134f86c-3a9d-5101-8dca-721be1b0bc2b",
+      "name": "Plan calls",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        1500
+      ],
+      "parameters": {
+        "jsCode": "// One item per Discord call. Each call remembers its piece of work and what it is for.\n// n8n splits the list the database returns into one item per piece of work, so read them all.\nconst items = $input.all().map((i) => i.json);\nconst raw = items[0];\nconst work = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : items.filter((w) => w && w.action_id));\nconst out = [];\nfor (const w of work) {\n  if (w.action === 'discord_servers') {\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'guilds', path: '/users/@me/guilds' } });\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'me', path: '/users/@me' } });\n  }\n  else if (w.action === 'discord_server') {\n    if (!w.server_id) { out.push({ json: { action_id: w.action_id, action: w.action, key: 'guild', path: null } }); continue; }\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'guild', path: `/guilds/${w.server_id}` } });\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'channels', path: `/guilds/${w.server_id}/channels` } });\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'members', path: `/guilds/${w.server_id}/members/search?query=a&limit=1` } });\n    // The bot's roles and the server's roles: the database works out where the bot may post.\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'roles', path: `/guilds/${w.server_id}/roles` } });\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'me', path: '/users/@me' } });\n    if (w.bot_user_id) out.push({ json: { action_id: w.action_id, action: w.action, key: 'bot', path: `/guilds/${w.server_id}/members/${w.bot_user_id}` } });\n  } else if (w.action === 'discord_member') {\n    const servers = w.username ? (w.servers || []) : [];\n    if (servers.length === 0) out.push({ json: { action_id: w.action_id, action: w.action, key: 'none', path: null } });\n    for (const s of servers) out.push({ json: { action_id: w.action_id, action: w.action, key: 'search', server_id: s, username: w.username,\n      path: `/guilds/${s}/members/search?query=${encodeURIComponent(w.username)}&limit=1000` } });\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "ac775edf-07ed-57a6-a507-e7e3c81ec90e",
+      "name": "Ask Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        1500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://discord.com/api/v10' + ($json.path || '/unknown') }}",
+        "authentication": "predefinedCredentialType",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "nodeCredentialType": "discordBotApi"
+      },
+      "credentials": {
+        "discordBotApi": {
+          "id": "REPLACE_ME",
+          "name": "Discord Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b235eb25-1118-5659-b6a0-37101df85879",
+      "name": "Gather answers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        1500
+      ],
+      "parameters": {
+        "jsCode": "// Put the answers of each piece of work together, in the shape record_discord_result reads.\nconst calls = $('Plan calls').all().map((i) => i.json);\nconst answers = $input.all().map((i) => i.json);\nconst byAction = new Map();\ncalls.forEach((c, n) => {\n  const a = answers[n] || {};\n  const status = c.path ? (a.statusCode ?? 0) : 404;\n  const body = status >= 200 && status < 300 ? a.body : undefined;\n  const r = byAction.get(c.action_id) || { action_id: c.action_id, result: {} };\n  if (c.key === 'search') (r.result.searches ||= []).push({ server_id: c.server_id, status, body: body || [] });\n  else if (c.key === 'none') r.result.searches ||= [];\n  else if (c.key === 'members') r.result.members = { status };\n  else r.result[c.key] = { status, body };\n  byAction.set(c.action_id, r);\n});\nreturn [...byAction.values()].map((r) => ({ json: { p_action_id: r.action_id, p_result: r.result } }));"
+      }
+    },
+    {
+      "id": "af53a32f-2bb5-5bd6-8158-ffcf31a4507b",
+      "name": "Save answers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        1500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/record_discord_result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "8f991a34-ac7e-45b7-bc6f-a631ab7970d2",
+      "name": "Note: email replies",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        920,
+        1560
+      ],
+      "parameters": {
+        "content": "## (a) Gmail replies and bounces\n- Only mail to the +scheduling Reply-To address (`scheduling-mailbox+scheduling@yourcompany.com`) and bounces that quote it, from the last 3 days. The shared inbox is otherwise never touched.\n- **Classify emails** only parses: bounce (mailer-daemon / postmaster / delivery-failure subject) → `record_bounce`; anything else → `record_inbound_message`.\n- Messages the database accepted get the label **SME Scheduling/Processed** (nothing is marked as read); the rest are retried next hour (both calls are idempotent).\n\n### Optional AI summary\nAn OpenAI node could be added between **Classify emails** and **Record email** to fill `args.p_summary` (one-line summary for ops). AI only summarises; it never decides anything. Same for Discord before **Record Discord reply**.",
+        "height": 380,
+        "width": 1120,
+        "color": 4
+      }
+    },
+    {
+      "id": "ed602fec-c725-4c8f-a630-6020d1a5ce2a",
+      "name": "Get system replies",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        960,
+        2000
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "simple": false,
+        "filters": {
+          "q": "newer_than:3d -label:sme-scheduling-processed {to:scheduling-mailbox+scheduling@yourcompany.com deliveredto:scheduling-mailbox+scheduling@yourcompany.com (from:mailer-daemon \"scheduling-mailbox+scheduling@yourcompany.com\")}"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "f1680949-aa72-409d-8379-44c72153bba6",
+      "name": "Classify emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        1900
+      ],
+      "parameters": {
+        "jsCode": "// Parse each Gmail message into one database call. Parsing only; the database decides what it means.\n// Only mail about this system is handled: replies sent to the +scheduling Reply-To address, and bounces\n// of emails this system sent (they quote that address). Everything else in the shared inbox is skipped.\nconst SYS = 'scheduling-mailbox+scheduling@yourcompany.com';\nfunction hdr(m, name) {\n  const h = m.headers; const want = name.toLowerCase(); let v;\n  if (Array.isArray(h)) {\n    const f = h.find(x => String(x.name || x.key || '').toLowerCase() === want);\n    v = f && (f.value || f.line);\n  } else if (h && typeof h === 'object') {\n    for (const k of Object.keys(h)) if (k.toLowerCase() === want) v = h[k];\n  }\n  if (v == null) return '';\n  v = typeof v === 'object' ? (v.text || v.value || JSON.stringify(v)) : String(v);\n  return v.replace(new RegExp('^' + want + ':\\\\s*', 'i'), '').trim();\n}\nfunction stripQuoted(t) {\n  const lines = String(t || '').replace(/\\r\\n/g, '\\n').split('\\n');\n  const out = [];\n  for (let i = 0; i < lines.length; i++) {\n    const l = lines[i];\n    if (/^\\s*>/.test(l)) break;\n    if (/^-{2,}\\s*Original Message\\s*-{2,}/i.test(l)) break;\n    if (/^On\\s.+/.test(l) && /wrote:\\s*$/.test(l + ' ' + (lines[i + 1] || ''))) break;\n    out.push(l);\n  }\n  return out.join('\\n').trim() || String(t || '').trim();\n}\nfunction failedRecipient(m, text) {\n  const x = hdr(m, 'x-failed-recipients');\n  if (x) return x.split(',')[0].trim();\n  const pats = [\n    /Final-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /Original-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /delivered to\\s+<?([^\\s<>]+@[^\\s<>]+)/i,\n  ];\n  for (const p of pats) { const r = text.match(p); if (r) return r[1].replace(/[>.,;:]+$/, ''); }\n  const to = String((m.to && m.to.text) || hdr(m, 'to')).toLowerCase();\n  const skip = /mailer-daemon|postmaster|no-?reply|@google\\.com$|@googlemail\\.com$|^scheduling-mailbox/i;\n  const all = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g) || [];\n  return all.find(a => !skip.test(a) && !to.includes(a.toLowerCase())) || '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const m = item.json || {};\n  if (!m.id) continue;\n  const from = String((m.from && (m.from.text || (m.from.value && m.from.value[0] && m.from.value[0].address))) || hdr(m, 'from') || m.From || '');\n  const subject = String(m.subject || hdr(m, 'subject') || m.Subject || '');\n  const text = String(m.text || (m.html ? String(m.html).replace(/<[^>]+>/g, ' ') : '') || m.snippet || '');\n  const received = m.date ? new Date(m.date) : null;\n  const isBounce = /mailer-daemon|postmaster/i.test(from)\n    || /delivery status notification|undeliverable|undelivered mail|mail delivery (failed|failure|subsystem)/i.test(subject);\n  const addressedTo = (JSON.stringify(m.to || '') + ' ' + JSON.stringify(m.cc || '') + ' ' + hdr(m, 'delivered-to') + ' ' + hdr(m, 'to')).toLowerCase();\n  if (isBounce ? !text.toLowerCase().includes(SYS) : !addressedTo.includes(SYS)) continue;\n  if (isBounce) {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_bounce', args: {\n      p_email: failedRecipient(m, text),\n      p_external_id: m.id,\n      p_detail: (subject + ': ' + text.replace(/\\s+/g, ' ')).slice(0, 500),\n    } } });\n  } else {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Email',\n      p_from: from,\n      p_subject: subject || null,\n      p_body: stripQuoted(text).slice(0, 5000),\n      p_external_id: m.id,\n      p_received_at: received && !isNaN(received) ? received.toISOString() : null,\n      p_summary: null,\n    } } });\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "7abb148b-1c7e-4648-a4d9-98b95d062b05",
+      "name": "Record email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        1900
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/{{ $json.rpc }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.args) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "2d7743a3-51a4-4fd1-aef1-fffad5bf39a9",
+      "name": "Label as processed",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1620,
+        1900
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "addLabels",
+        "messageId": "={{ $('Classify emails').item.json.gmail_id }}",
+        "labelIds": [
+          "REPLACE_WITH_PROCESSED_LABEL_ID"
+        ]
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8de44dbe-c306-45da-8204-4b2f3979f9fa",
+      "name": "Log reading problem",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        2120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/log_system_error",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_workflow: $workflow.name, p_message: ('Inbound reading failed at \"' + $prevNode.name + '\": ' + (typeof $json.error === 'string' ? $json.error : ($json.error && $json.error.message) || JSON.stringify($json))).slice(0, 1000), p_url: null }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "de3d5801-762f-4d25-a5d8-bf6ca378d5f9",
+      "name": "Note: Discord replies",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        920,
+        2300
+      ],
+      "parameters": {
+        "content": "## (b) Typed replies in instructor Discord channels\n- `discord_watchlist()` lists channels worth reading (with the instructor's Discord user id and the last message id read).\n- Reads up to 50 newer messages per channel (`after` = cursor). Only messages written by that instructor are recorded, oldest first.\n- On the very first read of a channel (no cursor yet) only the last 3 days are recorded, so old chat history is not imported.\n- The cursor moves to the newest message seen (even if none were from the instructor). It does not move if any record failed (retried next hour; recording is idempotent).\n- Needs **MESSAGE CONTENT INTENT** on the bot, otherwise message text is empty.",
+        "height": 400,
+        "width": 1340,
+        "color": 6
+      }
+    },
+    {
+      "id": "60110cf7-02b9-4452-9284-9e06fd1f9620",
+      "name": "Get watchlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        2440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/discord_watchlist",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "24e44115-4f10-4f14-bbf0-92b89f3e9e9a",
+      "name": "Read channel messages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        2440
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://discord.com/api/v10/channels/' + $json.channel_id + '/messages?limit=50' + ($json.last_message_id ? '&after=' + $json.last_message_id : '') }}",
+        "authentication": "predefinedCredentialType",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "nodeCredentialType": "discordBotApi"
+      },
+      "credentials": {
+        "discordBotApi": {
+          "id": "REPLACE_ME",
+          "name": "Discord Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "523fc24f-3c37-4d0d-b34f-6a550e3eb8b5",
+      "name": "Pick instructor replies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        2380
+      ],
+      "parameters": {
+        "jsCode": "// Keep only messages written by the instructor who owns the channel, oldest first.\nconst watch = $('Get watchlist').all();\nconst cutoff = Date.now() - 3 * 24 * 3600 * 1000;\nconst byId = (a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0);\nconst out = [];\n$input.all().forEach((item, idx) => {\n  const w = (watch[(item.pairedItem && item.pairedItem.item) ?? idx] || {}).json || {};\n  const r = item.json || {};\n  if (!w.channel_id || r.error || r.statusCode !== 200 || !Array.isArray(r.body)) return;\n  for (const m of r.body.slice().sort(byId)) {\n    if (!m.author || String(m.author.id) !== String(w.discord_user_id)) continue;\n    if (!w.last_message_id && Date.parse(m.timestamp) < cutoff) continue;\n    const parts = [m.content || ''];\n    for (const a of m.attachments || []) parts.push('[attachment] ' + a.url);\n    const body = parts.join('\\n').trim();\n    if (!body) continue;\n    out.push({ json: { channel_id: w.channel_id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Discord',\n      p_from: String(m.author.id),\n      p_subject: null,\n      p_body: body.slice(0, 5000),\n      p_external_id: String(m.id),\n      p_received_at: m.timestamp || null,\n      p_summary: null,\n    } } });\n  }\n});\nreturn out;"
+      }
+    },
+    {
+      "id": "d7eae794-c9cb-4d0a-b0fb-42d15766a4f9",
+      "name": "Record Discord reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        2380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/{{ $json.rpc }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.args) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "570aae4e-254d-4dc9-9040-61338fac4be1",
+      "name": "Pick new cursors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        2560
+      ],
+      "parameters": {
+        "jsCode": "// Newest message id per channel. Skip channels that could not be read or where a record failed.\nconst watch = $('Get watchlist').all();\nconst failed = new Set();\ntry {\n  const picked = $('Pick instructor replies').all();\n  $('Record Discord reply').all().forEach((r, i) => {\n    if (r.json && r.json.error && picked[i]) failed.add(picked[i].json.channel_id);\n  });\n} catch (e) { /* no replies were recorded this run */ }\nconst out = [];\n$input.all().forEach((item, idx) => {\n  const w = (watch[(item.pairedItem && item.pairedItem.item) ?? idx] || {}).json || {};\n  const r = item.json || {};\n  if (!w.channel_id || r.error || r.statusCode !== 200 || !Array.isArray(r.body) || !r.body.length) return;\n  if (failed.has(w.channel_id)) return;\n  const newest = r.body.map(m => String(m.id)).reduce((a, b) => (BigInt(b) > BigInt(a) ? b : a));\n  out.push({ json: { p_channel_id: w.channel_id, p_last_message_id: newest } });\n});\nreturn out;"
+      }
+    },
+    {
+      "id": "eba2b921-91c3-48f7-9808-c0e7c2472ef3",
+      "name": "Save Discord cursor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        2560
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/set_discord_cursor",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
     "Poke webhook": {
-      "main": [
-        [
-          {
-            "node": "Config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Every 5 minutes": {
       "main": [
         [
           {
@@ -717,6 +1222,21 @@
         [
           {
             "node": "Get queued actions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Discord work",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get system replies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get watchlist",
             "type": "main",
             "index": 0
           }
@@ -1003,6 +1523,157 @@
         [
           {
             "node": "Complete action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Discord work": {
+      "main": [
+        [
+          {
+            "node": "Plan calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan calls": {
+      "main": [
+        [
+          {
+            "node": "Ask Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Discord": {
+      "main": [
+        [
+          {
+            "node": "Gather answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gather answers": {
+      "main": [
+        [
+          {
+            "node": "Save answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify emails": {
+      "main": [
+        [
+          {
+            "node": "Record email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record email": {
+      "main": [
+        [
+          {
+            "node": "Label as processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get watchlist": {
+      "main": [
+        [
+          {
+            "node": "Read channel messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log reading problem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read channel messages": {
+      "main": [
+        [
+          {
+            "node": "Pick instructor replies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pick new cursors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick instructor replies": {
+      "main": [
+        [
+          {
+            "node": "Record Discord reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick new cursors": {
+      "main": [
+        [
+          {
+            "node": "Save Discord cursor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get system replies": {
+      "main": [
+        [
+          {
+            "node": "Classify emails",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log reading problem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 6 minutes": {
+      "main": [
+        [
+          {
+            "node": "Config",
             "type": "main",
             "index": 0
           }

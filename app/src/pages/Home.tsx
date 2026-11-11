@@ -6,7 +6,7 @@ import { CalendarDays, CheckCircle2, Circle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
-import { useCohorts, useInstructors, useWeeks } from '@/lib/data';
+import { LIVE_CHECK_MS, useCohorts, useInstructors, useWeeks } from '@/lib/data';
 import { PT } from '@/lib/time';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { weekState } from '@/lib/status';
@@ -65,6 +65,8 @@ export default function Home() {
   const counts = useQuery({
     queryKey: ['attention_item', 'home-counts', domain?.id],
     enabled: !!domain,
+    // Checks for new tasks every 30 seconds while open, in case a live update was missed.
+    refetchInterval: LIVE_CHECK_MS,
     queryFn: async () => {
       const rows = check(
         await supabase

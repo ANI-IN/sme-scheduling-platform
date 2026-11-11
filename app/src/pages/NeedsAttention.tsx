@@ -4,7 +4,14 @@ import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useInstructors, useMe, useTeam, useWeeks, type AttentionItem } from '@/lib/data';
+import {
+  LIVE_CHECK_MS,
+  useInstructors,
+  useMe,
+  useTeam,
+  useWeeks,
+  type AttentionItem,
+} from '@/lib/data';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
 import { discordNames } from '@/lib/discordNames';
@@ -60,6 +67,8 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
   const items = useQuery({
     queryKey: ['attention_item', domain?.id, f.done],
     enabled: !!domain,
+    // Checks for new tasks every 30 seconds while open, in case a live update was missed.
+    refetchInterval: LIVE_CHECK_MS,
     queryFn: async () => {
       let q = supabase
         .from('attention_item')
@@ -244,7 +253,7 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
                         onClick={() => setDrawer(a.module_week_id)}
                       >
                         {['RankingExhausted', 'ClassAtRisk', 'LateReply'].includes(a.type)
-                          ? 'Assign an instructor'
+                          ? 'Assign and confirm instructor'
                           : 'Open class'}
                       </Button>
                     )}
@@ -380,6 +389,8 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
   const { run, err } = useRun();
   const h = useQuery({
     queryKey: ['help_request', id],
+    // Checks for new tasks every 30 seconds while open, in case a live update was missed.
+    refetchInterval: LIVE_CHECK_MS,
     queryFn: async () => {
       const [r, m] = await Promise.all([
         supabase

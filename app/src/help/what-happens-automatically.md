@@ -3,7 +3,7 @@ summary: The timeline of a class week, how instructors are asked, and what you c
 order: 8
 ---
 
-The app runs an **automatic check** every hour. Each time, it does what is due for every class week.
+The app runs an **automatic check** every hour. Each time, it does what is due for every class week. Messages go out within a few minutes, and a reply an instructor types by email or in their Discord channel shows up as a task within 6 minutes.
 
 ![What happens before a class](/help/timeline.png)
 

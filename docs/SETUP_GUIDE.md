@@ -183,7 +183,7 @@ The app uses Discord servers you already have. It never creates servers or chann
    `VITE_DISCORD_CLIENT_ID` (part 7; it is not a secret). The app then shows the invite link on **Settings,
    Connections, Discord servers**.
 
-You add the bot to the servers and choose channels in part 7.5, once the app is online and WF6 runs in n8n.
+You add the bot to the servers and choose channels in part 7.5, once the app is online and WF4 runs in n8n.
 
 | Value | Where it comes from | Where it goes |
 |---|---|---|
@@ -213,7 +213,7 @@ n8n only moves messages in and out. Every decision is made by the database.
    2. Import the six files from `n8n/sandbox/` (or `n8n/production/`), WF5 first.
    3. In the **Config** node of WF1 to WF5 set `pokeKey`. The Sandbox Supabase address, the WF4 address and the backup
       folder (`your-drive-folder-id`, newest 30 backups kept) are already filled in.
-   4. Set WF5 as the **Error workflow** of WF1 to WF4 and WF6. Publish WF5 and WF4 first, then the rest.
+   4. Set WF5 as the **Error workflow** of WF1 to WF4. Publish WF5 and WF4 first, then the rest. Leave WF6 unpublished (WF4 does its checks).
 3. Copy the two webhook addresses:
 
    | Webhook | Sandbox | Production | Where it goes |
@@ -298,8 +298,8 @@ it and the Production site from `main`.
 
 ### 7.5 Connect Discord in the app
 
-Do this once the app is online (7.2 or 7.3) and the workflows are published in n8n (part 5): WF6 answers
-**Refresh servers** and **Check**.
+Do this once the app is online (7.2 or 7.3) and the workflows are published in n8n (part 5): WF4 answers
+**Refresh servers** and **Check** within seconds.
 
 1. Sign in to the app. **Settings, Connections, Discord servers**: press **Open the invite link** and add the bot to
    each server (the Sandbox bot to the Sandbox server only). The link asks for exactly four permissions: View
@@ -397,7 +397,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 25 | Workflows imported and published | `n8n/sandbox/`, `n8n/production/` | n8n | | | ☐ |
 | 26 | WF2 confirm page address | n8n WF2 webhook | `RESPONSE_BASE_URL` (1.4) | | | ☐ |
 | 27 | WF4 poke address | n8n WF4 webhook | Vercel `VITE_N8N_POKE_URL`; n8n Config `pokeUrl` | | | ☐ |
-| 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 and WF6 | | | ☐ |
+| 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 | | | ☐ |
 | 29 | OpenAI key (optional, secret) | platform.openai.com → API keys | n8n `OpenAI Sandbox` | skip | in password manager | ☐ |
 | 30 | Hosting project | Vercel Pro or Cloudflare Pages | | | | ☐ |
 | 31 | Hosting variables, including `VITE_DISCORD_CLIENT_ID` | Table in 7.2 | Vercel or Cloudflare | | | ☐ |

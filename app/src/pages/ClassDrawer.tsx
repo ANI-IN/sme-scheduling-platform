@@ -47,9 +47,10 @@ export function useRun() {
     setBusy(true);
     try {
       const r = await fn();
-      await poke();
       if (ok) toast.success(ok);
+      // Show the result at once, then ask n8n to deliver; refresh again when it has started.
       await qc.invalidateQueries();
+      void poke().then(() => qc.invalidateQueries());
       return r;
     } catch (e) {
       setErr(e);
@@ -254,7 +255,7 @@ export function ClassDrawer({
                     )
                   }
                 >
-                  Assign an instructor
+                  Assign and confirm instructor
                 </Button>
                 <Button
                   size="sm"

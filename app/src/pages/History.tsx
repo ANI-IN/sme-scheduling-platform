@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import {
+  LIVE_CHECK_MS,
   useCohorts,
   useInstructors,
   useModules,
@@ -74,6 +75,8 @@ export default function History() {
       f.to,
       limit,
     ],
+    // Checks for new tasks every 30 seconds while open, in case a live update was missed.
+    refetchInterval: LIVE_CHECK_MS,
     queryFn: async () => {
       let q = supabase
         .from('history_event')

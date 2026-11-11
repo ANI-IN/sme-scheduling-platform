@@ -65,6 +65,12 @@ begin
   v_rows := public.generate_classes(v_dom, v_first, array(select v_start + 7 * j from generate_series(0, 3) j), 'India cohort', 'India');
   n_weeks := n_weeks + coalesce((public.create_module_weeks(v_dom, v_rows, true, 'Demo data') ->> 'created')::int, 0);
 
+  -- Start reading the instructors' channels from now, so messages typed there before (a rehearsal) are not
+  -- picked up as new replies during the demo. A Discord message ID holds its time: (ms since 2015) << 22.
+  insert into public.discord_cursor (channel_id, last_message_id)
+  select c, (((extract(epoch from now()) * 1000)::bigint - 1420070400000) << 22)::text from unnest(v_chans) c
+  on conflict (channel_id) do update set last_message_id = excluded.last_message_id, updated_at = now();
+
   perform private.log_event('System', 'Demo data loaded', null, null, null,
     jsonb_build_object('domain', 'Backend', 'modules', 2, 'class_weeks', n_weeks, 'test_instructors', 3));
   return jsonb_build_object('class_weeks', n_weeks, 'first_class', v_start, 'test_instructors', 3);

@@ -20,9 +20,9 @@ select is((select cohort_id from public.history_event where entity_table = 'sett
 select is((select domain_id from public.history_event where entity_table = 'setting' order by id desc limit 1), :'dom'::uuid,
   'and its domain');
 select public.pause_outreach(:'mw', true);
-select is((select cohort_id from public.history_event where action = 'Outreach paused' order by id desc limit 1), :'coh'::uuid,
+select is((select cohort_id from public.history_event where action = 'Asking paused' order by id desc limit 1), :'coh'::uuid,
   'class week actions carry the cohort');
-select is((select actor_label from public.history_event where action = 'Outreach paused' order by id desc limit 1), 'ops@example.com',
+select is((select actor_label from public.history_event where action = 'Asking paused' order by id desc limit 1), 'ops@example.com',
   'and who did it');
 select tests.as_postgres();
 
@@ -44,7 +44,7 @@ select ok((select not public.undoable(e) from public.history_event e where entit
 select tests.login_as('ops@example.com');
 select ok((select public.undoable(e) from public.history_event e where entity_table = 'module' and action = 'module changed' order by id desc limit 1),
   'editing a module can be undone');
-select ok((select not public.undoable(e) from public.history_event e where action = 'Outreach paused' order by id desc limit 1),
+select ok((select not public.undoable(e) from public.history_event e where action = 'Asking paused' order by id desc limit 1),
   'manual and automatic actions are not offered for undo');
 select throws_ok(format('select public.undo_history_event(%s)',
   (select id from public.history_event where entity_table = 'module' and action = 'module added' and entity_id = :'mod'::uuid)),

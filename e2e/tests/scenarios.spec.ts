@@ -115,7 +115,7 @@ test('the same instructor teaches in two cohorts', async ({ page }) => {
     `one of ${confirmed.map((c) => c.full_name).join(', ')} in ${options.join(', ')}`,
   ).toBeTruthy();
   await select.selectOption({ label: label(pick!.full_name)! });
-  await dlg.getByRole('button', { name: 'Assign an instructor' }).click();
+  await dlg.getByRole('button', { name: 'Assign and confirm instructor' }).click();
   await ifShown(page.getByRole('button', { name: /yes, continue|assign anyway/i }));
   await expect(dlg.getByText(new RegExp(`Confirmed: ${pick!.full_name}`))).toBeVisible();
   const cohorts = await one<{ n: number }>(

@@ -236,7 +236,8 @@ export function DiscordServers() {
       )}
       {checking && (
         <Notice tone="info">
-          The automation checks Discord about once a minute. This page updates by itself.
+          The automation checks Discord as soon as you ask, and again every few minutes. This page
+          updates by itself.
         </Notice>
       )}
       <ErrorText error={err} />

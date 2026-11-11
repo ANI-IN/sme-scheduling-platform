@@ -468,7 +468,10 @@ export default function Outreach() {
                                   onSelect: () => setManualFor(w),
                                 },
                                 { label: 'Ask a specific person', onSelect: () => setAskFor(w) },
-                                { label: 'Assign an instructor', onSelect: () => setDrawer(w.id) },
+                                {
+                                  label: 'Assign and confirm instructor',
+                                  onSelect: () => setDrawer(w.id),
+                                },
                                 {
                                   label: 'Record a phone or chat confirmation',
                                   onSelect: () => setDrawer(w.id),
