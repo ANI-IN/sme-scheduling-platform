@@ -24,6 +24,7 @@ import { useCohorts, useInstructors, useSettingsMap, useWeeks, type WeekRow } fr
 import { ActionMenu } from '@/components/ActionMenu';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt, fmtDay, weekRegion } from '@/lib/region';
+import { RegionBadge } from '@/components/ClassTime';
 import { weekState } from '@/lib/status';
 import { plain } from '@/lib/plain';
 import { supabase } from '@/lib/supabase';
@@ -42,6 +43,7 @@ import {
   Skeleton,
   SkeletonRows,
   Stat,
+  Toolbar,
   tableWrap,
   td,
   th,
@@ -66,12 +68,26 @@ type Eligible = {
 };
 
 const OPEN = ['Queued', 'Sent', 'Reminded'];
-const label = (w: WeekRow, showCohort: boolean) =>
-  `${w.module?.name}${showCohort ? ` (${w.cohort})` : ''} · ${[...w.class_session]
+const label = (w: WeekRow) =>
+  `${w.module?.name} · ${[...w.class_session]
     .filter((c) => c.status !== 'Cancelled')
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
     .map((c) => fmtDay(c.starts_at, c.region))
     .join(' + ')}`;
+
+/** Cohort, region and the first class time in its own time zone, under each class week. */
+function WeekMeta({ w }: { w: WeekRow }) {
+  const first = [...w.class_session]
+    .filter((c) => c.status !== 'Cancelled')
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0];
+  return (
+    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+      <span>{w.cohort}</span>
+      <RegionBadge region={first?.region ?? weekRegion(w.class_session)} />
+      {first && <span>{fmtAt(first.starts_at, first.region)}</span>}
+    </div>
+  );
+}
 
 export default function Outreach() {
   const { domain } = useDomain();
@@ -86,8 +102,9 @@ export default function Outreach() {
   const [askFor, setAskFor] = useState<WeekRow | null>(null);
   const [focus, setFocus] = useState<'' | 'asking' | 'confirmed' | 'risk' | 'needs' | 'help'>('');
   const [cohortId, setCohortId] = useState('');
+  const [moduleId, setModuleId] = useState('');
+  const [region, setRegion] = useState('');
   const cohorts = useCohorts(domain?.id);
-  const manyCohorts = (cohorts.data ?? []).length > 1;
   const toggleFocus = (f: typeof focus) => setFocus((x) => (x === f ? '' : f));
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
@@ -100,8 +117,13 @@ export default function Outreach() {
     (w) =>
       !['Completed', 'Cancelled'].includes(w.status) &&
       (w.last_class_end_at ?? '') > now &&
-      (!cohortId || w.cohort_id === cohortId),
+      (!cohortId || w.cohort_id === cohortId) &&
+      (!moduleId || w.module_id === moduleId) &&
+      (!region || w.class_session.some((c) => c.region === region)),
   );
+  const modules = [
+    ...new Map((weeks.data ?? []).map((w) => [w.module_id, w.module?.name ?? 'Module'] as const)),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
   const isAsking = (w: WeekRow) =>
     w.request.some((r) => r.kind === 'Outreach' && OPEN.includes(r.status));
   const hasHelp = (w: WeekRow) =>
@@ -181,13 +203,27 @@ export default function Outreach() {
       <PageHeader
         title="Instructor requests"
         description="Who we are asking to teach each class week, and the confirmed classes with their reminders. Select a card to show only those class weeks."
-      >
+      />
+      <Toolbar>
+        <Select
+          aria-label="Module"
+          value={moduleId}
+          onChange={(e) => setModuleId(e.target.value)}
+          className="w-52"
+        >
+          <option value="">All modules</option>
+          {modules.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </Select>
         {(cohorts.data ?? []).length > 1 && (
           <Select
             aria-label="Cohort"
             value={cohortId}
             onChange={(e) => setCohortId(e.target.value)}
-            className="w-56"
+            className="w-52"
           >
             <option value="">All cohorts</option>
             {(cohorts.data ?? []).map((c) => (
@@ -197,7 +233,17 @@ export default function Outreach() {
             ))}
           </Select>
         )}
-      </PageHeader>
+        <Select
+          aria-label="Region"
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          className="w-40"
+        >
+          <option value="">All regions</option>
+          <option value="US">US</option>
+          <option value="India">India</option>
+        </Select>
+      </Toolbar>
       <div className="flex flex-wrap gap-3">
         <Stat
           label="Asking now"
@@ -316,8 +362,9 @@ export default function Outreach() {
                             className="text-left font-medium text-link hover:underline"
                             onClick={() => setDrawer(w.id)}
                           >
-                            {label(w, manyCohorts)}
+                            {label(w)}
                           </button>
+                          <WeekMeta w={w} />
                           {w.at_risk && (
                             <div className="text-xs text-danger-strong">
                               At risk: {w.at_risk_reason}
@@ -518,8 +565,9 @@ export default function Outreach() {
                           className="text-left font-medium text-link hover:underline"
                           onClick={() => setDrawer(w.id)}
                         >
-                          {label(w, manyCohorts)}
+                          {label(w)}
                         </button>
+                        <WeekMeta w={w} />
                         {w.at_risk && (
                           <div className="text-xs text-danger-strong">
                             At risk: {w.at_risk_reason}

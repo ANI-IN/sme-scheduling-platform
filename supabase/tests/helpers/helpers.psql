@@ -16,9 +16,23 @@ end $$;
 -- Sign in as a company Google Workspace account (what Sandbox and Production require).
 create or replace function tests.login_google(p_email text)
 returns void language plpgsql as $$
+declare v_sub uuid;
 begin
+  -- The Workspace (hd) check reads Google's identity record, which only Supabase Auth writes.
+  -- Signing in again with the same address is the same account, as in Supabase Auth.
+  select id into v_sub from auth.users where lower(email) = lower(p_email) limit 1;
+  if v_sub is null then
+    v_sub := gen_random_uuid();
+    insert into auth.users (id, instance_id, aud, role, email)
+    values (v_sub, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', p_email);
+  end if;
+  if not exists (select 1 from auth.identities where user_id = v_sub and provider = 'google') then
+    insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at)
+    values (v_sub::text, v_sub, json_build_object('sub', v_sub, 'email', p_email, 'hd', split_part(p_email, '@', 2))::jsonb,
+            'google', now());
+  end if;
   perform set_config('request.jwt.claims',
-    json_build_object('sub', gen_random_uuid(), 'role', 'authenticated', 'email', p_email,
+    json_build_object('sub', v_sub, 'role', 'authenticated', 'email', p_email,
       'app_metadata', json_build_object('provider', 'google'),
       'user_metadata', json_build_object('custom_claims', json_build_object('hd', split_part(p_email, '@', 2))))::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
@@ -48,7 +62,9 @@ $$;
 
 create or replace function tests.company()
 returns void language sql as $$
-  update public.app_config set company_email_domain = 'example.com' where id = 1;
+  update public.app_config set company_email_domain = 'example.com',
+         environment = case when environment_set_at is null then 'Development' else environment end,
+         environment_set_at = coalesce(environment_set_at, now()) where id = 1;
 $$;
 
 create or replace function tests.make_team_member(p_name text, p_label text default 'Ops')
@@ -150,6 +166,9 @@ begin
   for i in 1 .. p_n loop
     v_i := tests.make_instructor(p_domain_name || ' Instr' || i);
     v_ids := v_ids || v_i;
+    -- Release 2: each instructor has their own channel in the domain.
+    insert into public.instructor_channel (instructor_id, domain_id, channel_id)
+    select v_i, v_dom, discord_channel_id from public.instructor where id = v_i;
   end loop;
   perform tests.rank(v_mod, variadic v_ids);
   v_mw := tests.make_week(v_mod, p_week);

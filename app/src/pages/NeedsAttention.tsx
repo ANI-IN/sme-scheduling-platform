@@ -492,7 +492,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
                   Treat as a cancellation
                 </Button>
               </div>
-              <Field label="Reply to the instructor (sent by their chosen channel)">
+              <Field label="Reply to the instructor (in their Discord channel, or a direct message, and by email)">
                 <Textarea value={reply} onChange={(e) => setReply(e.target.value)} />
               </Field>
               <div className="flex items-center gap-3">

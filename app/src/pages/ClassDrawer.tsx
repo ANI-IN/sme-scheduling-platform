@@ -756,21 +756,42 @@ function ClassEditor({
               disabled={!timeChanged || !ready}
               onClick={async () => {
                 if (
-                  await confirm({
+                  !(await confirm({
                     title: 'Change the class time?',
                     body: 'If an instructor is confirmed, we check the new time against their other classes and ask them to confirm it. If someone is being asked, they get the new time.',
+                  }))
+                )
+                  return;
+                const args = {
+                  p_class_id: c.id,
+                  p_date: t.date,
+                  p_start: t.start,
+                  p_end: t.end,
+                  p_expected_version: c.version,
+                  p_region: t.region,
+                  p_fold: fold ?? undefined,
+                };
+                const res = (await run(() => rpc('change_class_time', args))) as
+                  { needs_confirmation?: boolean; warnings?: { text: string }[] } | undefined;
+                if (!res) return;
+                if (!res.needs_confirmation) {
+                  toast.success('Class time changed');
+                  return;
+                }
+                // Holidays, early or late hours, or the cohort's other classes: the same checks as adding a class.
+                if (
+                  await confirm({
+                    title: 'Change the time anyway?',
+                    body: (res.warnings ?? []).map((w) => plain(w.text)).join(' '),
+                    confirmLabel: 'Change anyway',
                   })
                 )
                   await run(
                     () =>
                       rpc('change_class_time', {
-                        p_class_id: c.id,
-                        p_date: t.date,
-                        p_start: t.start,
-                        p_end: t.end,
-                        p_expected_version: c.version,
-                        p_region: t.region,
-                        p_fold: fold ?? undefined,
+                        ...args,
+                        p_accept_warnings: true,
+                        p_reason: 'Accepted when changing the time',
                       }),
                     'Class time changed',
                   );

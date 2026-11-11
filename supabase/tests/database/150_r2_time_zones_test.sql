@@ -82,7 +82,7 @@ select is((tests.cls(tests.add(:'mod', :'us', '2027-02-21', '09:00', '10:00', 'I
 
 -- =============================================================== 13: moving a class across the clock change keeps the local time
 select (tests.add(:'mod', :'us', '2027-03-07', '09:00', '10:00') ->> 'class_id') as mv \gset
-select public.change_class_time(:'mv', '2027-03-14', '09:00', '10:00');
+select public.change_class_time(:'mv', '2027-03-14', '09:00', '10:00', p_accept_warnings => true);
 select is((select starts_at from public.class_session where id = :'mv'), '2027-03-14 16:00+00'::timestamptz, '13. moved to Mar 14 at 9:00 AM: now PDT (16:00 UTC)');
 
 -- =============================================================== 14: quiet hours follow the class's region

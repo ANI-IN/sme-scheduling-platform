@@ -110,6 +110,7 @@ select is((select count(*)::int from public.attention_item where status <> 'Done
 select public.engine_tick_all('2027-01-05 06:30+00');
 select is((select count(*)::int from public.message where template_id = 'T12'),
           (select count(distinct team_member_id)::int from public.message where template_id = 'T12'), 'only one digest per person per day');
+update public.app_config set admin_discord_channel_id = tests.rand_discord() where id = 1;
 select public.daily_jobs('2027-01-05 05:30+00');
 select is((select count(*)::int from public.message where template_id = 'T15'), 1, 'daily heartbeat (T15) to the admin channel');
 

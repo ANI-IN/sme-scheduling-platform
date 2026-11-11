@@ -1,7 +1,7 @@
 -- Release Milestone 3: sign in and access.
 begin;
 \ir ../helpers/helpers.psql
-select plan(22);
+select plan(23);
 
 select tests.company();
 
@@ -38,6 +38,9 @@ select tests.login_with('{"email": "ops@example.com", "app_metadata": {"provider
 select ok(not private.is_team_user(), 'in Production an email link session gets no access, even with a company address');
 select tests.as_postgres();
 select tests.login_with('{"email": "ops@example.com", "app_metadata": {"provider": "google"}, "user_metadata": {"custom_claims": {"hd": "example.com"}}}');
+select ok(not private.is_team_user(), 'a session that only writes the company domain into its own profile gets no access (SEC-1)');
+select tests.as_postgres();
+select tests.login_google('ops@example.com');
 select ok(private.is_team_user(), 'and a company Google session does');
 select tests.as_postgres();
 update public.app_config set environment = 'Development' where id = 1;
@@ -74,7 +77,7 @@ select ok(public.hook_before_user_created(tests.google_user('new.person@example.
 select is((select active from public.team_member where email = 'new.person@example.com'), false, 'and is no longer tagged or reminded');
 
 -- =============================================================== setup
-select ok(not has_function_privilege('authenticated', 'public.configure_environment(text, text, text[], text[])', 'EXECUTE'),
+select ok(not has_function_privilege('authenticated', 'public.configure_environment(text, text, text[], text[], text, text)', 'EXECUTE'),
   'only the setup script can change the environment and the allowed domain');
 update public.app_config set company_email_domain = '' where id = 1;
 select is(public.hook_before_user_created(tests.google_user('a@example.com', 'example.com')) -> 'error' ->> 'message',

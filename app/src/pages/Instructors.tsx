@@ -658,6 +658,9 @@ export function InstructorDrawer({
                       instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_id ??
                       null
                     }
+                    storedName={
+                      instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_name
+                    }
                     onChange={(id) =>
                       act(
                         () =>

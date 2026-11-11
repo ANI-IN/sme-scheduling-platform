@@ -1,7 +1,7 @@
 -- Release Milestone 7: Sandbox and Production rules, Sandbox starting data and reset.
 begin;
 \ir ../helpers/helpers.psql
-select plan(17);
+select plan(18);
 
 select tests.scenario('EV', 'Live', '2027-01-31', 1) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'i1') as i1 \gset
@@ -27,7 +27,10 @@ update public.app_config set environment = 'Sandbox', discord_guild_id = '111111
        sandbox_allowed_email_domains = array['allowed.test'], sandbox_allowed_discord_servers = array['111111111111111111'] where id = 1;
 select is(tests.out_msg('ev-3', 'Email', :'i1', 'someone@realcompany.com'), 'Cancelled', 'Sandbox does not email domains that are not allowed');
 select is(tests.out_msg('ev-4', 'Email', :'tester', 'me+a@allowed.test'), 'Pending', 'Sandbox emails allowed domains');
+insert into public.discord_channel (id, server_id, name) values ('222222222222222222', '111111111111111111', 'testing');
 select is(tests.out_msg('ev-5', 'Discord', :'tester', null, '222222222222222222'), 'Pending', 'Sandbox posts in an allowed Discord server');
+select is(tests.out_msg('ev-5b', 'Discord', :'tester', null, '333333333333333333'), 'Cancelled',
+  'Sandbox never posts to a channel the bot has not listed (no guessing the server, SEC-5)');
 update public.app_config set sandbox_allowed_discord_servers = '{}' where id = 1;
 select is(tests.out_msg('ev-6', 'Discord', :'tester', null, '222222222222222222'), 'Cancelled', 'and nowhere else');
 select is((select status from public.message where unique_key = 'ev-4'), 'Pending', 'messages already allowed are not changed');

@@ -43,6 +43,42 @@ const sql = async (q: string, params: unknown[] = []) => {
   }
 };
 
+/**
+ * Made up Discord setup for the pictures: a server for Backend that is ready, its channels, and
+ * usernames and channels for the test instructors (one not found, to show what that looks like).
+ * Nothing is sent to Discord; the local data is put back after the pictures.
+ */
+const discordDemo = () =>
+  sql(`
+    insert into public.discord_server (id, name, refreshed_at)
+    values ('900000000000000001', 'Backend program', now())
+    on conflict (id) do update set name = excluded.name, refreshed_at = now();
+    insert into public.discord_channel (id, server_id, name, category, position)
+    select '9000000000000001' || n, '900000000000000001', 'test-instructor-' || chr(96 + n), '1-1', n
+      from generate_series(1, 6) n
+    union all select '900000000000000099', '900000000000000001', 'backend-alerts', null, 0
+    on conflict (id) do nothing;
+    update public.domain set discord_server_id = '900000000000000001', discord_status = 'Ready',
+           discord_problem = null, discord_checked_at = now(), alert_discord_channel_id = '900000000000000099',
+           version = version
+     where name = 'Backend';
+    update public.instructor set discord_username = 'test.instructor.' || lower(right(full_name, 1)), version = version
+     where is_test;
+    update public.instructor set discord_status = 'Found', discord_problem = null, discord_checked_at = now(),
+           version = version
+     where is_test and full_name <> 'Test Instructor E';
+    update public.instructor set discord_status = 'NotFound', discord_checked_at = now(), version = version,
+           discord_problem = 'Nobody with the username test.instructor.e is in Backend program. Check the spelling (lowercase, without @) and that they joined the server, then press Check Discord.'
+     where full_name = 'Test Instructor E';
+    delete from public.action_queue where action like 'discord%' and status = 'Queued';
+    insert into public.instructor_channel (instructor_id, domain_id, channel_id, channel_name)
+    select i.id, d.id, '9000000000000001' || (ascii(lower(right(i.full_name, 1))) - 96),
+           'test-instructor-' || lower(right(i.full_name, 1))
+      from public.instructor i cross join public.domain d
+     where i.is_test and d.name = 'Backend' and i.full_name <> 'Test Instructor E'
+    on conflict do nothing;
+  `);
+
 const PICS: Pic[] = [
   {
     file: 'first-sign-in-discord.png',
@@ -62,6 +98,7 @@ const PICS: Pic[] = [
   {
     file: 'instructors-list.png',
     path: '/setup/instructors',
+    before: discordDemo,
     marks: [button(/add instructor/i), (p) => p.getByText('Status', { exact: true }).first()],
   },
   {
@@ -154,6 +191,43 @@ const PICS: Pic[] = [
     marks: [
       (p) => p.getByText('From', { exact: true }).first(),
       (p) => p.getByRole('button', { name: /show details/i }).first(),
+    ],
+  },
+  {
+    file: 'discord-servers.png',
+    path: '/settings/connections',
+    clip: (p) => p.locator('section', { hasText: 'Discord servers' }).first(),
+  },
+  {
+    file: 'instructor-discord.png',
+    path: '/setup/instructors',
+    act: async (p) => {
+      const show = p.getByLabel('Show test instructors');
+      if (!(await show.isChecked())) await show.check();
+      await p.locator('tbody tr').filter({ hasText: 'Test Instructor A' }).first().click();
+      await p.waitForTimeout(800);
+      await p
+        .getByRole('dialog')
+        .getByText('Their channel in each domain')
+        .scrollIntoViewIfNeeded();
+      await p.waitForTimeout(300);
+    },
+    marks: [
+      (p) => p.getByRole('dialog').getByLabel('Discord username'),
+      (p) => p.getByRole('dialog').getByText('Discord found').first(),
+      (p) =>
+        p
+          .getByRole('dialog')
+          .getByRole('combobox', { name: /Channel of Test Instructor A in Backend/ }),
+    ],
+  },
+  {
+    file: 'classes-regions.png',
+    path: '/classes',
+    marks: [
+      (p) => p.getByRole('combobox', { name: 'Region' }),
+      (p) => p.getByRole('combobox', { name: 'Status' }),
+      (p) => p.locator('tbody tr').first().locator('td').nth(1),
     ],
   },
   {

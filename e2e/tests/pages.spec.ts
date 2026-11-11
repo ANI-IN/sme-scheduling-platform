@@ -1,10 +1,12 @@
-// Every page, drawer and dialog: loads without errors, passes axe, and fits a phone screen.
-// Runs in four projects: desktop and mobile, light and dark.
+// Every page, drawer, dialog and form: loads without errors, passes axe, and fits the screen
+// (no sideways scrolling, nothing cut off or off the screen, no controls on top of each other).
+// Runs in eight projects: desktop (1440), laptop (1280), tablet (768) and phone (390), light and dark.
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { ROOT } from '../env.ts';
-import { a11y, expect, noDashes, noSidewaysScroll, ready, sql, test } from './fixtures.ts';
+import { a11y, expect, noDashes, ready, sql, test } from './fixtures.ts';
+import { layoutOk } from './layout.ts';
 
 const guides = readdirSync(join(ROOT, 'app', 'src', 'help'))
   .filter((f) => f.endsWith('.md'))
@@ -45,15 +47,13 @@ async function visit(page: Page, path: string) {
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 }
 
-const mobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
-
 for (const path of PAGES) {
   test(`page ${path === 'MODULE' ? 'module detail' : path}`, async ({ page }) => {
     const p = path === 'MODULE' ? await firstModule() : path;
     await visit(page, p);
     await a11y(page, p);
     await noDashes(page, p);
-    if (mobile(page)) await noSidewaysScroll(page, p);
+    await layoutOk(page, p);
   });
 }
 
@@ -63,7 +63,7 @@ for (const tab of MODULE_TABS) {
     await visit(page, p);
     await a11y(page, p);
     await noDashes(page, p);
-    if (mobile(page)) await noSidewaysScroll(page, p);
+    await layoutOk(page, p);
   });
 }
 
@@ -71,6 +71,7 @@ test('automation settings for a cohort', async ({ page }) => {
   const [c] = await sql<{ id: string }>(`select id from public.cohort order by name limit 1`);
   await visit(page, `/settings/automation?scope=Cohort&id=${c!.id}`);
   await a11y(page, 'automation settings for a cohort');
+  await layoutOk(page, 'automation settings for a cohort');
 });
 
 test('signed out: the sign in page', async ({ browser }) => {
@@ -136,7 +137,8 @@ const OPENERS: { name: string; path: string; open: (page: Page) => Promise<void>
     name: 'account menu',
     path: '/',
     open: async (p) => {
-      if (mobile(p)) await p.getByRole('button', { name: /open menu/i }).click();
+      const menu = p.getByRole('button', { name: /open menu/i });
+      if (await menu.isVisible()) await menu.click();
       await p.getByRole('button', { name: /your account and theme/i }).click();
     },
   },
@@ -152,6 +154,6 @@ for (const o of OPENERS) {
     await expect(layer).toBeVisible();
     await a11y(page, o.name);
     await noDashes(page, o.name);
-    if (mobile(page)) await noSidewaysScroll(page, o.name);
+    await layoutOk(page, o.name);
   });
 }

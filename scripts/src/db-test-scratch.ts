@@ -53,7 +53,7 @@ try {
       console.log(
         out
           .split('\n')
-          .filter((l) => /not ok|^#|ERROR|psql:/.test(l))
+          .filter((l) => /not ok|^\s*#|ERROR|psql:/.test(l))
           .join('\n'),
       );
   }

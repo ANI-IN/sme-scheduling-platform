@@ -78,7 +78,9 @@ select is((select count(*)::int from public.booking_slot s join public.booking b
 select is(tests.msgs(:'mw', 'M4'), 2, 'confirmation (M4) sent on both channels');
 select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email') like '%Materials:%',
   'confirmation includes materials');
-select is(tests.msgs(:'mw', 'T2'), 1, 'owner tagged on confirmation (T2)');
+select ok(tests.msgs(:'mw', 'T2') = 0 and tests.copies(:'mw', 'T2') >= 1
+          and cardinality((select mention_user_ids from public.message where module_week_id = :'mw' and template_id = 'M4' and discord_channel_id is not null)) > 1,
+  'owner tagged on confirmation in the instructor''s channel, plus their own copy (T2)');
 select is((select count(*)::int from public.checklist_item ci join public.class_session c on c.id = ci.class_id where c.module_week_id = :'mw'), 6,
   'checklist created: 3 default items × 2 classes');
 
@@ -101,7 +103,7 @@ select is((select count(*)::int from public.message where status = 'Sending'), (
 select is((select count(*)::int from public.claim_outbound_messages(100)), 0, 'a second claim gets nothing (no double send)');
 select is((public.report_message_result((select id from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email'), true, 'gmail-1')) ->> 'status',
   'Sent', 'n8n reports a send');
-select is((public.report_message_result((select id from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Discord'), false, null, 'boom')) ->> 'status',
+select is((public.report_message_result((select id from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Discord' and discord_channel_id is not null), false, null, 'boom')) ->> 'status',
   'Retry', 'a failure is retried');
 select * from finish();
 rollback;

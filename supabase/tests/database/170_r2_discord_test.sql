@@ -3,7 +3,7 @@
 -- The automation's Discord answers are fed in here as raw HTTP results.
 begin;
 \ir ../helpers/helpers.psql
-select plan(36);
+select plan(37);
 
 select tests.company();
 select tests.make_domain('DA') as dom \gset
@@ -172,7 +172,10 @@ values (:'dom', 'Instructor', 'M4', 'Discord', 'disc-dm-1', 'Pending', :'ravi', 
 select is(:'dm_status'::text, 'Cancelled', '16. in Sandbox a direct message to a real instructor is blocked');
 insert into public.message (domain_id, audience, template_id, channel, unique_key, status, instructor_id, discord_channel_id, body_text)
 values (:'dom', 'Instructor', 'M4', 'Discord', 'disc-ch-1', 'Pending', :'ravi', '900000000000000003', 'Hello') returning status as ch_status \gset
-select is(:'ch_status'::text, 'Pending', '16. a post in a channel of an allowed server is fine');
+select is(:'ch_status'::text, 'Cancelled', '16. a post tagging a real instructor is blocked too (Sandbox never contacts real instructors)');
+insert into public.message (domain_id, audience, template_id, channel, unique_key, status, discord_channel_id, body_text)
+values (:'dom', 'Team', 'T4', 'Discord', 'disc-ch-2', 'Pending', '900000000000000003', 'Hello team') returning status as team_status \gset
+select is(:'team_status'::text, 'Pending', '16. a team post in a channel of an allowed server is fine');
 
 select * from finish();
 rollback;

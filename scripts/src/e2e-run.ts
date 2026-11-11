@@ -41,7 +41,10 @@ if (status === 0) {
   } else {
     // Everything: the page tests only read data, so they run four at a time; the click through
     // and the scenarios change data, so they run one at a time afterwards.
-    const pages = ['desktop-light', 'desktop-dark', 'mobile-light', 'mobile-dark'];
+    const pages = ['desktop', 'laptop', 'tablet', 'mobile'].flatMap((w) => [
+      `${w}-light`,
+      `${w}-dark`,
+    ]);
     status = playwright([...pages.map((p) => `--project=${p}`), '--workers=4'], 'pages');
     const rest = playwright(
       ['--project=crawl-desktop', '--project=crawl-mobile', '--project=scenarios'],

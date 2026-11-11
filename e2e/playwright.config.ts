@@ -1,8 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 import { APP, AUTH_FILE, chromePath, localKeys } from './env.ts';
 
-const desktop = { viewport: { width: 1280, height: 800 } };
-const mobile = { ...devices['Pixel 7'] };
+// The four screen sizes of Release 2 Milestone E: desktop, laptop, tablet and phone.
+const desktop = { viewport: { width: 1440, height: 900 } };
+const laptop = { viewport: { width: 1280, height: 800 } };
+const tablet = { viewport: { width: 768, height: 1024 }, hasTouch: true };
+const mobile = {
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+  userAgent: devices['Pixel 7'].userAgent,
+};
 const executablePath = chromePath();
 const keys = localKeys();
 // npm run e2e runs two phases; each keeps its own results.
@@ -36,6 +45,10 @@ export default defineConfig({
   projects: [
     { name: 'desktop-light', testMatch: /pages\.spec/, use: { ...desktop, colorScheme: 'light' } },
     { name: 'desktop-dark', testMatch: /pages\.spec/, use: { ...desktop, colorScheme: 'dark' } },
+    { name: 'laptop-light', testMatch: /pages\.spec/, use: { ...laptop, colorScheme: 'light' } },
+    { name: 'laptop-dark', testMatch: /pages\.spec/, use: { ...laptop, colorScheme: 'dark' } },
+    { name: 'tablet-light', testMatch: /pages\.spec/, use: { ...tablet, colorScheme: 'light' } },
+    { name: 'tablet-dark', testMatch: /pages\.spec/, use: { ...tablet, colorScheme: 'dark' } },
     { name: 'mobile-light', testMatch: /pages\.spec/, use: { ...mobile, colorScheme: 'light' } },
     { name: 'mobile-dark', testMatch: /pages\.spec/, use: { ...mobile, colorScheme: 'dark' } },
     { name: 'crawl-desktop', testMatch: /crawl\.spec/, use: { ...desktop, colorScheme: 'light' } },

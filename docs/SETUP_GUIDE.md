@@ -82,10 +82,12 @@ Sandbox does not need this file; it gets its own practice data in part 8.
    | Name | Sandbox | Production |
    |---|---|---|
    | `DATABASE_URL` | Sandbox connection string from 1.2 | Production connection string from 1.2 |
-   | `APP_ENVIRONMENT` | `Sandbox` | `Production` |
+   | `APP_ENVIRONMENT` | `Sandbox` (set by `configure:sandbox`) | `Production` (set by `configure:production`) |
    | `ALLOWED_EMAIL_DOMAIN` | Your company domain, for example `yourcompany.com` | The same |
    | `SANDBOX_ALLOWED_DISCORD_SERVERS` | The Sandbox Discord server ID (part 4) | Leave empty |
    | `SANDBOX_ALLOWED_EMAIL_DOMAINS` | Your company domain, so test emails only reach your own team | Leave empty |
+   | `RESPONSE_BASE_URL` | The WF2 Sandbox webhook (part 5), `https://...` | The WF2 Production webhook |
+   | `APP_BASE_URL` | The Sandbox app address (part 7), `https://...` | The Production app address |
 
 3. Run:
 
@@ -100,7 +102,12 @@ Sandbox does not need this file; it gets its own practice data in part 8.
    ```
 
    It prints the environment and the allowed sign in domain. Run it again whenever you change one of these values
-   (for example after you know the Discord server ID).
+   (for example after you know the Discord server ID, the WF2 webhook or the app address).
+
+   Until this has run, the database counts as Sandbox: only company Google accounts can sign in and nothing can be
+   reset. `Development` is refused for a database that is not on your own computer. The answer link
+   (`RESPONSE_BASE_URL`) and the app address (`APP_BASE_URL`) can only be set here, never from inside the app, so
+   nobody can send instructors' answer buttons to another address.
 
 ### 1.5 Only company Google accounts may sign in
 
@@ -213,9 +220,15 @@ The app uses Discord servers you already have. It never creates servers or chann
    minute.
 2. Choose the server of each domain. The app checks it and lists the channels the bot can see. Wait for **Ready**;
    if it says **Needs a fix**, it says exactly what to change.
+
+   ![Discord servers on Settings, Connections](../app/public/help/discord-servers.png)
+
 3. **Setup, Instructors**: for each instructor, type their **Discord username** (for example `maya.k`, without @)
    and choose their channel for each domain from the list. The app finds their Discord account by itself and shows
    **Discord found**, or what is wrong. Nobody types Discord user IDs.
+
+   ![An instructor's Discord username and channel](../app/public/help/instructor-discord.png)
+
 4. **Setup, Team**: a Discord username is optional. People without one get email instead.
 5. **Setup, Domains** and **Settings, Testing**: choose the alert channel and the testing channel from the list.
 
@@ -251,7 +264,7 @@ n8n only moves messages in and out. Every decision is made by the database.
 
    | Webhook | Sandbox | Production | Where it goes |
    |---|---|---|---|
-   | WF2 confirm pages | `https://<your n8n>/webhook/sandbox-respond` | `https://<your n8n>/webhook/respond` | App: **Settings → Connections → Advanced → Response page link** |
+   | WF2 confirm pages | `https://<your n8n>/webhook/sandbox-respond` | `https://<your n8n>/webhook/respond` | `RESPONSE_BASE_URL` in `.env.sandbox` or `.env.production`, then run configure again (1.4) |
    | WF4 poke | `https://<your n8n>/webhook/sandbox-sme-poke` | `https://<your n8n>/webhook/sme-poke` | Hosting variable `VITE_N8N_POKE_URL` (part 7) |
 
 ---
@@ -317,9 +330,10 @@ it and the Production site from `main`.
 ### 7.4 Finish the links
 
 1. Back in Supabase (1.6), set the **Site URL** and **Redirect URLs** to this environment's app address.
-2. Sign in to the app. Go to **Settings → Connections → Advanced: links and IDs** and fill in **App link**,
-   **Response page link** and **Sender email**, then choose the **Admin alert channel**. Then set up the Discord
-   servers as in 4.3.
+2. Put this environment's app address in `APP_BASE_URL` and the WF2 webhook in `RESPONSE_BASE_URL` (1.4) and run
+   configure again.
+3. Sign in to the app. Go to **Settings → Connections → Advanced: links** and fill in **Sender email**; the two links
+   show there to check. Then set up the Discord servers and the **Admin alert channel** as in 4.3.
 
 ---
 
@@ -334,7 +348,13 @@ it and the Production site from `main`.
 4. **Setup → Instructors**: point the test instructors at your own plus addresses and your own Discord username, then press
    **Send contact check** for one of them. It must arrive within a minute.
 5. **Settings → Testing → Run a practice class**. Every stage should pass.
+
+   ![A practice class where every stage worked](../app/public/help/practice-class.png)
+
 6. **Settings → Connections**: Discord, Email and Automation service should all show **Working**.
+
+   ![Connection health](../app/public/help/connections.png)
+
 7. Walk through the scenarios in the PRD (section 20.3) with the test instructors and the practice clock.
 
 ### 8.2 Production
@@ -380,13 +400,13 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 23 | Admin, alert and testing channel IDs | Right click channel → Copy Channel ID | App Connections, Domains, Testing | | | ☐ |
 | 24 | Poke secret (secret) | Password manager generator | n8n `Poke secret (<env>)`, Config `pokeKey`, Vercel `VITE_N8N_POKE_KEY` | in password manager | in password manager | ☐ |
 | 25 | Workflows imported and published | `n8n/sandbox/`, `n8n/production/` | n8n | | | ☐ |
-| 26 | WF2 confirm page address | n8n WF2 webhook | App Connections → Response page link | | | ☐ |
+| 26 | WF2 confirm page address | n8n WF2 webhook | `RESPONSE_BASE_URL` (1.4) | | | ☐ |
 | 27 | WF4 poke address | n8n WF4 webhook | Vercel `VITE_N8N_POKE_URL`; n8n Config `pokeUrl` | | | ☐ |
 | 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 | | | ☐ |
 | 29 | OpenAI key (optional, secret) | platform.openai.com → API keys | n8n `OpenAI (<env>)` | skip | in password manager | ☐ |
 | 30 | Hosting project | Vercel Pro or Cloudflare Pages | | | | ☐ |
 | 31 | Hosting variables | Tables in 7.2 | Vercel or Cloudflare | | | ☐ |
-| 32 | App address | Vercel or Cloudflare Domains | Supabase URL Configuration; App link | | | ☐ |
+| 32 | App address | Vercel or Cloudflare Domains | Supabase URL Configuration; `APP_BASE_URL` (1.4) | | | ☐ |
 | 33 | First checks | Part 8 | | | | ☐ |
 
 ---

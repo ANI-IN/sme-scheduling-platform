@@ -158,16 +158,6 @@ const FIELDS: { key: keyof Config & string; label: string; hint: string }[] = [
     label: 'Sender email',
     hint: 'The Gmail account the automation sends from.',
   },
-  {
-    key: 'response_base_url',
-    label: 'Response page link',
-    hint: 'The production link of the n8n "Response handler" workflow (WF2), for example https://your-n8n/webhook/respond. Every button in a message to an instructor uses it.',
-  },
-  {
-    key: 'app_base_url',
-    label: 'App link',
-    hint: 'The address of this app. Team alerts link to it.',
-  },
 ];
 
 function ConfigForm({ config }: { config: Config }) {
@@ -195,6 +185,25 @@ function ConfigForm({ config }: { config: Config }) {
               </Field>
             ))}
           </div>
+          <dl className="mt-4 space-y-2 text-sm">
+            <div>
+              <dt className="font-medium">Answer page link</dt>
+              <dd className="break-all text-muted-foreground">
+                {config.response_base_url ?? 'Not set yet'}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium">App link</dt>
+              <dd className="break-all text-muted-foreground">
+                {config.app_base_url ?? 'Not set yet'}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Every button in a message to an instructor opens the answer page link. Both links are
+            set by whoever installs the app, so nobody can send instructors to another address from
+            here.
+          </p>
           <ErrorText error={err} />
           <Button
             className="mt-4"

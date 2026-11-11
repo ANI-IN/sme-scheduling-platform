@@ -11,7 +11,12 @@ import pg from 'pg';
 
 export type Lookup =
   | { action_id: string; action: 'discord_servers' }
-  | { action_id: string; action: 'discord_server'; server_id: string | null }
+  | {
+      action_id: string;
+      action: 'discord_server';
+      server_id: string | null;
+      bot_user_id?: string | null;
+    }
   | { action_id: string; action: 'discord_member'; username: string | null; servers: string[] };
 
 type Call = { status: number; body?: unknown };
@@ -40,7 +45,8 @@ export function discordGet(token: string, fetchImpl: typeof fetch = fetch): Get 
 
 /** The raw answers for one piece of work, in the shape record_discord_result reads. */
 export async function lookup(item: Lookup, get: Get): Promise<Record<string, unknown>> {
-  if (item.action === 'discord_servers') return { guilds: await get('/users/@me/guilds') };
+  if (item.action === 'discord_servers')
+    return { guilds: await get('/users/@me/guilds'), me: await get('/users/@me') };
   if (item.action === 'discord_server') {
     if (!item.server_id) return { guild: { status: 404 } };
     const guild = await get(`/guilds/${item.server_id}`);
@@ -48,13 +54,18 @@ export async function lookup(item: Lookup, get: Get): Promise<Record<string, unk
     const channels = await get(`/guilds/${item.server_id}/channels`);
     // A tiny member search shows whether Server Members Intent is on.
     const members = await get(`/guilds/${item.server_id}/members/search?query=a&limit=1`);
-    return { guild, channels, members: { status: members.status } };
+    // The server's roles and the bot's own roles: the database works out where the bot may post.
+    const roles = await get(`/guilds/${item.server_id}/roles`);
+    const me = await get('/users/@me');
+    const botId = item.bot_user_id ?? (me.body as { id?: string } | undefined)?.id;
+    const bot = botId ? await get(`/guilds/${item.server_id}/members/${botId}`) : { status: 0 };
+    return { guild, channels, members: { status: members.status }, roles, me, bot };
   }
   const searches = [];
   for (const server_id of item.servers ?? []) {
     if (!item.username) break;
     const r = await get(
-      `/guilds/${server_id}/members/search?query=${encodeURIComponent(item.username)}&limit=10`,
+      `/guilds/${server_id}/members/search?query=${encodeURIComponent(item.username)}&limit=1000`,
     );
     searches.push({ server_id, status: r.status, body: r.body ?? [] });
     const found = Array.isArray(r.body)

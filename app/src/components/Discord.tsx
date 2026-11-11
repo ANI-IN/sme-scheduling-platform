@@ -53,6 +53,7 @@ type Channel = {
   category: string | null;
   position: number;
   server?: string;
+  bot_can_post?: boolean | null;
 };
 
 /**
@@ -66,7 +67,7 @@ export function useDiscordChannels(serverId: string | null | undefined) {
     queryFn: async (): Promise<Channel[]> => {
       let q = supabase
         .from('discord_channel')
-        .select('id, name, category, position, server_id')
+        .select('id, name, category, position, server_id, bot_can_post')
         .order('category', { nullsFirst: true })
         .order('position');
       if (serverId !== 'all') q = q.eq('server_id', serverId!);
@@ -93,6 +94,7 @@ export function ChannelPicker({
   label,
   allowNone = true,
   noneLabel = 'No channel (direct message instead)',
+  storedName,
 }: {
   serverId: string | null | undefined;
   value: string | null;
@@ -100,6 +102,8 @@ export function ChannelPicker({
   label: string;
   allowNone?: boolean;
   noneLabel?: string;
+  /** The name saved with the choice, shown when Discord no longer lists the channel. */
+  storedName?: string | null;
 }) {
   const channels = useDiscordChannels(serverId);
   const [q, setQ] = useState('');
@@ -140,9 +144,15 @@ export function ChannelPicker({
       >
         {allowNone && <option value="">{noneLabel}</option>}
         {!allowNone && !value && <option value="">Choose a channel</option>}
+        {value && channels.data && !channels.data.some((c) => c.id === value) && (
+          <option value={value}>
+            #{storedName ?? 'channel'} (no longer in Discord: choose another)
+          </option>
+        )}
         {list.map((c) => (
-          <option key={c.id} value={c.id}>
+          <option key={c.id} value={c.id} disabled={c.bot_can_post === false && c.id !== value}>
             {channelLabel(c)}
+            {c.bot_can_post === false ? ' (the bot cannot post here)' : ''}
           </option>
         ))}
       </Select>

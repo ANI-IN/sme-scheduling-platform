@@ -9,6 +9,8 @@
 -- example.com; on a hosted project set your real domain (docs/SETUP_GUIDE.md, npm run configure).
 update public.app_config
    set company_email_domain = 'example.com',
+       environment = 'Development',
+       environment_set_at = now(),
        app_base_url = 'http://localhost:5173',
        response_base_url = 'http://localhost:5678/webhook/respond',
        scheduling_sender_name = 'SME Scheduling'
