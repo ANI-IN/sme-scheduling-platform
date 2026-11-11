@@ -693,8 +693,10 @@ export function InstructorDrawer({
               {(domains.data ?? []).map((d) => (
                 <div key={d.id} className="space-y-1">
                   <div className="text-xs text-muted-foreground">{d.name}</div>
+                  {/* Any server the bot is in, the domain's own server first (decision 263). */}
                   <ChannelPicker
-                    serverId={d.discord_server_id}
+                    serverId="all"
+                    preferServerId={d.discord_server_id}
                     label={`Channel of ${instructor.full_name} in ${d.name}`}
                     value={
                       instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_id ??

@@ -52,6 +52,22 @@ async function load() {
   await c.query(`select public.reset_sandbox_data('RESET')`);
   await c.query(readFileSync(join(ROOT, 'supabase/tests/fixtures/starting_data.sql'), 'utf8'));
   await c.query(`select tests.load_starting_data()`);
+  // A bot in 16 Discord servers (decision 261): most ready, some with a problem or not checked yet, and the
+  // first with channels in a "Test instructors" category. No domain uses them, so messages are not affected.
+  await c.query(`
+    insert into public.discord_server (id, name, status, problem, checked_at)
+    select (900000000000000100 + n)::text, 'Program server ' || n,
+           case when n % 5 = 0 then 'Problem' when n % 7 = 0 then 'NotChecked' else 'Ready' end,
+           case when n % 5 = 0 then 'The bot cannot see any text channels in Program server ' || n
+             || '. Give the bot''s role access to the instructors'' category.' end,
+           case when n % 7 = 0 then null else now() - n * interval '1 hour' end
+      from generate_series(1, 16) n
+    on conflict (id) do nothing;
+    insert into public.discord_channel (id, server_id, name, category, position)
+    select (900000000000000200 + n)::text, '900000000000000101', 'test-instructor-' || chr(96 + n), 'Test instructors', n
+      from generate_series(1, 3) n
+    union all select '900000000000000210', '900000000000000101', 'alerts', null, 0
+    on conflict (id) do nothing;`);
   // The screenshot account plays the Sandbox operations person and skips the Discord question.
   // A reset keeps real people, so first remove an earlier copy of the screenshot account.
   await c.query(`delete from public.team_member where email = $1`, [

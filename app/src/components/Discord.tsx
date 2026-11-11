@@ -53,6 +53,7 @@ type Channel = {
   category: string | null;
   position: number;
   server?: string;
+  server_id?: string;
   bot_can_post?: boolean | null;
 };
 
@@ -80,12 +81,15 @@ export function useDiscordChannels(serverId: string | null | undefined) {
   });
 }
 
+/** Categories where instructors' own channels usually are: "1-1" or "Test instructors". */
+const INSTRUCTOR_CATEGORY = /1.?1|instructor/i;
+
 export const channelLabel = (c: Channel) =>
   `${c.server ? `${c.server}: ` : ''}${c.category ? `${c.category} / ` : ''}#${c.name}`;
 
 /**
  * Choose a channel from the server's list. Type to narrow the list: people never paste channel IDs.
- * Channels in a category named like "1-1" are listed first, since instructors' channels live there.
+ * Channels in a category named like "1-1" or "Test instructors" are listed first, since instructors' channels live there.
  */
 export function ChannelPicker({
   serverId,
@@ -95,6 +99,7 @@ export function ChannelPicker({
   allowNone = true,
   noneLabel = 'No channel (direct message instead)',
   storedName,
+  preferServerId,
 }: {
   serverId: string | null | undefined;
   value: string | null;
@@ -104,13 +109,19 @@ export function ChannelPicker({
   noneLabel?: string;
   /** The name saved with the choice, shown when Discord no longer lists the channel. */
   storedName?: string | null;
+  /** With serverId 'all': the channels of this server come first (the domain's own server). */
+  preferServerId?: string | null;
 }) {
   const channels = useDiscordChannels(serverId);
   const [q, setQ] = useState('');
   const list = useMemo(() => {
     const all = [...(channels.data ?? [])].sort(
       (a, b) =>
-        Number(!/1.?1/.test(a.category ?? '')) - Number(!/1.?1/.test(b.category ?? '')) ||
+        Number(!!preferServerId && a.server_id !== preferServerId) -
+          Number(!!preferServerId && b.server_id !== preferServerId) ||
+        (a.server ?? '').localeCompare(b.server ?? '') ||
+        Number(!INSTRUCTOR_CATEGORY.test(a.category ?? '')) -
+          Number(!INSTRUCTOR_CATEGORY.test(b.category ?? '')) ||
         (a.category ?? '').localeCompare(b.category ?? '') ||
         a.position - b.position,
     );
@@ -119,7 +130,7 @@ export function ChannelPicker({
     // Keep the chosen channel visible even when it does not match the search.
     const chosen = all.find((c) => c.id === value);
     return chosen && !hit.includes(chosen) ? [chosen, ...hit] : hit;
-  }, [channels.data, q, value]);
+  }, [channels.data, q, value, preferServerId]);
 
   if (!serverId)
     return (

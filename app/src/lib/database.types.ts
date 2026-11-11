@@ -333,14 +333,14 @@ isOneToOne: false
                   ]
                 },"discord_server": {
                   Row: {
-                    "archived_at": string | null,"id": string,"name": string,"refreshed_at": string
+                    "archived_at": string | null,"checked_at": string | null,"id": string,"name": string,"problem": string | null,"refreshed_at": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"id": string,"name": string,"refreshed_at"?: string
+                    "archived_at"?: string | null,"checked_at"?: string | null,"id": string,"name": string,"problem"?: string | null,"refreshed_at"?: string,"status"?: string
                   }
                   Update: {
-                    "archived_at"?: string | null,"id"?: string,"name"?: string,"refreshed_at"?: string
+                    "archived_at"?: string | null,"checked_at"?: string | null,"id"?: string,"name"?: string,"problem"?: string | null,"refreshed_at"?: string,"status"?: string
                   }
                   Relationships: [
                     
@@ -1045,6 +1045,9 @@ isOneToOne: false
                            },
 "check_discord":
 { Args: { "p_id"?: string,"p_kind": string }; Returns: undefined
+                           },
+"check_discord_server":
+{ Args: { "p_server_id": string }; Returns: undefined
                            },
 "claim_outbound_messages":
 { Args: { "p_limit"?: number }; Returns: {

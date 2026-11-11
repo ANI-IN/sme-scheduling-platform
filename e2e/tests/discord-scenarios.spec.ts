@@ -67,6 +67,18 @@ test('Discord servers: refresh, choose a server, see a fix, then its channels', 
   await page
     .getByRole('combobox', { name: 'Discord server for Backend' })
     .selectOption({ label: 'E2E Backend server' });
+  // Refresh servers already queued a check of the new server (decision 262): answer it once the domain uses it.
+  await expect
+    .poll(
+      async () =>
+        (
+          await one<{ s: string | null }>(
+            `select discord_server_id s from public.domain where name = 'Backend'`,
+          )
+        ).s,
+      { timeout: 10_000 },
+    )
+    .toBe(SERVER);
   // First answer: the bot cannot see any channel, so the screen says exactly what to fix.
   await answer('discord_server', {
     guild: { status: 200, body: { name: 'E2E Backend server' } },
@@ -76,7 +88,10 @@ test('Discord servers: refresh, choose a server, see a fix, then its channels', 
   await page.reload();
   await ready(page);
   await expect(page.getByText('Needs a fix').first()).toBeVisible();
-  await expect(page.getByText(/cannot see any text channels in E2E Backend server/)).toBeVisible();
+  // Shown on the server's own row and on the domain's row.
+  await expect(
+    page.getByText(/cannot see any text channels in E2E Backend server/).first(),
+  ).toBeVisible();
   // After the fix: press Check, and the channels arrive.
   await page.getByRole('button', { name: 'Check', exact: true }).first().click();
   await answer('discord_server', {
@@ -131,7 +146,7 @@ test('an instructor: the app finds the username, a channel is chosen by search',
     .fill('instructor-f');
   await dlg
     .getByRole('combobox', { name: 'Channel of Test Instructor F in Backend' })
-    .selectOption({ label: '1-1 / #test-instructor-f' });
+    .selectOption({ label: 'E2E Backend server: 1-1 / #test-instructor-f' });
   await expect(page.getByText('Channel saved')).toBeVisible();
   const ch = await one<{ c: string; n: string }>(
     `select channel_id c, channel_name n from public.instructor_channel where instructor_id = $1`,

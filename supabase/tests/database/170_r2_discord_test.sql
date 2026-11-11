@@ -45,12 +45,12 @@ select tests.answer('discord_server', jsonb_build_object(
      {"id": "900000000000000002", "type": 0, "name": "maya-k", "parent_id": "900000000000000001", "position": 1},
      {"id": "900000000000000003", "type": 0, "name": "ravi-s", "parent_id": "900000000000000001", "position": 2},
      {"id": "900000000000000004", "type": 2, "name": "Voice", "position": 3}]}'::jsonb,
-  'members', '{"status": 200}'::jsonb), jsonb_build_object('domain_id', :'dom'));
+  'members', '{"status": 200}'::jsonb), jsonb_build_object('server_id', '111111111111111111'));
 -- The Fullstack server: the members search is refused (Server Members Intent is off).
 select tests.answer('discord_server', jsonb_build_object(
   'guild', '{"status": 200, "body": {"id": "222222222222222222", "name": "SME Fullstack"}}'::jsonb,
   'channels', '{"status": 200, "body": [{"id": "900000000000000010", "type": 0, "name": "general", "position": 1}]}'::jsonb,
-  'members', '{"status": 403}'::jsonb), jsonb_build_object('domain_id', :'dom2'));
+  'members', '{"status": 403}'::jsonb), jsonb_build_object('server_id', '222222222222222222'));
 select is((select discord_status from public.domain where id = :'dom'), 'Ready', '3. a server the bot can use is Ready');
 select is((select string_agg(name || ' in ' || coalesce(category, '-'), ', ' order by position) from public.discord_channel
             where server_id = '111111111111111111'), 'maya-k in 1-1, ravi-s in 1-1',
@@ -128,8 +128,10 @@ update public.instructor set discord_username = null where id = :'maya';
 select is((select discord_status from public.instructor where id = :'maya'), 'NotSet', '11. removing the username clears the status');
 
 -- =============================================================== 12. one channel per domain, from the list
-select throws_ok(format($$ select public.set_instructor_channel(%L, %L, '900000000000000010') $$, :'ravi', :'dom'), '22023', null,
-  '12. a channel from another domain''s server cannot be chosen');
+-- Core readiness (decision 263): an instructor channel may be in any server the bot is in.
+select lives_ok(format($$ select public.set_instructor_channel(%L, %L, '900000000000000010') $$, :'ravi', :'dom'),
+  '12. a channel in another server the bot is in can be chosen');
+select public.set_instructor_channel(:'ravi', :'dom', null);
 select throws_ok(format($$ select public.set_instructor_channel(%L, %L, '900000000000000099') $$, :'ravi', :'dom'), '22023', null,
   '12. a channel that is not in the list cannot be chosen');
 select public.set_instructor_channel(:'ravi', :'dom', '900000000000000003');

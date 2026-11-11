@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,9 +9,14 @@ import { ago } from '@/lib/time';
 import { botInviteUrl } from '@/lib/discord';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useRun } from '@/pages/ClassDrawer';
+import { ArchiveButton, DeleteButton } from '@/components/Lifecycle';
 import {
+  Badge,
   Button,
+  Checkbox,
   ErrorText,
+  Field,
+  Input,
   Notice,
   Section,
   Select,
@@ -126,6 +132,9 @@ export function DiscordServers() {
         </span>
       </div>
 
+      <ServerList />
+
+      <h3 className="mb-2 text-sm font-semibold">Server of each domain</h3>
       <div className={tableWrap}>
         <table className="w-full">
           <thead className={thead}>
@@ -163,11 +172,13 @@ export function DiscordServers() {
                       !(servers.data ?? []).some((s) => s.id === d.discord_server_id) && (
                         <option value={d.discord_server_id}>Server not listed yet</option>
                       )}
-                    {(servers.data ?? []).map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
+                    {(servers.data ?? [])
+                      .filter((s) => !s.archived_at || s.id === d.discord_server_id)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
                   </Select>
                   {d.discord_server_id && counts.data && (
                     <div className="mt-1 text-xs text-muted-foreground">
@@ -230,5 +241,136 @@ export function DiscordServers() {
       )}
       <ErrorText error={err} />
     </Section>
+  );
+}
+
+/**
+ * Every server the bot is in, with its own status (decisions 261, 262). The automation checks servers a few
+ * at a time and keeps the result for a day, so a bot in 15 or more servers never hits Discord's limits.
+ */
+function ServerList() {
+  const domains = useDomains();
+  const { run, err } = useRun();
+  const [q, setQ] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const servers = useQuery({
+    queryKey: ['discord_server'],
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((s) => s.status === 'Checking') ? 5000 : false,
+    queryFn: async () => check(await supabase.from('discord_server').select('*').order('name')),
+  });
+  const counts = useQuery({
+    queryKey: ['discord_channel', 'counts'],
+    queryFn: async () => {
+      const rows = check(await supabase.from('discord_channel').select('server_id'));
+      const m = new Map<string, number>();
+      for (const r of rows) m.set(r.server_id, (m.get(r.server_id) ?? 0) + 1);
+      return m;
+    },
+  });
+  const all = servers.data ?? [];
+  const archivedCount = all.filter((s) => s.archived_at).length;
+  const t = q.trim().toLowerCase();
+  const shown = all.filter(
+    (s) =>
+      (showArchived || !s.archived_at) &&
+      (!t || s.name.toLowerCase().includes(t) || s.id.includes(t)),
+  );
+  const usedBy = (id: string) =>
+    (domains.data ?? [])
+      .filter((d) => d.discord_server_id === id)
+      .map((d) => d.name)
+      .join(', ');
+  const checking = all.filter((s) => s.status === 'Checking').length;
+  return (
+    <div className="mb-6 space-y-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Search servers">
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Name or server ID"
+            className="w-64"
+          />
+        </Field>
+        {archivedCount > 0 && (
+          <Checkbox
+            label={`Show archived servers (${archivedCount})`}
+            checked={showArchived}
+            onChange={setShowArchived}
+          />
+        )}
+      </div>
+      {checking > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Checking {checking} server{checking === 1 ? '' : 's'}. The automation checks three a
+          minute, so Discord never slows the bot down. This list updates by itself.
+        </p>
+      )}
+      {all.length > 0 && shown.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No server matches your search.</p>
+      ) : shown.length > 0 ? (
+        <div className={tableWrap}>
+          <table className="w-full">
+            <thead className={thead}>
+              <tr>
+                <th className={th}>Server</th>
+                <th className={th}>Status</th>
+                <th className={th}>Channels</th>
+                <th className={th}>Used by</th>
+                <th className={th}>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((s) => (
+                <tr key={s.id} className={trow}>
+                  <td className={td}>
+                    <div className="font-medium">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {s.checked_at ? `Checked ${ago(s.checked_at)} ago` : 'Not checked yet'}
+                    </div>
+                    {s.archived_at && <Badge tone="neutral">Archived</Badge>}
+                  </td>
+                  <td className={td}>
+                    <ServerStatus status={s.status} problem={s.problem} />
+                  </td>
+                  <td className={td}>{counts.data?.get(s.id) ?? 0}</td>
+                  <td className={td}>
+                    {usedBy(s.id) || <span className="text-muted-foreground">No domain</span>}
+                  </td>
+                  <td className={td}>
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={s.status === 'Checking'}
+                        onClick={() =>
+                          run(
+                            () => rpc('check_discord_server', { p_server_id: s.id }),
+                            `Checking ${s.name}. This takes up to a minute.`,
+                          )
+                        }
+                      >
+                        Check again
+                      </Button>
+                      <ArchiveButton
+                        kind="discord_server"
+                        id={s.id}
+                        name={s.name}
+                        archived={!!s.archived_at}
+                      />
+                      <DeleteButton kind="discord_server" id={s.id} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      <ErrorText error={err} />
+    </div>
   );
 }

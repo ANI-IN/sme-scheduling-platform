@@ -17,7 +17,7 @@ export function botInviteUrl(clientId = discordClientId): string | null {
 }
 
 export type PersonDiscordStatus = 'NotSet' | 'Checking' | 'Found' | 'NotFound' | 'Problem';
-export type ServerDiscordStatus = 'NotSet' | 'Checking' | 'Ready' | 'Problem';
+export type ServerDiscordStatus = 'NotSet' | 'NotChecked' | 'Checking' | 'Ready' | 'Problem';
 
 export const personStatus: Record<PersonDiscordStatus, { label: string; tone: Tone }> = {
   NotSet: { label: 'No Discord username', tone: 'neutral' },
@@ -29,6 +29,7 @@ export const personStatus: Record<PersonDiscordStatus, { label: string; tone: To
 
 export const serverStatus: Record<ServerDiscordStatus, { label: string; tone: Tone }> = {
   NotSet: { label: 'No server chosen', tone: 'neutral' },
+  NotChecked: { label: 'Not checked yet', tone: 'neutral' },
   Checking: { label: 'Checking', tone: 'info' },
   Ready: { label: 'Ready', tone: 'success' },
   Problem: { label: 'Needs a fix', tone: 'danger' },
