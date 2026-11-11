@@ -323,7 +323,7 @@ test('sign in: a company account gets in, another account is refused', async ({ 
   const page = await ctx.newPage();
   const email = `new.e2e.${Date.now()}@example.com`;
   await page.goto(await signInLink(email));
-  await expect(page.getByLabel('Your Discord user ID')).toBeVisible();
+  await expect(page.getByLabel('Your Discord username')).toBeVisible();
   const made = await one<{ n: number }>(
     `select count(*)::int n from public.team_member where email = $1`,
     [email],

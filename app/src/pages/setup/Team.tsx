@@ -7,7 +7,9 @@ import { useConfirm } from '@/components/Confirm';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useTeam, type TeamMember } from '@/lib/data';
-import { isDiscordId, isEmail } from '@/lib/validation';
+import { isEmail } from '@/lib/validation';
+import { cleanUsername, usernameProblem } from '@/lib/discord';
+import { DiscordStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import {
   Badge,
@@ -97,10 +99,14 @@ export default function Team() {
                   </td>
                   <td className={`${td} text-muted-foreground`}>{t.email}</td>
                   <td className={td}>
-                    {t.discord_user_id ? (
-                      <Badge tone="success">Added</Badge>
+                    {t.discord_user_id || t.discord_username ? (
+                      <DiscordStatus
+                        status={t.discord_status}
+                        problem={t.discord_problem}
+                        compact
+                      />
                     ) : (
-                      <Badge tone="warning">Missing</Badge>
+                      <span className="text-sm text-muted-foreground">Email only</span>
                     )}
                   </td>
                   <td className={td}>
@@ -134,7 +140,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
   const [f, setF] = useState({
     name: member?.name ?? '',
     email: member?.email ?? '',
-    discord_user_id: member?.discord_user_id ?? '',
+    discord_username: member?.discord_username ?? '',
     job_title: member?.job_title ?? '',
     receives_digest: member?.receives_digest ?? true,
     digest_channel: member?.digest_channel ?? 'Discord',
@@ -145,10 +151,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
   const v = useFormErrors({
     name: !f.name.trim() ? 'Enter a name.' : undefined,
     email: !isEmail(f.email) ? 'Enter a valid email address.' : undefined,
-    discord_user_id:
-      f.discord_user_id && !isDiscordId(f.discord_user_id)
-        ? 'A Discord user ID is 17 to 20 digits.'
-        : undefined,
+    discord_username: usernameProblem(f.discord_username),
   });
 
   async function save() {
@@ -160,7 +163,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
         ...f,
         name: f.name.trim(),
         email: f.email.trim(),
-        discord_user_id: f.discord_user_id.trim() || null,
+        discord_username: cleanUsername(f.discord_username) || null,
       };
       if (member) {
         check(
@@ -190,7 +193,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
       title={member ? member.name : 'Add team member'}
       description={
         member?.is_placeholder
-          ? 'This person came with the starting data. Replace their name, email and Discord user ID.'
+          ? 'This person came with the starting data. Replace their name, email and Discord username.'
           : undefined
       }
       footer={
@@ -237,16 +240,38 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
           />
         </Field>
         <Field
-          label="Discord user ID"
-          hint="Used to tag this person in alerts. In Discord, turn on Developer Mode (User Settings, Advanced), then right click the person and choose Copy User ID."
-          error={v.show('discord_user_id')}
+          label="Discord username (optional)"
+          hint="For example maya.k, without @. Used to tag this person and send them direct messages. Without it they get email."
+          error={v.show('discord_username')}
         >
           <Input
-            value={f.discord_user_id}
-            onBlur={v.touch('discord_user_id')}
-            onChange={(e) => setF({ ...f, discord_user_id: e.target.value })}
+            value={f.discord_username}
+            onBlur={v.touch('discord_username')}
+            onChange={(e) => setF({ ...f, discord_username: e.target.value })}
+            autoComplete="off"
           />
         </Field>
+        {member?.discord_username && (
+          <div className="flex flex-wrap items-center gap-2">
+            <DiscordStatus status={member.discord_status} problem={member.discord_problem} />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={member.discord_status === 'Checking'}
+              onClick={async () => {
+                try {
+                  await rpc('check_discord', { p_kind: 'team', p_id: member.id });
+                  toast.success('Checking Discord. This takes up to a minute.');
+                  await qc.invalidateQueries({ queryKey: ['team_member'] });
+                } catch (e) {
+                  setErr(e);
+                }
+              }}
+            >
+              Check Discord
+            </Button>
+          </div>
+        )}
         <Field
           label="Job title"
           hint="Optional. Shown only; what someone does comes from where they are assigned."

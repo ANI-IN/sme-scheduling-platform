@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { PauseAllSection } from '@/components/PauseAll';
+import { DiscordServers } from './DiscordServers';
 import {
   Badge,
   Button,
@@ -43,6 +44,7 @@ export default function Connections() {
       ) : (
         <>
           <Health />
+          <DiscordServers />
           <ConfigForm key={data.config.version} config={data.config} />
           <PauseAllSection />
           <AppErrors />
@@ -152,16 +154,6 @@ function Health() {
 
 const FIELDS: { key: keyof Config & string; label: string; hint: string }[] = [
   {
-    key: 'discord_guild_id',
-    label: 'Company Discord server ID',
-    hint: 'Instructor channel links must be in this server. Right click the server name, then Copy Server ID.',
-  },
-  {
-    key: 'admin_discord_channel_id',
-    label: 'Admin alert channel ID',
-    hint: 'Problems and the daily system summary are posted here.',
-  },
-  {
     key: 'scheduling_email',
     label: 'Sender email',
     hint: 'The Gmail account the automation sends from.',
@@ -187,13 +179,11 @@ function ConfigForm({ config }: { config: Config }) {
   const dirty = FIELDS.some((f) => (cfg[f.key] ?? '') !== String(config[f.key] ?? ''));
   return (
     <Section
-      title="Advanced: links and IDs"
+      title="Advanced: links"
       description="Technical addresses and IDs the automation needs. Who can sign in is set when the app is installed: company Google accounts only."
     >
       <details>
-        <summary className="cursor-pointer text-sm font-medium text-link">
-          Show the links and IDs
-        </summary>
+        <summary className="cursor-pointer text-sm font-medium text-link">Show the links</summary>
         <div className="mt-4">
           <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
             {FIELDS.map((f) => (

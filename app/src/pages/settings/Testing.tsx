@@ -17,11 +17,11 @@ import { useAuth } from '@/lib/auth';
 import { useSettingsMap, useWeeks, type Domain } from '@/lib/data';
 import { fmtLocal, fmtPT, PT } from '@/lib/time';
 import { fmtAt, weekRegion } from '@/lib/region';
-import { isDiscordId, isEmail } from '@/lib/validation';
+import { isEmail } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { isTesting, statusLabel, statusTone } from '@/components/AppShell';
-import { DiscordIdPicture } from '@/components/DiscordIdPicture';
+import { ChannelPicker } from '@/components/Discord';
 import {
   Badge,
   Button,
@@ -85,8 +85,6 @@ function TestingBody({ domain }: { domain: Domain }) {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const testing = isTesting(domain);
   const v = useFormErrors({
-    chan:
-      targets.chan && !isDiscordId(targets.chan) ? 'A channel ID is 17 to 20 digits.' : undefined,
     mail: targets.mail && !isEmail(targets.mail) ? 'Enter a valid email address.' : undefined,
   });
   const days = (k: string) => Number(settings.data?.[k] ?? 0);
@@ -119,14 +117,17 @@ function TestingBody({ domain }: { domain: Domain }) {
         actions={<Badge tone={statusTone[domain.status]}>{statusLabel[domain.status]}</Badge>}
       >
         <div className="flex flex-wrap items-start gap-3">
-          <Field label="Testing Discord channel ID" hint="17 to 20 digits." error={v.show('chan')}>
-            <Input
-              value={targets.chan}
-              onBlur={v.touch('chan')}
-              onChange={(e) => setTargets({ ...targets, chan: e.target.value })}
-              className="w-60"
+          <Field
+            label="Testing Discord channel"
+            hint="Every Discord message of this domain goes here while it is in testing."
+          >
+            <ChannelPicker
+              serverId="all"
+              label="Testing Discord channel"
+              value={targets.chan || null}
+              noneLabel="No testing channel"
+              onChange={(id) => setTargets({ ...targets, chan: id ?? '' })}
             />
-            <DiscordIdPicture kind="channel" />
           </Field>
           <Field label="Testing email" error={v.show('mail')}>
             <Input

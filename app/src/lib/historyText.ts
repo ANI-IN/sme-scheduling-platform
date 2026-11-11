@@ -43,6 +43,10 @@ const HIDDEN = new Set([
   'discord_failed_at',
   'discord_server_id',
   'discord_channel_id',
+  'discord_status',
+  'discord_problem',
+  'discord_checked_at',
+  'channel_id',
   'paused_from',
   'test_clock_at',
   'is_placeholder',
@@ -61,8 +65,10 @@ const FIELD: Record<string, string> = {
   name: 'Name',
   primary_email: 'Email',
   email: 'Email',
-  discord_user_id: 'Discord user ID',
+  discord_user_id: 'Discord account',
+  discord_username: 'Discord username',
   discord_channel_link: 'Discord channel',
+  channel_name: 'Discord channel',
   phone: 'Phone',
   notes: 'Notes',
   status: 'Status',
@@ -153,6 +159,8 @@ function noun(e: HistoryLike, book: NameBook): string {
       return `the material "${r.title}" for ${n(r.module_id)}`;
     case 'class_pattern_item':
       return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.day_offset, book, 'day_offset')} at ${value(r.start_time, book)} (local time) for ${n(r.module_id)}${r.cohort_id ? ` in ${n(r.cohort_id)}` : ''}`;
+    case 'instructor_channel':
+      return `the Discord channel of ${n(r.instructor_id)} in ${n(r.domain_id)}${r.channel_name ? ` (#${r.channel_name})` : ''}`;
     case 'module_ranking':
       return `${n(r.instructor_id)} in the instructor order for ${n(r.module_id)}`;
     case 'team_member':

@@ -1,0 +1,276 @@
+{
+  "name": "WF6 Discord checks",
+  "nodes": [
+    {
+      "id": "ffa0822f-a6cf-5c54-826e-a76b86a16df8",
+      "name": "Note: overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -260
+      ],
+      "parameters": {
+        "width": 900,
+        "height": 220,
+        "content": "## WF6 Discord checks\nEvery minute: takes the Discord checks people asked for in the app (list the bot's servers, check a domain's server and channels, find a person by Discord username), asks Discord, and saves the raw answers with `record_discord_result`. The database decides what each answer means.\n\nCredentials: **Supabase secret key** and **Discord bot** (Header Auth, `Authorization: Bot <token>`). The bot needs **Server Members Intent** (to find people by username) and **Message Content Intent** (to read replies)."
+      }
+    },
+    {
+      "id": "c89760f5-09b0-57b3-9ed4-7d5aaa6497a9",
+      "name": "Every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "66c732d2-f714-5663-a6ab-cb8c3febfa87",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// EDIT THIS VALUE (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://YOUR-PROJECT.supabase.co';      // Supabase project URL\n\nreturn [{ json: { supabaseUrl: supabaseUrl.replace(/\\/+$/, '') } }];"
+      }
+    },
+    {
+      "id": "23498b33-897b-5e8e-9f49-04ed2b8f9e63",
+      "name": "Get Discord work",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/next_discord_lookups",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_limit: 20 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "a134f86c-3a9d-5101-8dca-721be1b0bc2b",
+      "name": "Plan calls",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// One item per Discord call. Each call remembers its piece of work and what it is for.\nconst raw = $input.first().json;\nconst work = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);\nconst out = [];\nfor (const w of work) {\n  if (w.action === 'discord_servers') out.push({ json: { action_id: w.action_id, action: w.action, key: 'guilds', path: '/users/@me/guilds' } });\n  else if (w.action === 'discord_server') {\n    if (!w.server_id) { out.push({ json: { action_id: w.action_id, action: w.action, key: 'guild', path: null } }); continue; }\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'guild', path: `/guilds/${w.server_id}` } });\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'channels', path: `/guilds/${w.server_id}/channels` } });\n    out.push({ json: { action_id: w.action_id, action: w.action, key: 'members', path: `/guilds/${w.server_id}/members/search?query=a&limit=1` } });\n  } else if (w.action === 'discord_member') {\n    const servers = w.username ? (w.servers || []) : [];\n    if (servers.length === 0) out.push({ json: { action_id: w.action_id, action: w.action, key: 'none', path: null } });\n    for (const s of servers) out.push({ json: { action_id: w.action_id, action: w.action, key: 'search', server_id: s, username: w.username,\n      path: `/guilds/${s}/members/search?query=${encodeURIComponent(w.username)}&limit=10` } });\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "ac775edf-07ed-57a6-a507-e7e3c81ec90e",
+      "name": "Ask Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://discord.com/api/v10' + ($json.path || '/unknown') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Discord bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b235eb25-1118-5659-b6a0-37101df85879",
+      "name": "Gather answers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Put the answers of each piece of work together, in the shape record_discord_result reads.\nconst calls = $('Plan calls').all().map((i) => i.json);\nconst answers = $input.all().map((i) => i.json);\nconst byAction = new Map();\ncalls.forEach((c, n) => {\n  const a = answers[n] || {};\n  const status = c.path ? (a.statusCode ?? 0) : 404;\n  const body = status >= 200 && status < 300 ? a.body : undefined;\n  const r = byAction.get(c.action_id) || { action_id: c.action_id, result: {} };\n  if (c.key === 'search') (r.result.searches ||= []).push({ server_id: c.server_id, status, body: body || [] });\n  else if (c.key === 'none') r.result.searches ||= [];\n  else if (c.key === 'members') r.result.members = { status };\n  else r.result[c.key] = { status, body };\n  byAction.set(c.action_id, r);\n});\nreturn [...byAction.values()].map((r) => ({ json: { p_action_id: r.action_id, p_result: r.result } }));"
+      }
+    },
+    {
+      "id": "af53a32f-2bb5-5bd6-8158-ffcf31a4507b",
+      "name": "Save answers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.supabaseUrl }}/rest/v1/rpc/record_discord_result",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "Supabase secret key"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Get Discord work",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Discord work": {
+      "main": [
+        [
+          {
+            "node": "Plan calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan calls": {
+      "main": [
+        [
+          {
+            "node": "Ask Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Discord": {
+      "main": [
+        [
+          {
+            "node": "Gather answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gather answers": {
+      "main": [
+        [
+          {
+            "node": "Save answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}

@@ -5,6 +5,10 @@ import { supabase, type Tables } from './supabase';
 import { check, rpc } from './rpc';
 import { useAuth } from './auth';
 
+/** While the automation is checking Discord for someone, look again every few seconds. */
+const whileChecking = (q: { state: { data?: { discord_status: string | null }[] } }) =>
+  q.state.data?.some((r) => r.discord_status === 'Checking') ? 5000 : false;
+
 export type Domain = Tables<'domain'>;
 export type Module = Tables<'module'>;
 export type Instructor = Tables<'instructor'>;
@@ -20,23 +24,26 @@ export type HistoryEvent = Tables<'history_event'>;
 export const useDomains = () =>
   useQuery({
     queryKey: ['domain'],
+    refetchInterval: whileChecking,
     queryFn: async () => check(await supabase.from('domain').select('*').order('name')),
   });
 
 export const useTeam = () =>
   useQuery({
     queryKey: ['team_member'],
+    refetchInterval: whileChecking,
     queryFn: async () => check(await supabase.from('team_member').select('*').order('name')),
   });
 
 export const useInstructors = () =>
   useQuery({
     queryKey: ['instructor'],
+    refetchInterval: whileChecking,
     queryFn: async () =>
       check(
         await supabase
           .from('instructor')
-          .select('*, instructor_email(*), instructor_unavailability(*)')
+          .select('*, instructor_email(*), instructor_unavailability(*), instructor_channel(*)')
           .order('full_name'),
       ),
   });

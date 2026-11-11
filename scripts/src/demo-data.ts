@@ -115,7 +115,7 @@ async function load() {
   );
   await c.query(
     `update public.team_member set discord_prompt_dismissed_at = now(), version = version
-      where discord_user_id is null and discord_prompt_dismissed_at is null`,
+      where discord_user_id is null and discord_username is null and discord_prompt_dismissed_at is null`,
   );
   const dom = await one<{ id: string; name: string }>(
     `select id, name from public.domain where name = 'Backend'`,

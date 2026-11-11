@@ -181,40 +181,49 @@ Each environment sends from its own mailbox, so a test can never look like a rea
 
 ## Part 4. Discord
 
-### 4.1 Two servers
+The app uses Discord servers you already have. It never creates servers or channels.
 
-- **Production** uses the company Discord server, where the instructors and the team already are.
-- **Sandbox** uses a separate test server. Create it: in Discord click **+** (Add a Server) → **Create My Own** →
-  name it `SME Scheduling Sandbox`. Invite the people who will test. Create channels `#alerts`, `#admin` and
-  `#testing`.
+### 4.1 Servers
 
-Turn on **User Settings → Advanced → Developer Mode**. Now you can right click a server, a channel or a person and
-choose **Copy ID**.
+- **Production**: each domain uses its existing Discord server (several domains may share one), where the
+  instructors and the team already are. Instructors have their own channels, usually in a category named `1-1`.
+- **Sandbox**: a separate test server. Create it: in Discord click **+** (Add a Server), **Create My Own**, name it
+  `SME Scheduling Sandbox`. Invite the people who will test. Create a category `1-1` with a few test channels, plus
+  `#alerts`, `#admin` and `#testing`.
 
 ### 4.2 One bot per environment
 
-1. Go to <https://discord.com/developers/applications> → **New Application**, name `SME Scheduling Sandbox` (or
+1. Go to <https://discord.com/developers/applications>, **New Application**, name `SME Scheduling Sandbox` (or
    `SME Scheduling`).
-2. **Bot** → **Reset Token** → copy the token (it is shown once). It goes only into the n8n credential
-   `Discord bot (<env>)`.
-3. On the same page, under **Privileged Gateway Intents**, switch on **Message Content Intent** and save.
-   Without it the bot cannot read typed replies.
-4. **OAuth2** → copy the **Application ID**. Open this address with your ID in it and add the bot to the right server
-   (the Sandbox bot to the Sandbox server only):
-   `https://discord.com/oauth2/authorize?client_id=<APPLICATION ID>&scope=bot&permissions=68608`
-   (68608 means View Channels, Send Messages and Read Message History.)
-5. Make sure the bot can see every instructor channel and the alert, admin and testing channels. For a private
-   channel: channel **Edit → Permissions → Add members or roles** → the bot.
+2. **Bot**, **Reset Token**, copy the token (it is shown once). It goes only into the n8n credential
+   `Discord bot (<env>)`, and on your own computer into the environment variable `DISCORD_BOT_TOKEN` when you run
+   `npm run discord -w scripts`. Never put it in a file that is committed.
+3. On the same page, under **Privileged Gateway Intents**, switch on **Server Members Intent** (the app finds people
+   by their Discord username) and **Message Content Intent** (the app reads typed replies). Save.
+4. **General Information**: copy the **Application ID**. Set it as `VITE_DISCORD_CLIENT_ID` for the web app (it is
+   not a secret). The app then shows the invite link on **Settings, Connections, Discord servers**.
+5. Open the invite link and add the bot to each server (the Sandbox bot to the Sandbox server only). The link asks
+   for exactly four permissions: View Channels, Send Messages, Embed Links and Read Message History.
+6. In each server, open the `1-1` category, **Edit Category**, **Permissions**, add the bot's role and allow the same
+   four permissions. Do the same for the alert, admin and testing channels if they are private.
 
-### 4.3 IDs to collect
+### 4.3 In the app
 
-| ID | How | Where it goes |
+1. **Settings, Connections, Discord servers**: press **Refresh servers**. The servers the bot is in appear within a
+   minute.
+2. Choose the server of each domain. The app checks it and lists the channels the bot can see. Wait for **Ready**;
+   if it says **Needs a fix**, it says exactly what to change.
+3. **Setup, Instructors**: for each instructor, type their **Discord username** (for example `maya.k`, without @)
+   and choose their channel for each domain from the list. The app finds their Discord account by itself and shows
+   **Discord found**, or what is wrong. Nobody types Discord user IDs.
+4. **Setup, Team**: a Discord username is optional. People without one get email instead.
+5. **Setup, Domains** and **Settings, Testing**: choose the alert channel and the testing channel from the list.
+
+| Value | Where it comes from | Where it goes |
 |---|---|---|
-| Server ID | Right click the server → Copy Server ID | App: **Settings → Connections → Advanced → Company Discord server ID**. Sandbox also: `SANDBOX_ALLOWED_DISCORD_SERVERS` (1.4) |
-| Admin channel ID | Right click `#admin` → Copy Channel ID | App: **Settings → Connections → Advanced → Admin alert channel ID** |
-| Alert channel ID | Right click `#alerts` → Copy Channel ID | App: **Setup → Domains → (domain) → Alert channel ID** |
-| Testing channel ID | Right click `#testing` → Copy Channel ID | App: **Settings → Testing → Testing Discord channel ID** |
-| Your Discord user ID | Right click your own name → Copy User ID | The app asks for it the first time you sign in |
+| Bot token (secret) | Developer Portal, Bot | n8n credential `Discord bot (<env>)`; locally `DISCORD_BOT_TOKEN` |
+| Application ID | Developer Portal, General Information | `VITE_DISCORD_CLIENT_ID` (web app) |
+| Sandbox server ID | Right click the server, Copy Server ID (turn on Developer Mode first) | `SANDBOX_ALLOWED_DISCORD_SERVERS` (1.4) |
 
 ---
 
@@ -309,7 +318,8 @@ it and the Production site from `main`.
 
 1. Back in Supabase (1.6), set the **Site URL** and **Redirect URLs** to this environment's app address.
 2. Sign in to the app. Go to **Settings → Connections → Advanced: links and IDs** and fill in **App link**,
-   **Response page link**, **Sender email**, **Company Discord server ID** and **Admin alert channel ID**.
+   **Response page link** and **Sender email**, then choose the **Admin alert channel**. Then set up the Discord
+   servers as in 4.3.
 
 ---
 
@@ -321,7 +331,7 @@ it and the Production site from `main`.
 2. **Sign in with Google** with your company account. Try an account from outside the company: it must be refused.
 3. **Settings → Testing → Reset Sandbox data**, type `RESET`. This loads the practice data: Backend and Fullstack, each
    with a weekend and a weekday cohort, eight weeks of classes and six test instructors.
-4. **Setup → Instructors**: point the test instructors at your own plus addresses and Discord user ID, then press
+4. **Setup → Instructors**: point the test instructors at your own plus addresses and your own Discord username, then press
    **Send contact check** for one of them. It must arrive within a minute.
 5. **Settings → Testing → Run a practice class**. Every stage should pass.
 6. **Settings → Connections**: Discord, Email and Automation service should all show **Working**.
@@ -331,7 +341,7 @@ it and the Production site from `main`.
 
 1. Sign in. No label shows at the top. **Settings → Connections** shows **Working** for everything.
 2. **Setup → Team**: replace every person marked "needs real details" with real people, and add the rest of the team.
-3. **Setup → Instructors**: replace the placeholder emails, add Discord user IDs and channel links, and press
+3. **Setup → Instructors**: replace the placeholder emails, add Discord usernames and choose a channel per domain, and press
    **Send contact check** until each one is checked.
 4. **Setup → Modules**: check owners, class pattern, resources and rankings.
 5. Keep the domain in **Test** until the Operations team has watched a full week, then use **Settings → Testing → Go

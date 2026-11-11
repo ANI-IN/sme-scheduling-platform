@@ -57,7 +57,7 @@ const PICS: Pic[] = [
         'update public.team_member set discord_prompt_dismissed_at = now(), version = version where email = $1',
         [EMAIL],
       ),
-    marks: [(p) => p.getByLabel('Your Discord user ID'), button(/^save$/i)],
+    marks: [(p) => p.getByLabel('Your Discord username'), button(/^save$/i)],
   },
   {
     file: 'instructors-list.png',

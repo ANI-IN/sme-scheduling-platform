@@ -45,9 +45,9 @@ update public.app_config set environment = 'Development' where id = 1;
 -- =============================================================== first sign in creates the team member
 select tests.login_with('{"email": "new.person@example.com", "user_metadata": {"full_name": "New Person"}}');
 select is(public.my_account(true) -> 'member' ->> 'name', 'New Person', 'the first sign in creates the team member from the Google name');
-select is((public.my_account() ->> 'needs_discord')::boolean, true, 'and asks once for their Discord user ID');
-select throws_ok($$ select public.update_my_profile('123') $$, '22023', null, 'a Discord user ID must be 17 to 20 digits');
-select public.update_my_profile('120000000000000002');
+select is((public.my_account() ->> 'needs_discord')::boolean, true, 'and asks once for their Discord username');
+select throws_ok($$ select public.update_my_profile('not a name!') $$, '22023', null, 'a Discord username has only letters, numbers, dots or underscores');
+select public.update_my_profile('new.person');
 select is((public.my_account() ->> 'needs_discord')::boolean, false, 'once added, the question is not asked again');
 select ok(exists (select 1 from public.history_event where action = 'Signed in' and actor_label = 'New Person'), 'sign ins are recorded');
 select tests.as_postgres();

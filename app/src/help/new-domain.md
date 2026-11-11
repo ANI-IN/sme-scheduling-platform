@@ -8,7 +8,7 @@ A domain is a program area, for example Backend or Fullstack. Each domain has it
 ![The domain details](/help/domains-drawer.png)
 
 1. Open [Domains](/setup/domains) and press **Create domain**. To start from another domain's settings, choose it under **Copy settings from another domain**.
-2. Open the new domain and add the **Alert channel ID** (the Discord channel where the team is tagged).
+2. Choose the domain's Discord server on [Connections](/settings/connections), then open the domain and choose its **Alert channel** (where the team is tagged). See [Discord](/help/discord).
 3. Choose **Escalation contacts**: they get told when an urgent problem is not fixed in time.
 4. Choose the **Default operations team**: they handle class tasks, failed messages and written replies.
 5. Check the **Class types** (for example Live class and Office hours) and add any **Holidays**.

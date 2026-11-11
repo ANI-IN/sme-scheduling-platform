@@ -303,6 +303,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"discord_channel": {
+                  Row: {
+                    "category": string | null,"id": string,"name": string,"position": number,"refreshed_at": string,"server_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category"?: string | null,"id": string,"name": string,"position"?: number,"refreshed_at"?: string,"server_id": string
+                  }
+                  Update: {
+                    "category"?: string | null,"id"?: string,"name"?: string,"position"?: number,"refreshed_at"?: string,"server_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"discord_cursor": {
                   Row: {
                     "channel_id": string,"last_message_id": string | null,"updated_at": string
@@ -317,16 +331,30 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"domain": {
+                },"discord_server": {
                   Row: {
-                    "alert_discord_channel_id": string | null,"created_at": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                    "id": string,"name": string,"refreshed_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "id": string,"name": string,"refreshed_at"?: string
                   }
                   Update: {
-                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "id"?: string,"name"?: string,"refreshed_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"domain": {
+                  Row: {
+                    "alert_discord_channel_id": string | null,"created_at": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "alert_discord_channel_id"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -455,17 +483,43 @@ isOneToOne: false
                   ]
                 },"instructor": {
                   Row: {
-                    "created_at": string,"discord_channel_id": string | null,"discord_channel_link": string | null,"discord_failed_at": string | null,"discord_server_id": string | null,"discord_user_id": string | null,"email_bounced_at": string | null,"full_name": string,"id": string,"is_test": boolean,"last_response_at": string | null,"monthly_class_limit": number | null,"notes": string | null,"phone": string | null,"preferred_contact": string,"primary_email": string,"status": string,"updated_at": string,"updated_by": string | null,"verified_at": string | null,"version": number
+                    "created_at": string,"discord_channel_id": string | null,"discord_channel_link": string | null,"discord_checked_at": string | null,"discord_failed_at": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"discord_user_id": string | null,"discord_username": string | null,"email_bounced_at": string | null,"full_name": string,"id": string,"is_test": boolean,"last_response_at": string | null,"monthly_class_limit": number | null,"notes": string | null,"phone": string | null,"preferred_contact": string,"primary_email": string,"status": string,"updated_at": string,"updated_by": string | null,"verified_at": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_failed_at"?: string | null,"discord_server_id"?: string | null,"discord_user_id"?: string | null,"email_bounced_at"?: string | null,"full_name": string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email": string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
+                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_checked_at"?: string | null,"discord_failed_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email_bounced_at"?: string | null,"full_name": string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email": string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_failed_at"?: string | null,"discord_server_id"?: string | null,"discord_user_id"?: string | null,"email_bounced_at"?: string | null,"full_name"?: string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email"?: string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
+                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_checked_at"?: string | null,"discord_failed_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email_bounced_at"?: string | null,"full_name"?: string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email"?: string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
+                  ]
+                },"instructor_channel": {
+                  Row: {
+                    "channel_id": string,"channel_name": string | null,"created_at": string,"domain_id": string,"instructor_id": string,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel_id": string,"channel_name"?: string | null,"created_at"?: string,"domain_id": string,"instructor_id": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "channel_id"?: string,"channel_name"?: string | null,"created_at"?: string,"domain_id"?: string,"instructor_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "instructor_channel_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "instructor_channel_instructor_id_fkey"
+      columns: ["instructor_id"]
+isOneToOne: false
+      referencedRelation: "instructor"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"instructor_email": {
                   Row: {
@@ -935,14 +989,14 @@ isOneToOne: false
                   ]
                 },"team_member": {
                   Row: {
-                    "access_removed_at": string | null,"access_removed_by": string | null,"active": boolean,"auth_user_id": string | null,"created_at": string,"digest_channel": string,"discord_prompt_dismissed_at": string | null,"discord_user_id": string | null,"email": string,"id": string,"is_placeholder": boolean,"job_title": string | null,"last_sign_in_at": string | null,"name": string,"receives_digest": boolean,"updated_at": string,"updated_by": string | null,"version": number
+                    "access_removed_at": string | null,"access_removed_by": string | null,"active": boolean,"auth_user_id": string | null,"created_at": string,"digest_channel": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_prompt_dismissed_at": string | null,"discord_status": string,"discord_user_id": string | null,"discord_username": string | null,"email": string,"id": string,"is_placeholder": boolean,"job_title": string | null,"last_sign_in_at": string | null,"name": string,"receives_digest": boolean,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_prompt_dismissed_at"?: string | null,"discord_user_id"?: string | null,"email": string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name": string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_prompt_dismissed_at"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email": string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name": string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_prompt_dismissed_at"?: string | null,"discord_user_id"?: string | null,"email"?: string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name"?: string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_prompt_dismissed_at"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email"?: string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name"?: string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -988,6 +1042,9 @@ isOneToOne: false
                            },
 "change_class_time":
 { Args: { "p_class_id": string,"p_date": string,"p_end": string,"p_expected_version"?: number,"p_fold"?: number,"p_region"?: string,"p_start": string }; Returns: Json
+                           },
+"check_discord":
+{ Args: { "p_id"?: string,"p_kind": string }; Returns: undefined
                            },
 "claim_outbound_messages":
 { Args: { "p_limit"?: number }; Returns: {
@@ -1148,6 +1205,9 @@ isOneToOne: false
         isOneToOne: false
         isSetofReturn: true
       } },
+"next_discord_lookups":
+{ Args: { "p_limit"?: number }; Returns: Json
+                           },
 "pause_outreach":
 { Args: { "p_module_week_id": string,"p_paused": boolean }; Returns: undefined
                            },
@@ -1165,6 +1225,9 @@ isOneToOne: false
                            },
 "record_bounce":
 { Args: { "p_detail"?: string,"p_email": string,"p_external_id"?: string }; Returns: Json
+                           },
+"record_discord_result":
+{ Args: { "p_action_id": string,"p_result": Json }; Returns: Json
                            },
 "record_inbound_message":
 { Args: { "p_body": string,"p_channel": string,"p_external_id": string,"p_from": string,"p_received_at"?: string,"p_subject": string,"p_summary"?: string }; Returns: Json
@@ -1238,8 +1301,14 @@ isOneToOne: false
 "set_discord_cursor":
 { Args: { "p_channel_id": string,"p_last_message_id": string }; Returns: undefined
                            },
+"set_domain_discord_server":
+{ Args: { "p_domain_id": string,"p_server_id": string }; Returns: undefined
+                           },
 "set_domain_status":
 { Args: { "p_domain_id": string,"p_status": string }; Returns: undefined
+                           },
+"set_instructor_channel":
+{ Args: { "p_channel_id": string,"p_domain_id": string,"p_instructor_id": string }; Returns: undefined
                            },
 "set_kill_switch":
 { Args: { "p_outreach_enabled": boolean }; Returns: undefined
@@ -1302,7 +1371,7 @@ isOneToOne: false
 { Args: { "p_class_id": string,"p_class_type": string,"p_expected_version"?: number,"p_notes": string,"p_problem_flag": boolean,"p_title": string }; Returns: undefined
                            },
 "update_my_profile":
-{ Args: { "p_discord_user_id"?: string,"p_dismiss_discord_prompt"?: boolean }; Returns: undefined
+{ Args: { "p_discord_username"?: string,"p_dismiss_discord_prompt"?: boolean }; Returns: undefined
                            },
 "week_eligibility":
 { Args: { "p_module_week_id": string }; Returns: Json

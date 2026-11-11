@@ -5,10 +5,12 @@ import { toast } from 'sonner';
 import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
-import { useDomains, useInstructors, useSystem, type Instructor } from '@/lib/data';
+import { useDomains, useInstructors, type Instructor } from '@/lib/data';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
-import { isDiscordId, isEmail, parseChannelLink } from '@/lib/validation';
+import { isEmail } from '@/lib/validation';
+import { cleanUsername, usernameProblem } from '@/lib/discord';
+import { ChannelPicker, DiscordStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { useAuth } from '@/lib/auth';
@@ -306,6 +308,9 @@ function StatusBadges({ i }: { i: InstructorRow }) {
       {i.is_test && <Badge tone="accent">Test instructor</Badge>}
       {i.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
       {i.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
+      {i.discord_status !== 'Found' && (
+        <DiscordStatus status={i.discord_status} problem={i.discord_problem} compact />
+      )}
     </div>
   );
 }
@@ -347,17 +352,14 @@ export function InstructorDrawer({
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const system = useSystem();
-  const guild = system.data?.config.discord_guild_id ?? null;
+  const domains = useDomains();
   const [f, setF] = useState({
     full_name: instructor?.full_name ?? '',
     primary_email: instructor?.primary_email ?? '',
-    discord_user_id: instructor?.discord_user_id ?? '',
-    discord_channel_link: instructor?.discord_channel_link ?? '',
+    discord_username: instructor?.discord_username ?? '',
     phone: instructor?.phone ?? '',
     notes: instructor?.notes ?? '',
     is_test: instructor?.is_test ?? false,
-    preferred_contact: instructor?.preferred_contact ?? 'Both',
     monthly_class_limit: instructor?.monthly_class_limit
       ? String(instructor.monthly_class_limit)
       : '',
@@ -373,15 +375,8 @@ export function InstructorDrawer({
   const errors: Record<string, string> = {};
   if (!f.full_name.trim()) errors.full_name = 'Enter the full name.';
   if (!isEmail(f.primary_email)) errors.primary_email = 'Enter a valid email address.';
-  if (f.discord_user_id && !isDiscordId(f.discord_user_id))
-    errors.discord_user_id = 'A Discord user ID is 17 to 20 digits.';
-  if (f.discord_channel_link) {
-    const p = parseChannelLink(f.discord_channel_link);
-    if (!p)
-      errors.discord_channel_link = 'Paste the link that starts with https://discord.com/channels/';
-    else if (guild && p.serverId !== guild)
-      errors.discord_channel_link = 'This channel is in a different Discord server.';
-  }
+  const uProblem = usernameProblem(f.discord_username);
+  if (uProblem) errors.discord_username = uProblem;
   extras.forEach((e, idx) => {
     if (!isEmail(e)) errors[`extra${idx}`] = 'Enter a valid email address.';
   });
@@ -401,16 +396,14 @@ export function InstructorDrawer({
       o.id !== instructor?.id &&
       (o.instructor_email.some((e) => emails.includes(e.email.toLowerCase())) ||
         emails.includes(o.primary_email.toLowerCase()) ||
-        (!!f.discord_user_id &&
-          o.discord_user_id === f.discord_user_id.trim() &&
+        (!!cleanUsername(f.discord_username) &&
+          o.discord_username === cleanUsername(f.discord_username) &&
           !(f.is_test && o.is_test))),
   );
-  const channel = parseChannelLink(f.discord_channel_link);
   const contactChanged =
     !!instructor &&
     (instructor.primary_email !== f.primary_email.trim().toLowerCase() ||
-      (instructor.discord_user_id ?? '') !== f.discord_user_id.trim() ||
-      (instructor.discord_channel_id ?? '') !== (channel?.channelId ?? ''));
+      (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
   const refresh = () => qc.invalidateQueries();
 
   async function save() {
@@ -421,14 +414,10 @@ export function InstructorDrawer({
       const row = {
         full_name: f.full_name.trim(),
         primary_email: f.primary_email.trim().toLowerCase(),
-        discord_user_id: f.discord_user_id.trim() || null,
-        discord_channel_link: f.discord_channel_link.trim() || null,
-        discord_channel_id: channel?.channelId ?? null,
-        discord_server_id: channel?.serverId ?? null,
+        discord_username: cleanUsername(f.discord_username) || null,
         phone: f.phone.trim() || null,
         notes: f.notes.trim() || null,
         is_test: f.is_test,
-        preferred_contact: f.preferred_contact,
         monthly_class_limit: f.monthly_class_limit ? Number(f.monthly_class_limit) : null,
       };
       let id = instructor?.id;
@@ -591,16 +580,6 @@ export function InstructorDrawer({
           <Field label="Phone" hint="Only for the team, for example to call in an emergency.">
             <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           </Field>
-          <Field label="Preferred contact" hint="How this instructor likes to get messages.">
-            <Select
-              value={f.preferred_contact}
-              onChange={(e) => setF({ ...f, preferred_contact: e.target.value })}
-            >
-              <option value="Both">Discord and email</option>
-              <option value="Discord">Discord</option>
-              <option value="Email">Email</option>
-            </Select>
-          </Field>
           <Field
             label="Classes a month (optional)"
             hint="Their preferred most. We warn before asking them for more, but you can still ask."
@@ -629,38 +608,76 @@ export function InstructorDrawer({
 
         <Group
           title="Discord"
-          description={
-            <>
-              How to copy the details: in Discord, open User Settings, then Advanced, and turn on
-              Developer Mode. Then right click the person and choose Copy User ID, and right click
-              their channel and choose Copy Link.
-            </>
-          }
+          description="Requests and reminders go to their channel in each domain, tagging them, and also by email. Without a channel they get a direct message."
         >
           <Field
-            label="Discord user ID"
-            hint="17 to 20 digits. Used to tag them in their channel."
-            error={v.show('discord_user_id')}
+            label="Discord username"
+            hint="For example maya.k, without @. The app finds their Discord account by itself."
+            error={v.show('discord_username')}
           >
             <Input
-              value={f.discord_user_id}
-              onBlur={v.touch('discord_user_id')}
-              onChange={(e) => setF({ ...f, discord_user_id: e.target.value })}
+              value={f.discord_username}
+              onBlur={v.touch('discord_username')}
+              onChange={(e) => setF({ ...f, discord_username: e.target.value })}
+              autoComplete="off"
             />
           </Field>
-          <Field
-            label="Their channel link"
-            hint={
-              channel ? 'Link recognised.' : 'For example https://discord.com/channels/123…/456…'
-            }
-            error={v.show('discord_channel_link')}
-          >
-            <Input
-              value={f.discord_channel_link}
-              onBlur={v.touch('discord_channel_link')}
-              onChange={(e) => setF({ ...f, discord_channel_link: e.target.value })}
-            />
-          </Field>
+          {instructor && (
+            <div className="flex flex-wrap items-center gap-2">
+              <DiscordStatus
+                status={instructor.discord_status}
+                problem={instructor.discord_problem}
+              />
+              {instructor.discord_username && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={instructor.discord_status === 'Checking'}
+                  onClick={() =>
+                    act(
+                      () => rpc('check_discord', { p_kind: 'instructor', p_id: instructor.id }),
+                      'Checking Discord. This takes up to a minute.',
+                    )
+                  }
+                >
+                  Check Discord
+                </Button>
+              )}
+            </div>
+          )}
+          {instructor ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Their channel in each domain</p>
+              {(domains.data ?? []).map((d) => (
+                <div key={d.id} className="space-y-1">
+                  <div className="text-xs text-muted-foreground">{d.name}</div>
+                  <ChannelPicker
+                    serverId={d.discord_server_id}
+                    label={`Channel of ${instructor.full_name} in ${d.name}`}
+                    value={
+                      instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_id ??
+                      null
+                    }
+                    onChange={(id) =>
+                      act(
+                        () =>
+                          rpc('set_instructor_channel', {
+                            p_instructor_id: instructor.id,
+                            p_domain_id: d.id,
+                            p_channel_id: id as string,
+                          }),
+                        id ? 'Channel saved' : 'Channel removed: they get direct messages instead',
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              After you add the instructor, choose their channel in each domain here.
+            </p>
+          )}
         </Group>
 
         {instructor && (

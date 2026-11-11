@@ -15,7 +15,7 @@ Open **Who we ask next** on the module page. It shows the reason for each person
 
 ## A message was not delivered
 
-A task tells you. Check the instructor's email, Discord user ID and channel link, then open the class week and press **Send last message again**.
+A task tells you exactly what to fix, for example a channel that no longer exists or a username that was not found. Fix it, then open the class week and press **Send last message again**.
 
 ## I can't sign in
 

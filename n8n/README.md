@@ -1,6 +1,6 @@
 # n8n workflows
 
-These five workflows connect the database (Supabase) to Discord, Gmail and Google Drive.
+These six workflows connect the database (Supabase) to Discord, Gmail and Google Drive.
 They contain **no business rules and no domain, module or instructor names**. Every decision is made by
 database functions; n8n only calls them, sends the messages they queue, reports the result back,
 serves the pages they render and passes inbound replies to them.
@@ -11,6 +11,7 @@ serves the pages they render and passes inbound replies to them.
 | `WF2-response-handler.json` | WF2 Response handler | Webhook `GET` and `POST` `/webhook/respond` | Shows the confirm page (`response_page`), records the answer when the button on the page is pressed (`submit_response_page`), then pokes WF4. |
 | `WF3-daily-jobs.json` | WF3 Daily jobs | Every day 09:00 IST | Runs `daily_jobs` (heartbeat), pokes WF4, exports a backup (`export_snapshot`) to Google Drive as `sme-backup-YYYY-MM-DD.json`. |
 | `WF4-action-runner.json` | WF4 Action runner | Webhook `POST /webhook/sme-poke` and every 5 minutes | Processes app actions (`next_actions` / `complete_action`) and **delivers all queued messages** by Discord and Gmail (`claim_outbound_messages` / `report_message_result`). This is the only place messages are sent. |
+| `WF6-discord-checks.json` | WF6 Discord checks | Every minute | Takes the Discord checks people asked for in the app (`next_discord_lookups`): lists the servers the bot is in, checks a domain's server and its channels, and finds people by Discord username (member search). Saves the raw answers with `record_discord_result`; the database decides what they mean. Never creates servers or channels. |
 | `WF5-error-handler.json` | WF5 Error handler | n8n error trigger | Records any workflow failure in History (`log_system_error`, which also queues an admin alert) and pokes WF4 so the alert goes out. If the database can't be reached, posts straight to the admin Discord channel. |
 
 "Poke" = an empty `POST` to the WF4 webhook with the header `x-poke-key`. It carries no data; it only tells
@@ -97,13 +98,16 @@ Keep this key private: it bypasses all row-level security.
 
 1. Go to <https://discord.com/developers/applications> → **New Application** (for example "SME Scheduling").
 2. Open **Bot** → **Reset Token** → copy the token.
-3. On the same **Bot** page, under **Privileged Gateway Intents**, switch on **MESSAGE CONTENT INTENT** and save.
-   Without it the bot sees typed replies as empty text and they can't be read.
-4. Invite the bot: **OAuth2 → URL Generator** → scope `bot` → permissions **View Channels**, **Send Messages**,
-   **Read Message History** → open the generated URL and add the bot to the company server.
-5. Make sure the bot (or its role) can see every instructor channel, the alert channels, the admin channel and the test channel
-   (private channels need the bot added explicitly).
-6. In n8n create a credential of type **Header Auth**:
+3. On the same **Bot** page, under **Privileged Gateway Intents**, switch on **SERVER MEMBERS INTENT** (WF6 finds
+   people by their Discord username) and **MESSAGE CONTENT INTENT** (WF1 reads typed replies). Save.
+4. Invite the bot with the link on the app's **Settings, Connections, Discord servers** (it needs `VITE_DISCORD_CLIENT_ID`,
+   the Application ID). It asks for exactly **View Channels**, **Send Messages**, **Embed Links** and
+   **Read Message History** (permissions value 84992). Add it to the server of each domain.
+5. Give the bot's role the same four permissions on the instructors' `1-1` category and on the alert, admin and test
+   channels (private channels need the bot added explicitly).
+6. WF4 sends instructor messages to their channel in the class's domain, or by direct message when they have no
+   channel there, and sends team members their own copies by direct message (or email when they have no Discord).
+7. In n8n create a credential of type **Header Auth**:
    - Name: `Discord bot (Sandbox)` or `Discord bot (Production)`
    - Header **Name**: `Authorization`
    - Header **Value**: `Bot ` followed by the token (the word `Bot`, a space, then the token).

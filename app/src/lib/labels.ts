@@ -56,4 +56,5 @@ export const historyCategories = [
   'Help requests',
   'Reminders',
   'System',
+  'Discord',
 ];

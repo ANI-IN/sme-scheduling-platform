@@ -8,7 +8,7 @@ While a domain is in **testing**, every message goes only to your testing Discor
 ## Turn on testing
 
 1. Open [Testing](/settings/testing).
-2. Enter the **Testing Discord channel ID** and the **Testing email**. Open **How do I copy a channel ID?** if you need help.
+2. Choose the **Testing Discord channel** from the list and enter the **Testing email**.
 3. Press **Save**, then **Turn on testing**.
 
 ## The practice clock

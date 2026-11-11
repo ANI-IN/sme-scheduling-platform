@@ -19,6 +19,7 @@ export const messageName: Record<string, string> = {
   M13: 'help request receipt',
   M14: 'reply',
   M15: 'contact check',
+  M16: 'release note',
   T0: 'test alert',
   T1: 'alert that requests have started',
   T2: 'confirmation alert',

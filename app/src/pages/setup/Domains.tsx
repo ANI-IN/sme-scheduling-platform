@@ -7,7 +7,7 @@ import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
 import { RegionBadge } from '@/components/ClassTime';
-import { isDiscordId } from '@/lib/validation';
+import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { PeoplePicker } from '@/components/PeoplePicker';
@@ -245,7 +245,6 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
   const [err, setErr] = useState<unknown>(null);
   const v = useFormErrors({
     name: !name.trim() ? 'Enter a name.' : undefined,
-    alert: alert && !isDiscordId(alert) ? 'A channel ID is 17 to 20 digits.' : undefined,
   });
   const ids = (role: string) =>
     (roles.data ?? []).filter((r) => r.role === role).map((r) => r.team_member_id);
@@ -342,15 +341,24 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
                 onChange={(e) => setName(e.target.value)}
               />
             </Field>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                Discord server <ServerStatus status={domain.discord_status} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Choose or check the server on Settings, Connections.
+              </p>
+            </div>
             <Field
-              label="Alert channel ID"
-              hint="The Discord channel where the team is tagged about this domain. Right click the channel, then Copy Channel ID."
-              error={v.show('alert')}
+              label="Alert channel"
+              hint="The Discord channel where the team is tagged about this domain."
             >
-              <Input
-                value={alert}
-                onBlur={v.touch('alert')}
-                onChange={(e) => setAlert(e.target.value)}
+              <ChannelPicker
+                serverId={domain.discord_server_id}
+                label="Alert channel"
+                value={alert || null}
+                noneLabel="No alert channel"
+                onChange={(id) => setAlert(id ?? '')}
               />
             </Field>
             <Button

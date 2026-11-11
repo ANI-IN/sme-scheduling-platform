@@ -2,30 +2,30 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { rpc } from '@/lib/rpc';
-import { isDiscordId } from '@/lib/validation';
+import { usernameProblem } from '@/lib/discord';
 import { Button, ErrorText, Field, Input, Modal } from '@/components/ui';
 
-/** Asked once after the first sign in: the Discord user ID is how alerts tag this person. */
+/** Asked once after the first sign in: the Discord username is how alerts tag this person. */
 export function DiscordPrompt() {
   const { account, refreshAccount } = useAuth();
-  const [id, setId] = useState('');
+  const [name, setName] = useState('');
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   if (!account?.needs_discord) return null;
-  const invalid = id.trim() !== '' && !isDiscordId(id);
+  const problem = name.trim() === '' ? 'Type your Discord username.' : usernameProblem(name);
 
   const save = async (dismiss: boolean) => {
     setTouched(true);
-    if (!dismiss && (id.trim() === '' || invalid)) return;
+    if (!dismiss && problem) return;
     setBusy(true);
     setErr(null);
     try {
       await rpc('update_my_profile', {
-        p_discord_user_id: dismiss ? undefined : id.trim(),
+        p_discord_username: dismiss ? undefined : name.trim(),
         p_dismiss_discord_prompt: dismiss,
       });
-      if (!dismiss) toast.success('Discord user ID saved');
+      if (!dismiss) toast.success('Saved. The app is finding your Discord account.');
       await refreshAccount();
     } catch (e) {
       setErr(e);
@@ -40,28 +40,18 @@ export function DiscordPrompt() {
       stayOpen
       onOpenChange={(o) => !o && void save(true)}
       title={`Welcome, ${account.member?.name.split(' ')[0] ?? ''}`}
-      description="Add your Discord user ID so the team alerts can tag you. You only do this once."
+      description="Add your Discord username so team alerts can tag you and send you direct messages. You only do this once. Without it you get email."
     >
-      <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm">
-        <li>In Discord, open User Settings (the gear next to your name).</li>
-        <li>Choose Advanced and turn on Developer Mode.</li>
-        <li>Right click your name in any server and choose Copy User ID.</li>
-        <li>Paste it below.</li>
-      </ol>
-      <Field
-        label="Your Discord user ID"
-        hint="17 to 20 digits."
-        error={
-          touched && (id.trim() === '' || invalid)
-            ? 'Paste a Discord user ID of 17 to 20 digits.'
-            : undefined
-        }
-      >
+      <p className="mb-3 text-sm text-muted-foreground">
+        Your username is under your name in Discord (click your picture at the bottom left), for
+        example maya.k.
+      </p>
+      <Field label="Your Discord username" error={touched ? problem : undefined}>
         <Input
-          inputMode="numeric"
-          value={id}
+          value={name}
+          autoComplete="off"
           onBlur={() => setTouched(true)}
-          onChange={(e) => setId(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
         />
       </Field>
       <ErrorText error={err} />
