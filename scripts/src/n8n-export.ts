@@ -19,6 +19,8 @@ const ENVS = [
     supabaseUrl: 'https://abcdefghijklmnopqrst.supabase.co',
     n8nUrl: 'https://your-instance.app.n8n.cloud',
     backupFolderId: 'your-drive-folder-id',
+    // The Gmail label "SME Scheduling/Processed" in the Sandbox mailbox (WF1 labels the replies it read).
+    processedLabelId: 'Label_1',
   },
   {
     key: 'production',
@@ -27,6 +29,7 @@ const ENVS = [
     supabaseUrl: 'https://YOUR-PRODUCTION-PROJECT.supabase.co',
     n8nUrl: 'https://your-instance.app.n8n.cloud',
     backupFolderId: 'REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID',
+    processedLabelId: 'REPLACE_WITH_PRODUCTION_PROCESSED_LABEL_ID',
   },
 ] as const;
 
@@ -88,6 +91,12 @@ for (const env of ENVS) {
           (v as { value?: string }).value === 'REPLACE_WITH_DRIVE_FOLDER_ID'
         )
           (v as { value: string }).value = env.backupFolderId;
+      // WF1 "Label as processed": the label ID of this environment's mailbox.
+      const labels = p0(n).labelIds;
+      if (Array.isArray(labels))
+        p0(n).labelIds = labels.map((l) =>
+          l === 'REPLACE_WITH_PROCESSED_LABEL_ID' ? env.processedLabelId : l,
+        );
       if (n.webhookId) n.webhookId = uuidFor(`${env.key}:${file}:${n.name}`);
       const p = n.parameters ?? {};
       if (typeof p.path === 'string' && env.pathPrefix) p.path = env.pathPrefix + p.path;

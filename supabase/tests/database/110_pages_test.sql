@@ -33,7 +33,7 @@ select is((select (x ->> 'changed')::boolean from jsonb_array_elements(public.me
 select ok((public.preview_message_template(:'dom', 'M1', 'Teaching {module}?', 'Hello {first_name} {module} {classes} {deadline}') ->> 'body') like 'Hello Alex%',
   'the live preview fills in sample details');
 select public.reset_message_template(:'dom', 'M1');
-select ok((private.render_instructor('M1', :'mw', :'i1', '{"deadline": "Fri"}') ->> 'body') like 'Hi PG,%', 'Reset to default brings back the default');
+select ok((private.render_instructor('M1', :'mw', :'i1', '{"deadline": "Fri"}') ->> 'body') like 'Can you teach %', 'Reset to default brings back the default (its greeting is added by the message, decision 267)');
 
 -- =============================================================== holidays per domain
 insert into public.holiday (date, name, domain_id) values ('2027-05-05', 'PG only holiday', :'dom');

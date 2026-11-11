@@ -327,7 +327,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "// Build the Discord message payload from the claimed row. No decisions: the database wrote the text.\nconst m = $input.first().json;\nlet text = String(m.body_text || m.subject || '');\nif (text.length > 2000) text = text.slice(0, 1999) + '…';\n\nconst buttons = (Array.isArray(m.buttons) ? m.buttons : []).filter(b => b && b.url).slice(0, 25);\nconst rows = [];\nfor (let i = 0; i < buttons.length; i += 5) {\n  rows.push({\n    type: 1,\n    components: buttons.slice(i, i + 5).map(b => ({\n      type: 2, style: 5, label: String(b.label || 'Open').slice(0, 80), url: String(b.url),\n    })),\n  });\n}\n\nconst payload = {\n  content: text,\n  allowed_mentions: { parse: [], users: (Array.isArray(m.mention_user_ids) ? m.mention_user_ids : []).slice(0, 100) },\n};\nif (rows.length) payload.components = rows;\n// Discord drops a second post with the same nonce, so a retry after a lost answer never posts twice.\npayload.nonce = String(m.id).replace(/-/g, '').slice(0, 25);\npayload.enforce_nonce = true;\n\nreturn [{ json: {\n  message_id: m.id,\n  dmUserId: m.discord_dm_user_id || null,\n  targetChannelId: m.discord_channel_id || null,\n  payload,\n} }];"
+        "jsCode": "// Build the Discord message payload from the claimed row. No decisions: the database wrote the text.\nconst m = $input.first().json;\nlet text = String(m.body_text || m.subject || '');\nif (text.length > 2000) text = text.slice(0, 1999) + '…';\n\nconst buttons = (Array.isArray(m.buttons) ? m.buttons : []).filter(b => b && b.url).slice(0, 25);\nconst rows = [];\nfor (let i = 0; i < buttons.length; i += 5) {\n  rows.push({\n    type: 1,\n    components: buttons.slice(i, i + 5).map(b => ({\n      type: 2, style: 5, label: String(b.label || 'Open').slice(0, 80), url: String(b.url),\n    })),\n  });\n}\n\n// Discord refuses a message that lists the same user twice (for example an instructor who is also on the team).\nconst users = [...new Set((Array.isArray(m.mention_user_ids) ? m.mention_user_ids : []).map(String))].slice(0, 100);\nconst payload = {\n  content: text,\n  allowed_mentions: { parse: [], users },\n};\nif (rows.length) payload.components = rows;\n// Discord drops a second post with the same nonce, so a retry after a lost answer never posts twice.\npayload.nonce = String(m.id).replace(/-/g, '').slice(0, 25);\npayload.enforce_nonce = true;\n\nreturn [{ json: {\n  message_id: m.id,\n  dmUserId: m.discord_dm_user_id || null,\n  targetChannelId: m.discord_channel_id || null,\n  payload,\n} }];"
       }
     },
     {
@@ -552,7 +552,8 @@
         "message": "={{ $json.html }}",
         "options": {
           "appendAttribution": false,
-          "senderName": "SME Scheduling"
+          "senderName": "SME Scheduling",
+          "replyTo": "scheduling-mailbox+scheduling@yourcompany.com"
         }
       },
       "credentials": {

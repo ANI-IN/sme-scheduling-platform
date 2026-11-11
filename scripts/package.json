@@ -10,6 +10,7 @@
     "screenshots": "tsx src/screenshots.ts",
     "scan-text": "tsx src/scan-text.ts",
     "demo": "tsx src/demo-data.ts",
+    "demo:load": "tsx --env-file=../.env.sandbox src/demo-load.ts",
     "check-migrations": "tsx src/check-migrations.ts",
     "db:test:scratch": "tsx src/db-test-scratch.ts",
     "discord": "tsx src/discord-lookups.ts",

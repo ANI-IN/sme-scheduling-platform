@@ -97,7 +97,7 @@
         -440
       ],
       "parameters": {
-        "content": "## (a) Gmail replies and bounces\n- Unread inbox mail from the last 3 days.\n- **Classify emails** only parses: bounce (mailer-daemon / postmaster / delivery-failure subject) → `record_bounce`; anything else → `record_inbound_message`.\n- Only messages the database accepted are marked as read; the rest are retried next hour (both calls are idempotent).\n\n### Optional AI summary\nAn OpenAI node could be added between **Classify emails** and **Record email** to fill `args.p_summary` (one-line summary for ops). AI only summarises; it never decides anything. Same for Discord before **Record Discord reply**.",
+        "content": "## (a) Gmail replies and bounces\n- Only mail to the +scheduling Reply-To address (`scheduling-mailbox+scheduling@yourcompany.com`) and bounces that quote it, from the last 3 days. The shared inbox is otherwise never touched.\n- **Classify emails** only parses: bounce (mailer-daemon / postmaster / delivery-failure subject) → `record_bounce`; anything else → `record_inbound_message`.\n- Messages the database accepted get the label **SME Scheduling/Processed** (nothing is marked as read); the rest are retried next hour (both calls are idempotent).\n\n### Optional AI summary\nAn OpenAI node could be added between **Classify emails** and **Record email** to fill `args.p_summary` (one-line summary for ops). AI only summarises; it never decides anything. Same for Discord before **Record Discord reply**.",
         "height": 380,
         "width": 1120,
         "color": 4
@@ -105,7 +105,7 @@
     },
     {
       "id": "ed602fec-c725-4c8f-a630-6020d1a5ce2a",
-      "name": "Get unread emails",
+      "name": "Get system replies",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
@@ -119,7 +119,7 @@
         "limit": 50,
         "simple": false,
         "filters": {
-          "q": "in:inbox is:unread newer_than:3d"
+          "q": "newer_than:3d -label:sme-scheduling-processed {to:scheduling-mailbox+scheduling@yourcompany.com deliveredto:scheduling-mailbox+scheduling@yourcompany.com (from:mailer-daemon \"scheduling-mailbox+scheduling@yourcompany.com\")}"
         },
         "options": {}
       },
@@ -140,7 +140,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "// Parse each Gmail message into one database call. Parsing only; the database decides what it means.\nfunction hdr(m, name) {\n  const h = m.headers; const want = name.toLowerCase(); let v;\n  if (Array.isArray(h)) {\n    const f = h.find(x => String(x.name || x.key || '').toLowerCase() === want);\n    v = f && (f.value || f.line);\n  } else if (h && typeof h === 'object') {\n    for (const k of Object.keys(h)) if (k.toLowerCase() === want) v = h[k];\n  }\n  if (v == null) return '';\n  v = typeof v === 'object' ? (v.text || v.value || JSON.stringify(v)) : String(v);\n  return v.replace(new RegExp('^' + want + ':\\\\s*', 'i'), '').trim();\n}\nfunction stripQuoted(t) {\n  const lines = String(t || '').replace(/\\r\\n/g, '\\n').split('\\n');\n  const out = [];\n  for (let i = 0; i < lines.length; i++) {\n    const l = lines[i];\n    if (/^\\s*>/.test(l)) break;\n    if (/^-{2,}\\s*Original Message\\s*-{2,}/i.test(l)) break;\n    if (/^On\\s.+/.test(l) && /wrote:\\s*$/.test(l + ' ' + (lines[i + 1] || ''))) break;\n    out.push(l);\n  }\n  return out.join('\\n').trim() || String(t || '').trim();\n}\nfunction failedRecipient(m, text) {\n  const x = hdr(m, 'x-failed-recipients');\n  if (x) return x.split(',')[0].trim();\n  const pats = [\n    /Final-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /Original-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /delivered to\\s+<?([^\\s<>]+@[^\\s<>]+)/i,\n  ];\n  for (const p of pats) { const r = text.match(p); if (r) return r[1].replace(/[>.,;:]+$/, ''); }\n  const to = String((m.to && m.to.text) || hdr(m, 'to')).toLowerCase();\n  const skip = /mailer-daemon|postmaster|no-?reply|@google\\.com$|@googlemail\\.com$/i;\n  const all = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g) || [];\n  return all.find(a => !skip.test(a) && !to.includes(a.toLowerCase())) || '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const m = item.json || {};\n  if (!m.id) continue;\n  const from = String((m.from && (m.from.text || (m.from.value && m.from.value[0] && m.from.value[0].address))) || hdr(m, 'from') || m.From || '');\n  const subject = String(m.subject || hdr(m, 'subject') || m.Subject || '');\n  const text = String(m.text || (m.html ? String(m.html).replace(/<[^>]+>/g, ' ') : '') || m.snippet || '');\n  const received = m.date ? new Date(m.date) : null;\n  const isBounce = /mailer-daemon|postmaster/i.test(from)\n    || /delivery status notification|undeliverable|undelivered mail|mail delivery (failed|failure|subsystem)/i.test(subject);\n  if (isBounce) {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_bounce', args: {\n      p_email: failedRecipient(m, text),\n      p_external_id: m.id,\n      p_detail: (subject + ': ' + text.replace(/\\s+/g, ' ')).slice(0, 500),\n    } } });\n  } else {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Email',\n      p_from: from,\n      p_subject: subject || null,\n      p_body: stripQuoted(text).slice(0, 5000),\n      p_external_id: m.id,\n      p_received_at: received && !isNaN(received) ? received.toISOString() : null,\n      p_summary: null,\n    } } });\n  }\n}\nreturn out;"
+        "jsCode": "// Parse each Gmail message into one database call. Parsing only; the database decides what it means.\n// Only mail about this system is handled: replies sent to the +scheduling Reply-To address, and bounces\n// of emails this system sent (they quote that address). Everything else in the shared inbox is skipped.\nconst SYS = 'scheduling-mailbox+scheduling@yourcompany.com';\nfunction hdr(m, name) {\n  const h = m.headers; const want = name.toLowerCase(); let v;\n  if (Array.isArray(h)) {\n    const f = h.find(x => String(x.name || x.key || '').toLowerCase() === want);\n    v = f && (f.value || f.line);\n  } else if (h && typeof h === 'object') {\n    for (const k of Object.keys(h)) if (k.toLowerCase() === want) v = h[k];\n  }\n  if (v == null) return '';\n  v = typeof v === 'object' ? (v.text || v.value || JSON.stringify(v)) : String(v);\n  return v.replace(new RegExp('^' + want + ':\\\\s*', 'i'), '').trim();\n}\nfunction stripQuoted(t) {\n  const lines = String(t || '').replace(/\\r\\n/g, '\\n').split('\\n');\n  const out = [];\n  for (let i = 0; i < lines.length; i++) {\n    const l = lines[i];\n    if (/^\\s*>/.test(l)) break;\n    if (/^-{2,}\\s*Original Message\\s*-{2,}/i.test(l)) break;\n    if (/^On\\s.+/.test(l) && /wrote:\\s*$/.test(l + ' ' + (lines[i + 1] || ''))) break;\n    out.push(l);\n  }\n  return out.join('\\n').trim() || String(t || '').trim();\n}\nfunction failedRecipient(m, text) {\n  const x = hdr(m, 'x-failed-recipients');\n  if (x) return x.split(',')[0].trim();\n  const pats = [\n    /Final-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /Original-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /delivered to\\s+<?([^\\s<>]+@[^\\s<>]+)/i,\n  ];\n  for (const p of pats) { const r = text.match(p); if (r) return r[1].replace(/[>.,;:]+$/, ''); }\n  const to = String((m.to && m.to.text) || hdr(m, 'to')).toLowerCase();\n  const skip = /mailer-daemon|postmaster|no-?reply|@google\\.com$|@googlemail\\.com$|^scheduling-mailbox/i;\n  const all = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g) || [];\n  return all.find(a => !skip.test(a) && !to.includes(a.toLowerCase())) || '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const m = item.json || {};\n  if (!m.id) continue;\n  const from = String((m.from && (m.from.text || (m.from.value && m.from.value[0] && m.from.value[0].address))) || hdr(m, 'from') || m.From || '');\n  const subject = String(m.subject || hdr(m, 'subject') || m.Subject || '');\n  const text = String(m.text || (m.html ? String(m.html).replace(/<[^>]+>/g, ' ') : '') || m.snippet || '');\n  const received = m.date ? new Date(m.date) : null;\n  const isBounce = /mailer-daemon|postmaster/i.test(from)\n    || /delivery status notification|undeliverable|undelivered mail|mail delivery (failed|failure|subsystem)/i.test(subject);\n  const addressedTo = (JSON.stringify(m.to || '') + ' ' + JSON.stringify(m.cc || '') + ' ' + hdr(m, 'delivered-to') + ' ' + hdr(m, 'to')).toLowerCase();\n  if (isBounce ? !text.toLowerCase().includes(SYS) : !addressedTo.includes(SYS)) continue;\n  if (isBounce) {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_bounce', args: {\n      p_email: failedRecipient(m, text),\n      p_external_id: m.id,\n      p_detail: (subject + ': ' + text.replace(/\\s+/g, ' ')).slice(0, 500),\n    } } });\n  } else {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Email',\n      p_from: from,\n      p_subject: subject || null,\n      p_body: stripQuoted(text).slice(0, 5000),\n      p_external_id: m.id,\n      p_received_at: received && !isNaN(received) ? received.toISOString() : null,\n      p_summary: null,\n    } } });\n  }\n}\nreturn out;"
       }
     },
     {
@@ -182,7 +182,7 @@
     },
     {
       "id": "2d7743a3-51a4-4fd1-aef1-fffad5bf39a9",
-      "name": "Mark as read",
+      "name": "Label as processed",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
@@ -191,8 +191,11 @@
       ],
       "parameters": {
         "resource": "message",
-        "operation": "markAsRead",
-        "messageId": "={{ $('Classify emails').item.json.gmail_id }}"
+        "operation": "addLabels",
+        "messageId": "={{ $('Classify emails').item.json.gmail_id }}",
+        "labelIds": [
+          "Label_1"
+        ]
       },
       "credentials": {
         "gmailOAuth2": {
@@ -504,7 +507,7 @@
       "main": [
         [
           {
-            "node": "Get unread emails",
+            "node": "Get system replies",
             "type": "main",
             "index": 0
           },
@@ -515,24 +518,6 @@
           },
           {
             "node": "Poke WF4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get unread emails": {
-      "main": [
-        [
-          {
-            "node": "Classify emails",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Log reading problem",
             "type": "main",
             "index": 0
           }
@@ -554,7 +539,7 @@
       "main": [
         [
           {
-            "node": "Mark as read",
+            "node": "Label as processed",
             "type": "main",
             "index": 0
           }
@@ -611,6 +596,24 @@
         [
           {
             "node": "Save Discord cursor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get system replies": {
+      "main": [
+        [
+          {
+            "node": "Classify emails",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log reading problem",
             "type": "main",
             "index": 0
           }
