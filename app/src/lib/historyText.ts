@@ -86,7 +86,8 @@ const FIELD: Record<string, string> = {
   include_in_confirmation: 'Included in the confirmation',
   class_type: 'Class type',
   day_offset: 'Day',
-  start_time_pt: 'Start time (Pacific)',
+  start_time: 'Start time (local time)',
+  region: 'Region',
   duration_minutes: 'Length in minutes',
   from_date: 'From',
   to_date: 'To',
@@ -151,7 +152,7 @@ function noun(e: HistoryLike, book: NameBook): string {
     case 'module_resource':
       return `the material "${r.title}" for ${n(r.module_id)}`;
     case 'class_pattern_item':
-      return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.day_offset, book, 'day_offset')} at ${value(r.start_time_pt, book)} (Pacific) for ${n(r.module_id)}${r.cohort_id ? ` in ${n(r.cohort_id)}` : ''}`;
+      return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.day_offset, book, 'day_offset')} at ${value(r.start_time, book)} (local time) for ${n(r.module_id)}${r.cohort_id ? ` in ${n(r.cohort_id)}` : ''}`;
     case 'module_ranking':
       return `${n(r.instructor_id)} in the instructor order for ${n(r.module_id)}`;
     case 'team_member':

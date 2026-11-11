@@ -39,7 +39,7 @@ const DETAILS: Record<string, string> = {
   name: 'Instructor full name',
   module: 'Module name',
   domain: 'Domain name',
-  classes: 'Every class with date and time (Pacific)',
+  classes: 'Every class with date and time, in the time zone of the class',
   first_class: 'Date and time of the first class',
   weekday: 'Weekday of the first class',
   deadline: 'When to reply by',

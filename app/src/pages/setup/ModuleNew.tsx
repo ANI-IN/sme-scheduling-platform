@@ -118,7 +118,7 @@ export default function ModuleNew() {
           {step === 1 && (
             <Section
               title="Class times"
-              description="The classes of one class week, in Pacific time. The planner uses them to create classes."
+              description="The classes of one class week, in the local time of each cohort (US Pacific or India). The planner uses them to create classes."
             >
               <PatternEditor module={m} run={run} />
             </Section>
@@ -433,13 +433,13 @@ function Review({
           {row('Name', m.name)}
           {row('Order in the rotation', m.rotation_order)}
           {row(
-            'Class times (Pacific)',
+            'Class times (local time of each cohort)',
             m.class_pattern_item.length
               ? [...m.class_pattern_item]
                   .sort((a, b) => a.day_offset - b.day_offset)
                   .map(
                     (p) =>
-                      `${p.class_type}, ${dayLabel(p.day_offset)} ${p.start_time_pt.slice(0, 5)}, ${p.duration_minutes} minutes`,
+                      `${p.class_type}, ${dayLabel(p.day_offset)} ${p.start_time.slice(0, 5)}, ${p.duration_minutes} minutes`,
                   )
                   .join('; ')
               : 'None',

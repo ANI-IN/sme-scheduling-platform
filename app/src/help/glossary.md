@@ -24,6 +24,8 @@ order: 16
 - **Pause all messages:** stop every message to instructors at once.
 - **Practice clock:** a pretend date and time for a domain in testing.
 - **Primary instructor:** the first instructor asked for a module.
+- **PST, PDT, IST:** US Pacific winter time, US Pacific summer time, and India time.
+- **Region:** US or India. It decides the time zone of a cohort's classes.
 - **Reminder before class:** a message to a confirmed instructor before the class.
 - **Setup check:** the check that a module has everything it needs before instructors are asked.
 - **Task:** something a person on the team needs to do.

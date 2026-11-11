@@ -25,7 +25,7 @@ The exact days are on the Automation page and can differ per cohort, module or c
 
 ## Quiet hours
 
-Instructors are not messaged at night (Pacific time). Messages wait until the morning.
+Instructors are not messaged at night, in the time zone of their class (US Pacific or India). Messages wait until the morning.
 
 ## On the Instructor requests page
 

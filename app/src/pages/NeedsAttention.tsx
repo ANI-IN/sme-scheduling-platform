@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useMe, useTeam, useWeeks, type AttentionItem } from '@/lib/data';
-import { ago, fmtLocal, fmtPT } from '@/lib/time';
+import { ago, fmtLocal } from '@/lib/time';
+import { fmtAt } from '@/lib/region';
 import { messageTitle, plain, plainLabel } from '@/lib/plain';
 import { attentionTypeLabel, helpCategories, helpStatusLabel } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
@@ -366,7 +367,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
         supabase
           .from('help_request')
           .select(
-            '*, module_week(module(name), first_class_at), instructor:requester_instructor_id(full_name)',
+            '*, module_week(module(name), first_class_at, cohort(region)), instructor:requester_instructor_id(full_name)',
           )
           .eq('id', id)
           .single(),
@@ -379,6 +380,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
   const [resolves, setResolves] = useState(false);
   const [note, setNote] = useState('');
   const req = h.data?.req;
+  const region = (req?.module_week as { cohort: { region: string } | null } | null)?.cohort?.region;
   const teamNames = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   const closed = req && ['Resolved', 'Closed', 'ConvertedToCancellation'].includes(req.status);
   return (
@@ -400,7 +402,10 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
               </strong>{' '}
               · {(req.module_week as { module: { name: string } | null } | null)?.module?.name} ·
               class{' '}
-              {fmtPT((req.module_week as { first_class_at: string | null } | null)?.first_class_at)}
+              {fmtAt(
+                (req.module_week as { first_class_at: string | null } | null)?.first_class_at,
+                region,
+              )}
             </span>
           </div>
           <div>
@@ -413,7 +418,7 @@ export function HelpPanel({ id, onClose }: { id: string; onClose: () => void }) 
           <div className="text-muted-foreground">
             How soon: {URGENCY[req.urgency] ?? req.urgency} · reply by{' '}
             {REPLY_BY[req.reply_channel] ?? req.reply_channel} · answer by{' '}
-            {fmtLocal(req.response_target_at)} ({fmtPT(req.response_target_at)}) · sent to{' '}
+            {fmtLocal(req.response_target_at)} ({fmtAt(req.response_target_at, region)}) · sent to{' '}
             {req.routed_to.map((r) => teamNames.get(r)).join(', ')}
             {req.assigned_to && ` · taken by ${teamNames.get(req.assigned_to)}`}
           </div>

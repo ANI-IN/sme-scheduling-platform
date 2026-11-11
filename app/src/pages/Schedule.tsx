@@ -13,9 +13,10 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
-import { fmtPTRange, PT } from '@/lib/time';
+import { PT } from '@/lib/time';
+import { asRegion, classTimeLine, REGIONS, TZ } from '@/lib/region';
+import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { weekState } from '@/lib/status';
-import { plain } from '@/lib/plain';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useConfirm } from '@/components/Confirm';
 import {
@@ -61,8 +62,9 @@ export default function Schedule() {
   const [showPast, setShowPast] = useState(false);
   const [moduleFilter, setModuleFilter] = useState('');
   const [cohortFilter, setCohortFilter] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [adding, setAdding] = useState(false);
-  const manyCohorts = (cohorts.data ?? []).length > 1;
   const [search, setSearch] = useState('');
   const [queueFor, setQueueFor] = useState<string[] | null>(null);
   const [shiftN, setShiftN] = useState(1);
@@ -75,10 +77,16 @@ export default function Schedule() {
     queryKey: ['holiday'],
     queryFn: async () => check(await supabase.from('holiday').select('*')),
   });
-  const holidayMap = useMemo(
-    () => new Map((holidays.data ?? []).map((h) => [h.date, h.name])),
-    [holidays.data],
-  );
+  // Holidays by local date and region; a holiday without a region applies to both.
+  const holidayMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of holidays.data ?? [])
+      for (const r of h.region ? [h.region] : REGIONS) {
+        const k = `${h.date}|${r}`;
+        m.set(k, m.has(k) ? `${m.get(k)}, ${h.name}` : h.name);
+      }
+    return m;
+  }, [holidays.data]);
   const weekIds = (weeks.data ?? []).map((w) => w.id);
   const checklist = useQuery({
     queryKey: ['checklist_item', 'grid', domain?.id, weekIds.length],
@@ -115,14 +123,36 @@ export default function Schedule() {
         continue;
       if (moduleFilter && w.module_id !== moduleFilter) continue;
       if (cohortFilter && w.cohort_id !== cohortFilter) continue;
-      const classes = [...w.class_session].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+      if (statusFilter && weekState(w, names).label !== statusFilter) continue;
+      const classes = [...w.class_session]
+        .filter((c) => !regionFilter || asRegion(c.region) === regionFilter)
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
       classes.forEach((c, idx) => {
-        const date = DateTime.fromISO(c.starts_at).setZone(PT).toISODate()!;
-        out.push({ week: w, cls: c, first: idx === 0, holiday: holidayMap.get(date) ?? null });
+        const r = asRegion(c.region);
+        const date = DateTime.fromISO(c.starts_at).setZone(TZ[r]).toISODate()!;
+        out.push({
+          week: w,
+          cls: c,
+          first: idx === 0,
+          holiday: holidayMap.get(`${date}|${r}`) ?? null,
+        });
       });
     }
     return out;
-  }, [weeks.data, showPast, moduleFilter, cohortFilter, holidayMap]);
+  }, [
+    weeks.data,
+    showPast,
+    moduleFilter,
+    cohortFilter,
+    regionFilter,
+    statusFilter,
+    names,
+    holidayMap,
+  ]);
+  const statuses = useMemo(
+    () => [...new Set((weeks.data ?? []).map((w) => weekState(w, names).label))].sort(),
+    [weeks.data, names],
+  );
 
   const columns = useMemo(
     () => [
@@ -144,18 +174,17 @@ export default function Schedule() {
             />
           ) : null,
       }),
-      col.accessor((r) => fmtPTRange(r.cls.starts_at, r.cls.ends_at), {
+      col.accessor((r) => classTimeLine(r.cls.starts_at, r.cls.ends_at, r.cls.region), {
         id: 'when',
-        header: 'When (Pacific)',
-        cell: ({ row, getValue }) => (
-          <span
-            className={
-              row.original.cls.status === 'Cancelled'
-                ? 'whitespace-nowrap text-muted-foreground line-through'
-                : 'whitespace-nowrap'
-            }
-          >
-            {plain(getValue())}
+        header: 'When',
+        cell: ({ row }) => (
+          <span className="block">
+            <ClassTime
+              start={row.original.cls.starts_at}
+              end={row.original.cls.ends_at}
+              region={row.original.cls.region}
+              cancelled={row.original.cls.status === 'Cancelled'}
+            />
             {row.original.holiday && (
               <span className="mt-0.5 block">
                 <Badge tone="warning">Holiday: {row.original.holiday}</Badge>
@@ -165,7 +194,8 @@ export default function Schedule() {
         ),
       }),
       col.accessor(
-        (r) => `${r.week.module?.name ?? ''} ${r.cls.class_type} ${r.cls.title} ${r.week.cohort}`,
+        (r) =>
+          `${r.week.module?.name ?? ''} ${r.cls.class_type} ${r.cls.title} ${r.week.cohort} ${asRegion(r.cls.region)}`,
         {
           id: 'class',
           header: 'Class',
@@ -173,13 +203,16 @@ export default function Schedule() {
             <div>
               <div className="font-medium">
                 {row.original.first ? row.original.week.module?.name : ''}
-                {row.original.first && manyCohorts && (
+                {row.original.first && row.original.week.cohort && (
                   <span className="ml-1 text-xs font-normal text-muted-foreground">
                     {row.original.week.cohort}
                   </span>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground">{row.original.cls.class_type}</div>
+              <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                {row.original.cls.class_type}
+                <RegionBadge region={row.original.cls.region} />
+              </div>
             </div>
           ),
         },
@@ -242,7 +275,7 @@ export default function Schedule() {
           ) : null,
       }),
     ],
-    [selected, names, checklistByWeek, manyCohorts],
+    [selected, names, checklistByWeek],
   );
 
   // TanStack Table manages its own memoisation; the React Compiler skips this component.
@@ -268,7 +301,14 @@ export default function Schedule() {
     void rpc('log_export', {
       p_what: 'Upcoming classes',
       p_rows: table.getFilteredRowModel().rows.length,
-      p_filters: { search, module: moduleFilter, cohort: cohortFilter, show_past: showPast },
+      p_filters: {
+        search,
+        module: moduleFilter,
+        cohort: cohortFilter,
+        region: regionFilter,
+        status: statusFilter,
+        show_past: showPast,
+      },
       p_domain_id: domain?.id,
     }).catch(() => {});
     downloadCsv(
@@ -277,7 +317,10 @@ export default function Schedule() {
         table.getFilteredRowModel().rows.map(({ original: r }) => {
           const s = weekState(r.week, names);
           return {
-            date_time_pt: fmtPTRange(r.cls.starts_at, r.cls.ends_at),
+            date_time: classTimeLine(r.cls.starts_at, r.cls.ends_at, r.cls.region),
+            region: asRegion(r.cls.region),
+            time_zone: TZ[asRegion(r.cls.region)],
+            starts_utc: r.cls.starts_at,
             module: r.week.module?.name,
             class_type: r.cls.class_type,
             title: r.cls.title,
@@ -302,7 +345,7 @@ export default function Schedule() {
     <div>
       <PageHeader
         title="Upcoming classes"
-        description="Every planned class, grouped by class week. Times are Pacific. Select a row for details and actions."
+        description="Every planned class, grouped by class week. Each class shows the time where it is taught, and US classes also show the India time. Select a row for details and actions."
       >
         <Button variant="secondary" onClick={exportCsv} disabled={rows.length === 0}>
           <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
@@ -350,6 +393,29 @@ export default function Schedule() {
             ))}
           </Select>
         )}
+        <Select
+          aria-label="Region"
+          value={regionFilter}
+          onChange={(e) => setRegionFilter(e.target.value)}
+          className="w-40"
+        >
+          <option value="">All regions</option>
+          <option value="US">US</option>
+          <option value="India">India</option>
+        </Select>
+        <Select
+          aria-label="Status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="w-48"
+        >
+          <option value="">All statuses</option>
+          {statuses.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
         <Checkbox label="Show past and cancelled" checked={showPast} onChange={setShowPast} />
       </Toolbar>
 
@@ -438,7 +504,7 @@ export default function Schedule() {
                 if (
                   !(await confirm({
                     title: `Move ${selected.size} class week${selected.size === 1 ? '' : 's'} by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
-                    body: 'Only the selected weeks move, and they keep their Pacific times. Confirmed instructors are asked to confirm the new dates.',
+                    body: 'Only the selected weeks move, and each class keeps its local time. Confirmed instructors are asked to confirm the new dates.',
                   }))
                 )
                   return;

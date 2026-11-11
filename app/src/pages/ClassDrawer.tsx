@@ -7,7 +7,9 @@ import { check, poke, rpc } from '@/lib/rpc';
 import { useNameBook, type WeekRow } from '@/lib/data';
 import { messageTitle, plain } from '@/lib/plain';
 import { describeHistory } from '@/lib/historyText';
-import { fmtLocal, fmtPTRange, ptParts } from '@/lib/time';
+import { fmtLocal } from '@/lib/time';
+import { asRegion, localParts, timeFieldLabel } from '@/lib/region';
+import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
 import { weekState } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
@@ -151,7 +153,10 @@ export function ClassDrawer({
           {openHelp && <Badge tone="warning">Help request open</Badge>}
         </div>
 
-        <DrawerGroup title="Classes" description="Times are Pacific.">
+        <DrawerGroup
+          title="Classes"
+          description="Each class shows the time where it is taught. US classes also show the India time."
+        >
           {classes.map((c) => (
             <ClassEditor key={`${c.id}:${c.version}`} c={c} run={run} />
           ))}
@@ -469,7 +474,7 @@ export function ClassDrawer({
                     if (
                       await confirm({
                         title: `Move this and all later class weeks by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
-                        body: 'Classes keep their Pacific times. Confirmed instructors are asked to confirm the new dates, and requests are planned again.',
+                        body: 'Each class keeps its local time. Confirmed instructors are asked to confirm the new dates, and requests are planned again.',
                       })
                     )
                       await run(
@@ -687,37 +692,51 @@ function ClassEditor({
   run: ReturnType<typeof useRun>['run'];
 }) {
   const confirm = useConfirm();
-  const s = ptParts(c.starts_at);
-  const e = ptParts(c.ends_at);
-  const [t, setT] = useState({ date: s.date, start: s.time, end: e.time });
+  const region = asRegion(c.region);
+  const s = localParts(c.starts_at, region);
+  const e = localParts(c.ends_at, region);
+  const [t, setT] = useState({ date: s.date, start: s.time, end: e.time, region });
+  const [fold, setFold] = useState<number | null>(null);
   const [d, setD] = useState({ title: c.title, notes: c.notes ?? '', problem: c.problem_flag });
-  const timeChanged = t.date !== s.date || t.start !== s.time || t.end !== e.time;
+  const timeChanged =
+    t.date !== s.date || t.start !== s.time || t.end !== e.time || t.region !== region;
+  const ready = timeReady(t.date, [t.start, t.end], t.region, fold);
   const detailsChanged =
     d.title !== c.title || d.notes !== (c.notes ?? '') || d.problem !== c.problem_flag;
   return (
     <div className="rounded-md border border-border p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge>{c.class_type}</Badge>
-        <span className="font-medium">{fmtPTRange(c.starts_at, c.ends_at)}</span>
+        <RegionBadge region={c.region} />
+        <ClassTime start={c.starts_at} end={c.ends_at} region={c.region} className="font-medium" />
         {c.status !== 'Planned' && (
           <Badge tone={c.status === 'Cancelled' ? 'danger' : 'neutral'}>{c.status}</Badge>
         )}
       </div>
       {c.status === 'Planned' && (
         <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {timeFieldLabel(t.region, t.date)}
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             <Input
               type="date"
               aria-label="Date"
               value={t.date}
-              onChange={(ev) => setT({ ...t, date: ev.target.value })}
+              onChange={(ev) => {
+                setT({ ...t, date: ev.target.value });
+                setFold(null);
+              }}
               className="h-8 w-40"
             />
             <Input
               type="time"
               aria-label="Start time"
               value={t.start}
-              onChange={(ev) => setT({ ...t, start: ev.target.value })}
+              onChange={(ev) => {
+                setT({ ...t, start: ev.target.value });
+                setFold(null);
+              }}
               className="h-8 w-32"
             />
             <span className="text-muted-foreground">to</span>
@@ -725,13 +744,16 @@ function ClassEditor({
               type="time"
               aria-label="End time"
               value={t.end}
-              onChange={(ev) => setT({ ...t, end: ev.target.value })}
+              onChange={(ev) => {
+                setT({ ...t, end: ev.target.value });
+                setFold(null);
+              }}
               className="h-8 w-32"
             />
             <Button
               size="sm"
               variant="secondary"
-              disabled={!timeChanged}
+              disabled={!timeChanged || !ready}
               onClick={async () => {
                 if (
                   await confirm({
@@ -747,6 +769,8 @@ function ClassEditor({
                         p_start: t.start,
                         p_end: t.end,
                         p_expected_version: c.version,
+                        p_region: t.region,
+                        p_fold: fold ?? undefined,
                       }),
                     'Class time changed',
                   );
@@ -755,6 +779,31 @@ function ClassEditor({
               Change time
             </Button>
           </div>
+          <TimeCheck
+            date={t.date}
+            times={[t.start, t.end]}
+            region={t.region}
+            fold={fold}
+            onFold={setFold}
+          />
+          <details className="text-sm">
+            <summary className="cursor-pointer text-xs text-muted-foreground">
+              More options for this class
+            </summary>
+            <div className="mt-2 space-y-1">
+              <RegionSelect
+                value={t.region}
+                onChange={(r) => {
+                  setT({ ...t, region: r });
+                  setFold(null);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Usually every class follows its cohort. Change this only for a class taught in the
+                other time zone. The date and times above are then read in that time zone.
+              </p>
+            </div>
+          </details>
           <div className="flex flex-wrap items-center gap-2">
             <Input
               aria-label="Class title"

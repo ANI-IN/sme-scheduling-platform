@@ -188,11 +188,19 @@ test('"same instructor" off for one class week', async ({ page }) => {
   await sw.click();
   const yes = page.getByRole('button', { name: /yes, continue|split/i });
   await ifShown(yes);
-  await expect(page.getByText(/each class/i).first()).toBeVisible();
-  const split = await one<{ n: number }>(
-    `select count(*)::int n from public.module_week where not same_instructor`,
-  );
-  expect(split.n).toBeGreaterThan(1);
+  // The hint before the click also says "each class", so wait for the saved state itself.
+  await expect(page.getByText('Each class has its own instructor').first()).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (
+          await one<{ n: number }>(
+            `select count(*)::int n from public.module_week where not same_instructor`,
+          )
+        ).n,
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(1);
 });
 
 test('settings override at each layer, and reset', async ({ page }) => {
@@ -388,4 +396,132 @@ test('a practice class passes every stage', async ({ page }) => {
   await page.getByRole('button', { name: /run a practice class/i }).click();
   await expect(page.getByText('Every stage worked.')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByLabel('Failed')).toHaveCount(0);
+});
+
+test('a US cohort and an India cohort: time zones, badges and the region filter', async ({
+  page,
+}) => {
+  await page.goto('/classes');
+  await ready(page);
+  await page.getByRole('button', { name: 'Plan classes' }).click();
+  const dlg = page.getByRole('dialog');
+  await dlg.getByLabel('Cohort').first().selectOption({ label: 'New cohort' });
+  await dlg.getByLabel('Name of the new cohort').fill('E2E India');
+  await dlg.getByLabel('Region of the new cohort').selectOption('India');
+  await dlg
+    .getByLabel('Date of the first class')
+    .fill(nextDow(new Date(Date.now() + 35 * 864e5), 0));
+  await dlg.getByLabel('Number of class weeks').fill('1');
+  await dlg.getByRole('button', { name: 'Show the plan' }).click();
+  await expect(dlg.getByRole('columnheader', { name: /India time, IST/ })).toBeVisible();
+  await dlg.getByRole('button', { name: /^Create 1 class week$/ }).click();
+  const anyway = page.getByRole('button', { name: 'Plan anyway' });
+  const planned = page.getByText('Planned 1 class week for E2E India');
+  await expect(anyway.or(planned).first()).toBeVisible({ timeout: 20_000 });
+  if (await anyway.isVisible()) await anyway.click();
+  await expect(planned).toBeVisible({ timeout: 20_000 });
+  const r = await one<{ cohort: string; classes: string; ist: string }>(
+    `select co.region cohort, string_agg(distinct s.region, ',') classes,
+            min(to_char(s.starts_at at time zone 'Asia/Kolkata', 'HH24:MI')) ist
+       from public.cohort co join public.module_week w on w.cohort_id = co.id
+       join public.class_session s on s.module_week_id = w.id
+      where co.name = 'E2E India' group by co.region`,
+  );
+  expect(r).toEqual({ cohort: 'India', classes: 'India', ist: '09:00' });
+
+  // The region filter: India classes show IST only; US classes show PST or PDT and the India time.
+  await page.getByRole('combobox', { name: 'Region' }).selectOption('India');
+  await ready(page);
+  const india = page.locator('tbody tr').filter({ hasText: 'E2E India' }).first();
+  await expect(india).toContainText('IST');
+  await expect(india).not.toContainText(/PST|PDT/);
+  await expect(india.getByText('India', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Region' }).selectOption('US');
+  await ready(page);
+  const us = page.locator('tbody tr').first();
+  await expect(us).toContainText(/PST|PDT/);
+  await expect(us).toContainText('IST');
+  await expect(page.locator('tbody tr').filter({ hasText: 'E2E India' })).toHaveCount(0);
+});
+
+test('a time that happens twice asks which one; a time that does not exist is blocked', async ({
+  page,
+}) => {
+  await page.goto('/classes');
+  await ready(page);
+  await page.getByRole('button', { name: 'Add one class' }).click();
+  const dlg = page.getByRole('dialog');
+  await dlg.getByLabel('Module').selectOption({ label: 'Database Design' });
+  await dlg.getByLabel('Cohort').selectOption({ label: 'Weekend cohort' });
+  await expect(dlg.getByText(/^Time in US Pacific \(P[SD]T\)/)).toBeVisible();
+  // Sun Mar 14, 2027: the clocks move forward, so 2:30 AM does not exist.
+  await dlg.getByLabel('Date').fill('2027-03-14');
+  await dlg.getByLabel('Start time').fill('02:30');
+  await dlg.getByLabel('End time').fill('03:30');
+  await expect(dlg.getByText(/This time does not exist on that day/)).toBeVisible();
+  await dlg.getByRole('button', { name: 'Add class' }).click();
+  await expect(dlg.getByText('Check the time below.')).toBeVisible();
+  // Sun Nov 7, 2027: the clocks move back, so 1:30 AM happens twice.
+  await dlg.getByLabel('Date').fill('2027-11-07');
+  await dlg.getByLabel('Start time').fill('01:30');
+  await dlg.getByLabel('End time').fill('01:45');
+  await dlg.getByLabel('Title (optional)').fill('E2E twice');
+  await expect(dlg.getByText(/happens twice on this day/)).toBeVisible();
+  await dlg.getByLabel(/The second time: 1:30 AM PST/).check();
+  await dlg.getByRole('button', { name: 'Add class' }).click();
+  await ifShown(page.getByRole('button', { name: 'Add anyway' }), 8_000);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const c = await one<{ utc: string }>(
+    `select to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI') utc
+       from public.class_session where title = 'E2E twice'`,
+  );
+  expect(c.utc).toBe('2027-11-07 09:30');
+});
+
+test('an instructor busy in a US class cannot take an India class at the same moment', async ({
+  page,
+}) => {
+  // A confirmed US weekend class, and the same moment written in India time.
+  const b = await one<{ name: string; d: string; s: string; e: string }>(
+    `select i.full_name name, to_char(s.starts_at at time zone 'Asia/Kolkata', 'YYYY-MM-DD') d,
+            to_char(s.starts_at at time zone 'Asia/Kolkata', 'HH24:MI') s,
+            to_char(s.starts_at at time zone 'Asia/Kolkata' + interval '30 minutes', 'HH24:MI') e
+       from public.booking bk join public.instructor i on i.id = bk.instructor_id
+       join public.module_week w on w.id = bk.module_week_id
+       join public.class_session s on s.module_week_id = w.id
+       join public.cohort co on co.id = w.cohort_id join public.domain dm on dm.id = w.domain_id
+      where bk.status = 'Active' and co.name = 'Weekend cohort' and dm.name = 'Backend'
+        and s.status = 'Planned' and s.starts_at > now() and s.region = 'US'
+        and to_char(s.starts_at at time zone 'Asia/Kolkata', 'HH24:MI') < '23:30'
+      order by s.starts_at limit 1`,
+  );
+  await page.goto('/classes');
+  await ready(page);
+  await page.getByRole('button', { name: 'Add one class' }).click();
+  const dlg = page.getByRole('dialog');
+  await dlg.getByLabel('Module').selectOption({ label: 'Database Design' });
+  await dlg.getByLabel('Cohort').selectOption({ label: 'E2E India' });
+  await expect(dlg.getByText('Time in India (IST)')).toBeVisible();
+  await dlg.getByLabel('Date').fill(b.d);
+  await dlg.getByLabel('Start time').fill(b.s);
+  await dlg.getByLabel('End time').fill(b.e);
+  await dlg.getByLabel('Title (optional)').fill('E2E same moment');
+  await dlg.getByRole('button', { name: 'Add class' }).click();
+  await ifShown(page.getByRole('button', { name: 'Add anyway' }), 8_000);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: 'E2E India' });
+  await page.getByLabel('Search classes').fill('E2E same moment');
+  await ready(page);
+  await page.locator('tbody tr').first().click();
+  const drawer = page.getByRole('dialog');
+  await expect(drawer.getByRole('textbox', { name: 'Class title' })).toHaveValue('E2E same moment');
+  await ready(page);
+  const option = drawer
+    .getByRole('combobox', { name: 'Instructor', exact: true })
+    .locator('option', { hasText: b.name });
+  await expect(option).toContainText(/the same time as this class/);
+  await expect(option).toContainText(/PST|PDT/);
+  await expect(option).toContainText('IST');
+  await expect(option).toBeDisabled();
 });

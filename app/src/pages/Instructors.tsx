@@ -6,7 +6,8 @@ import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useDomains, useInstructors, useSystem, type Instructor } from '@/lib/data';
-import { ago, fmtLocal, fmtPT } from '@/lib/time';
+import { ago, fmtLocal } from '@/lib/time';
+import { fmtAt } from '@/lib/region';
 import { isDiscordId, isEmail, parseChannelLink } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
@@ -45,7 +46,9 @@ export function useInstructorContext() {
       const [b, r] = await Promise.all([
         supabase
           .from('booking')
-          .select('instructor_id, module_week(first_class_at, module(name, domain(name)))')
+          .select(
+            'instructor_id, module_week(first_class_at, cohort(region), module(name, domain(name)))',
+          )
           .eq('status', 'Active'),
         supabase
           .from('module_ranking')
@@ -58,7 +61,7 @@ export function useInstructorContext() {
       for (const x of bookings) {
         const w = x.module_week;
         if (!w?.first_class_at || new Date(w.first_class_at).getTime() < now) continue;
-        const label = `${w.module?.name} (${w.module?.domain?.name}), ${fmtPT(w.first_class_at)}`;
+        const label = `${w.module?.name} (${w.module?.domain?.name}), ${fmtAt(w.first_class_at, w.cohort?.region)}`;
         upcoming.set(x.instructor_id, [...(upcoming.get(x.instructor_id) ?? []), label]);
       }
       const ranked = new Map<string, string[]>();

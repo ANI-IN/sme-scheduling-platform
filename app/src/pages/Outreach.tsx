@@ -22,7 +22,8 @@ import { rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
 import { useCohorts, useInstructors, useSettingsMap, useWeeks, type WeekRow } from '@/lib/data';
 import { ActionMenu } from '@/components/ActionMenu';
-import { ago, fmtLocal, fmtPT } from '@/lib/time';
+import { ago, fmtLocal } from '@/lib/time';
+import { fmtAt, fmtDay, weekRegion } from '@/lib/region';
 import { weekState } from '@/lib/status';
 import { plain } from '@/lib/plain';
 import { supabase } from '@/lib/supabase';
@@ -69,7 +70,7 @@ const label = (w: WeekRow, showCohort: boolean) =>
   `${w.module?.name}${showCohort ? ` (${w.cohort})` : ''} · ${[...w.class_session]
     .filter((c) => c.status !== 'Cancelled')
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
-    .map((c) => fmtPT(c.starts_at).split(',')[0])
+    .map((c) => fmtDay(c.starts_at, c.region))
     .join(' + ')}`;
 
 export default function Outreach() {
@@ -341,7 +342,7 @@ export default function Outreach() {
                         </td>
                         <td className={`${td} hidden text-xs md:table-cell`}>
                           {p?.asking ? (
-                            fmtPT(p.asking.deadline_at)
+                            fmtAt(p.asking.deadline_at, weekRegion(w.class_session))
                           ) : (
                             <span className="text-muted-foreground">Not yet</span>
                           )}

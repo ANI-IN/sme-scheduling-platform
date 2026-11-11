@@ -5,7 +5,8 @@ import { Globe2, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useDomains, useTeam, type Domain } from '@/lib/data';
+import { useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
+import { RegionBadge } from '@/components/ClassTime';
 import { isDiscordId } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
@@ -400,6 +401,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
             {...role('Operations')}
           />
         </Section>
+        <Cohorts domainId={domain.id} />
         <ClassTypes domainId={domain.id} />
         <Holidays domainId={domain.id} domainName={domain.name} />
         <ErrorText error={err} />
@@ -491,6 +493,67 @@ function ClassTypes({ domainId }: { domainId: string }) {
   );
 }
 
+/** Each cohort is taught in one region: US (US Pacific time) or India (India time). */
+function Cohorts({ domainId }: { domainId: string }) {
+  const qc = useQueryClient();
+  const cohorts = useCohorts(domainId);
+  const [err, setErr] = useState<unknown>(null);
+  return (
+    <Section
+      title="Cohorts and regions"
+      description="New classes of a cohort are planned in its time zone. Changing the region does not move classes already planned; change one class under More options in its details."
+    >
+      {(cohorts.data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No cohorts yet. A cohort is created when you plan its classes.
+        </p>
+      ) : (
+        <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
+          {(cohorts.data ?? []).map((c) => (
+            <li
+              key={c.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-1.5"
+            >
+              <span className="flex items-center gap-2">
+                <span className="font-medium">{c.name}</span>
+                <RegionBadge region={c.region} />
+              </span>
+              <Select
+                aria-label={`Region of ${c.name}`}
+                value={c.region}
+                className="h-8 w-48"
+                onChange={async (e) => {
+                  setErr(null);
+                  try {
+                    check(
+                      await supabase
+                        .from('cohort')
+                        .update({ region: e.target.value, version: c.version })
+                        .eq('id', c.id)
+                        .select()
+                        .single(),
+                    );
+                    toast.success(
+                      `${c.name} is now planned in ${e.target.value === 'India' ? 'India time' : 'US Pacific time'}`,
+                    );
+                    await qc.invalidateQueries({ queryKey: ['cohort'] });
+                  } catch (x) {
+                    setErr(x);
+                  }
+                }}
+              >
+                <option value="US">US Pacific time</option>
+                <option value="India">India time (IST)</option>
+              </Select>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ErrorText error={err} />
+    </Section>
+  );
+}
+
 /** Holidays for this domain, plus those that apply to every domain. Shown when planning. */
 function Holidays({ domainId, domainName }: { domainId: string; domainName: string }) {
   const qc = useQueryClient();
@@ -505,7 +568,7 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
           .order('date'),
       ),
   });
-  const [h, setH] = useState({ date: '', name: '', onlyHere: true });
+  const [h, setH] = useState({ date: '', name: '', onlyHere: true, region: 'US' });
   const [touched, setTouched] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const errors = {
@@ -516,7 +579,7 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
   return (
     <Section
       title="Holidays"
-      description="Shown when planning classes, so classes on a holiday get a warning."
+      description="Shown when planning classes, so classes on a holiday get a warning. A US holiday only affects US classes, an India holiday only India classes."
     >
       {(holidays.data ?? []).length === 0 ? (
         <p className="mb-3 text-sm text-muted-foreground">No holidays yet.</p>
@@ -531,7 +594,8 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
                 <span className="font-medium">{x.name}</span>
                 <span className="text-muted-foreground">, {formatDateValue(x.date)}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {x.domain_id ? `Only ${domainName}` : 'Every domain'}
+                  {x.region ? `${x.region} classes` : 'US and India classes'},{' '}
+                  {x.domain_id ? `only ${domainName}` : 'every domain'}
                 </span>
               </span>
               <Button
@@ -565,6 +629,17 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
             className="w-56"
           />
         </Field>
+        <Field label="Region">
+          <Select
+            value={h.region}
+            onChange={(e) => setH({ ...h, region: e.target.value })}
+            className="w-44"
+          >
+            <option value="US">US</option>
+            <option value="India">India</option>
+            <option value="">US and India</option>
+          </Select>
+        </Field>
         <Checkbox
           label={`Only for ${domainName}`}
           checked={h.onlyHere}
@@ -582,9 +657,10 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
                   date: h.date,
                   name: h.name.trim(),
                   domain_id: h.onlyHere ? domainId : null,
+                  region: h.region || null,
                 }),
               );
-              setH({ date: '', name: '', onlyHere: h.onlyHere });
+              setH({ date: '', name: '', onlyHere: h.onlyHere, region: h.region });
               setTouched(false);
               toast.success('Holiday added');
               await refresh();

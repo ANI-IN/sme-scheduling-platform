@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
 import { useCohorts, useInstructors, useWeeks } from '@/lib/data';
-import { fmtPT, PT } from '@/lib/time';
+import { PT } from '@/lib/time';
+import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { weekState } from '@/lib/status';
 import {
   Badge,
@@ -209,7 +210,7 @@ export default function Home() {
 
       <Section
         title="This week's classes"
-        description="Times are Pacific."
+        description="Each class shows the time where it is taught. US classes also show the India time."
         actions={
           <Link to="/classes" className="text-sm font-medium text-link hover:underline">
             All upcoming classes
@@ -238,10 +239,16 @@ export default function Home() {
                   const st = weekState(w, names);
                   return (
                     <tr key={c.id} className={trow}>
-                      <td className={`${td} whitespace-nowrap`}>{fmtPT(c.starts_at)}</td>
+                      <td className={td}>
+                        <ClassTime start={c.starts_at} end={c.ends_at} region={c.region} />
+                      </td>
                       <td className={td}>
                         <div className="font-medium">{w.module?.name}</div>
-                        <div className="text-xs text-muted-foreground">{c.class_type}</div>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                          {c.class_type}
+                          {w.cohort && <span>· {w.cohort}</span>}
+                          <RegionBadge region={c.region} />
+                        </div>
                       </td>
                       <td className={td}>
                         {st.confirmed ?? (

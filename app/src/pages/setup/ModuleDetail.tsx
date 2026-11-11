@@ -106,7 +106,7 @@ export default function ModuleDetail() {
         <TabPanel value="times">
           <Section
             title="Class times"
-            description="The classes of one class week, in Pacific time. Used when planning classes."
+            description="The classes of one class week, in the local time of each cohort (US Pacific or India). Used when planning classes."
           >
             <ForCohort module={m}>
               {(cohortId, hasOwn) =>

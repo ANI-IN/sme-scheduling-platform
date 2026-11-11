@@ -16,6 +16,7 @@ import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
 import { useSettingsMap, useWeeks, type Domain } from '@/lib/data';
 import { fmtLocal, fmtPT, PT } from '@/lib/time';
+import { fmtAt, weekRegion } from '@/lib/region';
 import { isDiscordId, isEmail } from '@/lib/validation';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
@@ -196,7 +197,7 @@ function TestingBody({ domain }: { domain: Domain }) {
                 className="w-56"
               />
             </Field>
-            <Field label="Time (Pacific)">
+            <Field label="Time in US Pacific (PST or PDT)">
               <Input
                 type="time"
                 value={clock.slice(11, 16)}
@@ -267,7 +268,7 @@ function TestingBody({ domain }: { domain: Domain }) {
                     .filter((w) => w.first_class_at && w.status !== 'Cancelled')
                     .map((w) => (
                       <option key={w.id} value={w.id}>
-                        {w.module?.name}, {fmtPT(w.first_class_at)}
+                        {w.module?.name}, {fmtAt(w.first_class_at, weekRegion(w.class_session))}
                         {w.cohort && ` (${w.cohort})`}
                       </option>
                     ))}

@@ -174,7 +174,7 @@ async function setup(prefix: string, status: 'Test' | 'Live') {
     [mod.id],
   );
   await c.query(
-    `insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
+    `insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time, duration_minutes, sort_order)
      values ($1, 'Live class', '{module}: Live class', 0, '09:00', 240, 1), ($1, 'Assignment review', '{module}: Assignment review', 4, '18:00', 120, 2)`,
     [mod.id],
   );

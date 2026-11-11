@@ -30,7 +30,7 @@ select (public.create_module_weeks(:'dom', jsonb_build_array(jsonb_build_object(
 select lives_ok(format('select tests.raw_book(%L, %L)', :'mw_eve', :'i1'), 'the same instructor teaches two cohorts when the times do not overlap');
 
 -- =============================================================== class patterns per cohort, any weekday
-insert into public.class_pattern_item (module_id, cohort_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
+insert into public.class_pattern_item (module_id, cohort_id, class_type, title_template, day_offset, start_time, duration_minutes, sort_order)
 values (:'mod', :'coh_b', 'Live class', '{module}: Weekday live', 0, '19:00', 120, 1),
        (:'mod', :'coh_b', 'Assignment review', '{module}: Weekday review', 2, '19:00', 90, 2);
 select is((select string_agg(x ->> 'date', ',' order by x ->> 'date')
@@ -40,7 +40,7 @@ select is((select string_agg(x ->> 'date', ',' order by x ->> 'date')
              from jsonb_array_elements(public.generate_classes(:'dom', :'mod', array['2027-02-07']::date[], 'Main cohort') -> 0 -> 'classes') x),
   '2027-02-07,2027-02-11', 'the main cohort keeps the module default: Sunday and Thursday');
 select tests.make_week(:'mod', '2027-02-27', 'Mixed') as mw_mix_seed \gset
-insert into public.class_pattern_item (module_id, cohort_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
+insert into public.class_pattern_item (module_id, cohort_id, class_type, title_template, day_offset, start_time, duration_minutes, sort_order)
 values (:'mod', (select cohort_id from public.module_week where id = :'mw_mix_seed'), 'Live class', '{module}: Saturday live', 0, '10:00', 180, 1),
        (:'mod', (select cohort_id from public.module_week where id = :'mw_mix_seed'), 'Assignment review', '{module}: Tuesday review', 3, '18:00', 60, 2);
 select is((select string_agg(to_char((x ->> 'date')::date, 'Dy'), ',' order by x ->> 'date')

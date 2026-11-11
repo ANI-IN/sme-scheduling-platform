@@ -10,7 +10,7 @@ A **cohort** is one group of students going through the modules, for example a w
 ![Plan classes](/help/plan-classes.png)
 
 1. Open [Upcoming classes](/classes) and press **Plan classes**.
-2. Choose the **Cohort**, or choose **New cohort** and give it a name. A name is suggested for you.
+2. Choose the **Cohort**, or choose **New cohort**, give it a name and choose its **Region** (US or India). A name is suggested for you.
 3. Choose the module to **Start with**. The other modules follow in their order.
 4. Choose the **Date of the first class**. Any day of the week works.
 5. Choose **Every week**, **Every 2 weeks**, or **Paste a list of dates**, and how many class weeks.
@@ -18,12 +18,12 @@ A **cohort** is one group of students going through the modules, for example a w
 7. Change any date or time if you need to, or use **Move a week later** around a holiday.
 8. Press **Create**. If there are warnings, you can still go ahead and write a short reason.
 
-The class times come from the cohort's own class times if it has them, otherwise from the module.
+The class times come from the cohort's own class times if it has them, otherwise from the module. They are local times in the cohort's region; see [US and India classes](/help/us-and-india-classes).
 
 ## Warnings and blocks
 
 - **Blocks** must be fixed first, for example a module without class times or a class week that is already planned.
-- **Warnings** are unusual but allowed, for example a class on a holiday, before 6 AM or after 10 PM Pacific, overlapping classes in the same cohort, or a class that is very soon. Your reason is saved in Activity history.
+- **Warnings** are unusual but allowed, for example a class on a holiday, before 6 AM or after 10 PM local time, overlapping classes in the same cohort, or a class that is very soon. Your reason is saved in Activity history.
 
 ## Add one class
 

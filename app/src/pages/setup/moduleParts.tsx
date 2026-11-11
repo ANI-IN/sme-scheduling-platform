@@ -25,7 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useWeeks } from '@/lib/data';
-import { fmtPT } from '@/lib/time';
+import { fmtAt, weekRegion } from '@/lib/region';
 import {
   Badge,
   Button,
@@ -75,12 +75,12 @@ export function PatternEditor({
   const [n, setN] = useState({
     class_type: 'Live class',
     day_offset: 0,
-    start_time_pt: '09:00',
+    start_time: '09:00',
     duration_minutes: 240,
   });
   const items = [...m.class_pattern_item]
     .filter((p) => (p.cohort_id ?? undefined) === cohortId)
-    .sort((a, b) => a.day_offset - b.day_offset || a.start_time_pt.localeCompare(b.start_time_pt));
+    .sort((a, b) => a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time));
   const time = (t: string) => DateTime.fromFormat(t.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   return (
     <section>
@@ -95,7 +95,7 @@ export function PatternEditor({
             <tr className="border-b border-border">
               <th className={th}>Class</th>
               <th className={th}>Day</th>
-              <th className={th}>Starts (Pacific)</th>
+              <th className={th}>Starts (local time)</th>
               <th className={th}>Length</th>
               <th className={th}>
                 <span className="sr-only">Remove</span>
@@ -107,7 +107,7 @@ export function PatternEditor({
               <tr key={p.id} className="border-b border-border last:border-0">
                 <td className={td}>{p.class_type}</td>
                 <td className={td}>{dayLabel(p.day_offset)}</td>
-                <td className={td}>{time(p.start_time_pt)}</td>
+                <td className={td}>{time(p.start_time)}</td>
                 <td className={td}>{p.duration_minutes} minutes</td>
                 <td className={`${td} text-right`}>
                   <Button
@@ -150,11 +150,14 @@ export function PatternEditor({
             ))}
           </Select>
         </Field>
-        <Field label="Starts (Pacific)">
+        <Field
+          label="Starts (local time)"
+          hint="In the time zone of the cohort: US Pacific or India."
+        >
           <Input
             type="time"
-            value={n.start_time_pt}
-            onChange={(e) => setN({ ...n, start_time_pt: e.target.value })}
+            value={n.start_time}
+            onChange={(e) => setN({ ...n, start_time: e.target.value })}
           />
         </Field>
         <Field label="Length in minutes">
@@ -561,7 +564,7 @@ export function WhoIsNext({ moduleId }: { moduleId: string }) {
           {(previews.data ?? []).map(({ w, p }) => (
             <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
               <span>
-                Class week of {fmtPT(w.first_class_at)}
+                Class week of {fmtAt(w.first_class_at, weekRegion(w.class_session))}
                 {w.cohort && ` (${w.cohort})`}
               </span>
               <span>

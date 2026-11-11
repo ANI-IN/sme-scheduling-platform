@@ -62,7 +62,7 @@ begin
       (5, 'Concurrency', array['Felix Sandoval', 'Robin Kessler'])) as t(ord, name, ranking) loop
     insert into public.module (domain_id, name, rotation_order) values (v_dom, m.name, m.ord) returning id into v_mod;
     insert into public.module_owner (module_id, team_member_id) values (v_mod, v_owner);
-    insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time_pt, duration_minutes, sort_order)
+    insert into public.class_pattern_item (module_id, class_type, title_template, day_offset, start_time, duration_minutes, sort_order)
     values (v_mod, 'Live class', '{module}: Live class', 0, '09:00', 240, 1),
            (v_mod, 'Assignment review', '{module}: Assignment review', 4, '18:00', 120, 2);
     insert into public.module_resource (module_id, title, url)
@@ -77,11 +77,11 @@ begin
   end loop;
 
   -- Holidays used by the planner (edit in Settings → Holidays)
-  insert into public.holiday (date, name) values
+  insert into public.holiday (date, name, region) select d::date, n, 'US' from (values
     ('2026-11-26', 'Thanksgiving'), ('2026-12-25', 'Christmas Day'), ('2027-01-01', 'New Year''s Day'),
     ('2027-01-18', 'Martin Luther King Jr. Day'), ('2027-02-15', 'Presidents'' Day'), ('2027-05-31', 'Memorial Day'),
     ('2027-07-04', 'Independence Day'), ('2027-09-06', 'Labor Day'), ('2027-11-25', 'Thanksgiving'),
-    ('2027-12-25', 'Christmas Day');
+    ('2027-12-25', 'Christmas Day')) as h (d, n);
 end;
 $$;
 

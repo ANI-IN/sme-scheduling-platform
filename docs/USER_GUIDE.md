@@ -2,7 +2,7 @@
 
 Sign in with your company Google account. Pick the domain at the top. A yellow **TEST MODE** bar means messages only go
 to the test channel and test inbox. A red bar means the **kill switch** is on (no instructor messages anywhere).
-Class times are always **Pacific (PST/PDT)**; History and system times are in **your** time (IST).
+Each class is shown in the time zone of its region: **US Pacific (PST or PDT)** or **India (IST)**; US classes also show the India time. History and system times are in **your** time.
 
 **1. Needs Attention — start here every day.** Everything waiting on a person, urgent first.
 - **I'm on it** pauses reminders for 24 hours. **Assign to** hands it to someone. **Mark done** closes it (add a note).

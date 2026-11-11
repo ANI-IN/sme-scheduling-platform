@@ -213,14 +213,14 @@ isOneToOne: false
                   ]
                 },"class_pattern_item": {
                   Row: {
-                    "class_type": string,"cohort_id": string | null,"created_at": string,"day_offset": number,"duration_minutes": number,"id": string,"module_id": string,"sort_order": number,"start_time_pt": string,"title_template": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "class_type": string,"cohort_id": string | null,"created_at": string,"day_offset": number,"duration_minutes": number,"id": string,"module_id": string,"sort_order": number,"start_time": string,"title_template": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "class_type": string,"cohort_id"?: string | null,"created_at"?: string,"day_offset": number,"duration_minutes": number,"id"?: string,"module_id": string,"sort_order"?: number,"start_time_pt": string,"title_template"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "class_type": string,"cohort_id"?: string | null,"created_at"?: string,"day_offset": number,"duration_minutes": number,"id"?: string,"module_id": string,"sort_order"?: number,"start_time": string,"title_template"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "class_type"?: string,"cohort_id"?: string | null,"created_at"?: string,"day_offset"?: number,"duration_minutes"?: number,"id"?: string,"module_id"?: string,"sort_order"?: number,"start_time_pt"?: string,"title_template"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "class_type"?: string,"cohort_id"?: string | null,"created_at"?: string,"day_offset"?: number,"duration_minutes"?: number,"id"?: string,"module_id"?: string,"sort_order"?: number,"start_time"?: string,"title_template"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -239,14 +239,14 @@ isOneToOne: false
                   ]
                 },"class_session": {
                   Row: {
-                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"id": string,"module_week_id": string,"notes": string | null,"pattern_item_id": string | null,"problem_flag": boolean,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"id": string,"module_week_id": string,"notes": string | null,"pattern_item_id": string | null,"problem_flag": boolean,"region": string,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"id"?: string,"module_week_id": string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"id"?: string,"module_week_id": string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"id"?: string,"module_week_id"?: string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"id"?: string,"module_week_id"?: string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -285,14 +285,14 @@ isOneToOne: false
                   ]
                 },"cohort": {
                   Row: {
-                    "created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -435,14 +435,14 @@ isOneToOne: false
                   ]
                 },"holiday": {
                   Row: {
-                    "created_at": string,"date": string,"domain_id": string | null,"id": string,"name": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "created_at": string,"date": string,"domain_id": string | null,"id": string,"name": string,"region": string | null,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"date": string,"domain_id"?: string | null,"id"?: string,"name": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "created_at"?: string,"date": string,"domain_id"?: string | null,"id"?: string,"name": string,"region"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"date"?: string,"domain_id"?: string | null,"id"?: string,"name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "created_at"?: string,"date"?: string,"domain_id"?: string | null,"id"?: string,"name"?: string,"region"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -963,7 +963,7 @@ isOneToOne: false
 { Args: { "p_class_id": string,"p_label": string }; Returns: string
                            },
 "add_one_class":
-{ Args: { "p_accept_warnings"?: boolean,"p_class_type": string,"p_cohort_id": string,"p_date": string,"p_end": string,"p_module_id": string,"p_module_week_id": string,"p_reason"?: string,"p_start": string,"p_title"?: string }; Returns: Json
+{ Args: { "p_accept_warnings"?: boolean,"p_class_type": string,"p_cohort_id": string,"p_date": string,"p_end": string,"p_fold"?: number,"p_module_id": string,"p_module_week_id": string,"p_reason"?: string,"p_region"?: string,"p_start": string,"p_title"?: string }; Returns: Json
                            },
 "advance_test_clock":
 { Args: { "p_domain_id": string,"p_hours": number }; Returns: Json
@@ -987,7 +987,7 @@ isOneToOne: false
 { Args: { "p_module_week_id": string,"p_reason"?: string }; Returns: Json
                            },
 "change_class_time":
-{ Args: { "p_class_id": string,"p_date": string,"p_end": string,"p_expected_version"?: number,"p_start": string }; Returns: Json
+{ Args: { "p_class_id": string,"p_date": string,"p_end": string,"p_expected_version"?: number,"p_fold"?: number,"p_region"?: string,"p_start": string }; Returns: Json
                            },
 "claim_outbound_messages":
 { Args: { "p_limit"?: number }; Returns: {
@@ -1051,7 +1051,7 @@ isOneToOne: false
 { Args: { "p_categories": (string)[],"p_details": string,"p_module_week_id": string,"p_reply_channel"?: string,"p_urgency"?: string }; Returns: Json
                            },
 "create_module_weeks":
-{ Args: { "p_accept_warnings"?: boolean,"p_domain_id": string,"p_reason"?: string,"p_rows": Json }; Returns: Json
+{ Args: { "p_accept_warnings"?: boolean,"p_domain_id": string,"p_fold"?: number,"p_reason"?: string,"p_rows": Json }; Returns: Json
                            },
 "daily_jobs":
 { Args: { "p_now"?: string }; Returns: Json
@@ -1083,7 +1083,7 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "generate_classes":
-{ Args: { "p_cohort"?: string,"p_domain_id": string,"p_start_module_id": string,"p_week_starts": (string)[] }; Returns: Json
+{ Args: { "p_cohort"?: string,"p_domain_id": string,"p_region"?: string,"p_start_module_id": string,"p_week_starts": (string)[] }; Returns: Json
                            },
 "help_ack":
 { Args: { "p_help_id": string }; Returns: undefined

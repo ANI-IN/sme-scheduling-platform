@@ -7,6 +7,8 @@ import { rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { useCohorts, useModules, type Domain } from '@/lib/data';
 import { parseDateList } from '@/lib/time';
+import { asRegion, REGION_NAME, type Region } from '@/lib/region';
+import { RegionBadge, TimeCheck, timeReady } from '@/components/ClassTime';
 import {
   Badge,
   Button,
@@ -31,6 +33,9 @@ type ProposedClass = {
   start_time: string;
   end_time: string;
   holiday: string | null;
+  region?: string;
+  /** 1 or 2 when the time happens twice on that day (the US clocks move back). */
+  fold?: number | null;
 };
 type Warning = { code: string; text: string };
 type ProposedWeek = {
@@ -60,6 +65,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
   // Default: the newest cohort, or a new one when there is none.
   const cohortChoice = chosenCohort || (cohorts.data ? (cohorts.data[0]?.id ?? NEW) : '');
   const [newCohort, setNewCohort] = useState('');
+  const [newRegion, setNewRegion] = useState<Region>('US');
   const [startModule, setStartModule] = useState('');
   const [repeat, setRepeat] = useState<'1' | '2' | 'list'>('1');
   const [first, setFirst] = useState('');
@@ -89,6 +95,10 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
     cohortChoice === NEW
       ? newCohort.trim()
       : ((cohorts.data ?? []).find((c) => c.id === cohortChoice)?.name ?? '');
+  const planRegion: Region =
+    cohortChoice === NEW
+      ? newRegion
+      : asRegion((cohorts.data ?? []).find((c) => c.id === cohortChoice)?.region);
   const startModuleId = startModule || active[0]?.id || '';
   const startHasTimes = !noTimes.some((m) => m.id === startModuleId);
 
@@ -125,6 +135,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           p_start_module_id: startModuleId,
           p_week_starts: dates,
           p_cohort: cohortName,
+          p_region: planRegion,
         })) as unknown as ProposedWeek[],
       );
     } catch (e) {
@@ -141,6 +152,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       p_start_module_id: moduleId,
       p_week_starts: [date],
       p_cohort: cohortName,
+      p_region: planRegion,
     })) as unknown as ProposedWeek[];
     if (w) setRows((r) => r!.map((x, j) => (j === idx ? w : x)));
   }
@@ -180,8 +192,14 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       to: dates[dates.length - 1],
       warnings: rows.flatMap((w) => w.warnings ?? []),
       blocked: rows.filter((w) => w.problem || w.duplicate),
+      unready: rows.flatMap((w) =>
+        w.classes.filter(
+          (c) =>
+            !timeReady(c.date, [c.start_time, c.end_time], c.region ?? planRegion, c.fold ?? null),
+        ),
+      ).length,
     };
-  }, [rows]);
+  }, [rows, planRegion]);
 
   async function create(accept: boolean) {
     setBusy(true);
@@ -192,7 +210,8 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
         p_rows: rows!.map((w) => ({
           module_id: w.module_id,
           cohort: cohortName,
-          classes: w.classes,
+          region: planRegion,
+          classes: w.classes.map((c) => ({ ...c, region: c.region ?? planRegion })),
         })),
         p_accept_warnings: accept,
         p_reason: accept ? reason.trim() || undefined : undefined,
@@ -218,7 +237,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       open
       onOpenChange={(o) => !o && onClose()}
       title="Plan classes"
-      description="Times are Pacific. Nothing is saved until you press Create."
+      description="Classes are planned in the time zone of the cohort. Nothing is saved until you press Create."
       wide
     >
       {!rows ? (
@@ -243,6 +262,25 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
               >
                 <Input value={newCohort} onChange={(e) => setNewCohort(e.target.value)} />
               </Field>
+            )}
+            {cohortChoice === NEW ? (
+              <Field
+                label="Region of the new cohort"
+                hint="Class times are entered and shown in this time zone."
+              >
+                <Select value={newRegion} onChange={(e) => setNewRegion(asRegion(e.target.value))}>
+                  <option value="US">US (US Pacific time, PST or PDT)</option>
+                  <option value="India">India (India time, IST)</option>
+                </Select>
+              </Field>
+            ) : (
+              <div className="text-sm">
+                <div className="mb-1.5 font-medium">Region</div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <RegionBadge region={planRegion} /> Classes are in {REGION_NAME[planRegion]}, as
+                  set for this cohort.
+                </div>
+              </div>
             )}
             <Field label="Start with this module" hint="The other modules follow in their order.">
               <Select value={startModuleId} onChange={(e) => setStartModule(e.target.value)}>
@@ -364,6 +402,12 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
               planned (marked below). Remove them or fix the module first.
             </Notice>
           )}
+          {summary && summary.unready > 0 && (
+            <Notice tone="warning">
+              {summary.unready} class{summary.unready === 1 ? ' has a time' : 'es have times'} that
+              does not exist or happens twice because of the US clock change. Fix or choose below.
+            </Notice>
+          )}
           {summary && summary.warnings.length > 0 && (
             <Notice tone="warning">
               <div className="mb-1 font-medium">Please check before creating:</div>
@@ -381,7 +425,9 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                 <tr>
                   <th className={th}>Class week</th>
                   <th className={th}>Module</th>
-                  <th className={th}>Classes (Pacific)</th>
+                  <th className={th}>
+                    Classes ({planRegion === 'India' ? 'India time, IST' : 'US Pacific time'})
+                  </th>
                   <th className={th}>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -442,7 +488,9 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                             <DateInput
                               aria-label={`Date of ${c.class_type}`}
                               value={c.date}
-                              onChange={(date) => editClass(wi, ci, { date, holiday: null })}
+                              onChange={(date) =>
+                                editClass(wi, ci, { date, holiday: null, fold: null })
+                              }
                               className="w-48"
                             />
                             <Input
@@ -450,7 +498,9 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                               aria-label="Start time"
                               value={c.start_time}
                               className="h-9 w-28"
-                              onChange={(e) => editClass(wi, ci, { start_time: e.target.value })}
+                              onChange={(e) =>
+                                editClass(wi, ci, { start_time: e.target.value, fold: null })
+                              }
                             />
                             <span className="text-muted-foreground">to</span>
                             <Input
@@ -458,9 +508,20 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                               aria-label="End time"
                               value={c.end_time}
                               className="h-9 w-28"
-                              onChange={(e) => editClass(wi, ci, { end_time: e.target.value })}
+                              onChange={(e) =>
+                                editClass(wi, ci, { end_time: e.target.value, fold: null })
+                              }
                             />
                             {c.holiday && <Badge tone="warning">Holiday: {c.holiday}</Badge>}
+                            <div className="basis-full">
+                              <TimeCheck
+                                date={c.date}
+                                times={[c.start_time, c.end_time]}
+                                region={c.region ?? planRegion}
+                                fold={c.fold ?? null}
+                                onFold={(fold) => editClass(wi, ci, { fold })}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -497,7 +558,11 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             <Button
               onClick={() => void create(false)}
               loading={busy}
-              disabled={rows.length === 0 || (summary?.blocked.length ?? 0) > 0}
+              disabled={
+                rows.length === 0 ||
+                (summary?.blocked.length ?? 0) > 0 ||
+                (summary?.unready ?? 0) > 0
+              }
             >
               Create {rows.length} class week{rows.length === 1 ? '' : 's'}
             </Button>

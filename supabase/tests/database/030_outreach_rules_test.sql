@@ -15,7 +15,7 @@ select tests.click(:'mw', :'i2', 'No');
 select is(tests.mw_status(:'mw'), 'NeedsInstructor', 'everyone declines → Needs instructor');
 select is((select severity from public.attention_item where dedupe_key = 'exhausted:' || :'mw'), 'Urgent', 'urgent attention item (ranking exhausted)');
 select is(tests.msgs(:'mw', 'T4'), 1, 'T4 posted immediately in the alert channel, tagging owner + ops');
-select ok((select mention_user_ids from public.message where module_week_id = :'mw' and template_id = 'T4') @>
+select ok((select mention_user_ids from public.message where module_week_id = :'mw' and template_id = 'T4' and team_member_id is null) @>
           (select array_agg(discord_user_id) from public.team_member where id in ((:'j'::jsonb ->> 'owner')::uuid, (:'j'::jsonb ->> 'ops')::uuid)),
   'T4 tags the module owner and ops contact');
 select tests.tick(:'dom', '2027-01-01 23:00+00');
@@ -79,7 +79,7 @@ select public.assign_manually((:'jb'::jsonb ->> 'mw')::uuid, (:'jb'::jsonb ->> '
 select tests.tick((:'ja'::jsonb ->> 'domain')::uuid, '2027-01-01 18:00+00');
 select is(tests.asking((:'ja'::jsonb ->> 'mw')::uuid), 'XA Instr1', 'an instructor teaching in another domain at that time is skipped');
 select ok((select note from public.history_event where module_week_id = (:'ja'::jsonb ->> 'mw')::uuid and action like 'Asked%' limit 1)
-          like '%XB Instr1 — Teaching XB at this time%', 'skip reason logged ("Teaching <domain> at this time")');
+          like '%XB Instr1%Teaching %XB) on %the same time as this class%', 'skip reason logged ("Teaching <domain> at this time")');
 
 -- clash appearing after the request was sent: Yes is refused politely, next instructor asked
 select tests.scenario('YA', 'Live', '2027-01-31', 2) as ja \gset

@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { useCohorts, useModules, type Domain, type WeekRow } from '@/lib/data';
+import { asRegion, timeFieldLabel, type Region } from '@/lib/region';
+import { RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
 import {
   Button,
   DateInput,
@@ -62,9 +64,18 @@ export function AddClassDialog({
   const [err, setErr] = useState<unknown>(null);
   const [pending, setPending] = useState<Warning[] | null>(null);
   const [reason, setReason] = useState('');
+  const [regionOverride, setRegionOverride] = useState<Region | null>(null);
+  const [fold, setFold] = useState<number | null>(null);
   const moduleId = f.module || active[0]?.id || '';
   const cohortId = f.cohort || cohorts.data?.[0]?.id || '';
   const classType = f.type || types.data?.[0]?.name || '';
+  // The class follows its class week, or else its cohort, unless switched under More options.
+  const usual = asRegion(
+    week
+      ? [...week.class_session].sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0]?.region
+      : cohorts.data?.find((c) => c.id === cohortId)?.region,
+  );
+  const region = regionOverride ?? usual;
 
   const errors = {
     date: !f.date ? 'Choose the date.' : undefined,
@@ -73,7 +84,9 @@ export function AddClassDialog({
         ? 'Choose the start and end time.'
         : f.start === f.end
           ? 'The class must end after it starts.'
-          : undefined,
+          : f.date && !timeReady(f.date, [f.start, f.end], region, fold)
+            ? 'Check the time below.'
+            : undefined,
     module: !week && !moduleId ? 'Choose a module.' : undefined,
     cohort: !week && !cohortId ? 'Choose a cohort.' : undefined,
   };
@@ -96,6 +109,8 @@ export function AddClassDialog({
         p_title: f.title.trim() || undefined,
         p_accept_warnings: accept,
         p_reason: accept ? reason.trim() || undefined : undefined,
+        p_region: region,
+        p_fold: fold ?? undefined,
       })) as { ok: boolean; needs_confirmation?: boolean; warnings?: Warning[] };
       if (res.needs_confirmation) {
         setPending(res.warnings ?? []);
@@ -119,7 +134,7 @@ export function AddClassDialog({
       description={
         week
           ? 'The same instructor teaches it. A confirmed instructor is asked to confirm the new time.'
-          : 'For an extra, makeup or moved class. It becomes its own class week and instructors are asked as usual. Times are Pacific.'
+          : 'For an extra, makeup or moved class. It becomes its own class week and instructors are asked as usual.'
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
@@ -146,22 +161,34 @@ export function AddClassDialog({
           </>
         )}
         <Field label="Date" required hint="Any day of the week." error={show('date')}>
-          <DateInput value={f.date} onChange={(date) => setF({ ...f, date })} />
+          <DateInput
+            value={f.date}
+            onChange={(date) => {
+              setF({ ...f, date });
+              setFold(null);
+            }}
+          />
         </Field>
-        <Field label="Time (Pacific)" required error={show('time')}>
+        <Field label={timeFieldLabel(region, f.date || undefined)} required error={show('time')}>
           <div className="flex items-center gap-2">
             <Input
               type="time"
               aria-label="Start time"
               value={f.start}
-              onChange={(e) => setF({ ...f, start: e.target.value })}
+              onChange={(e) => {
+                setF({ ...f, start: e.target.value });
+                setFold(null);
+              }}
             />
             <span className="text-muted-foreground">to</span>
             <Input
               type="time"
               aria-label="End time"
               value={f.end}
-              onChange={(e) => setF({ ...f, end: e.target.value })}
+              onChange={(e) => {
+                setF({ ...f, end: e.target.value });
+                setFold(null);
+              }}
             />
           </div>
         </Field>
@@ -178,6 +205,34 @@ export function AddClassDialog({
           <Input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
         </Field>
       </div>
+      {f.date && (
+        <div className="mt-3">
+          <TimeCheck
+            date={f.date}
+            times={[f.start, f.end]}
+            region={region}
+            fold={fold}
+            onFold={setFold}
+          />
+        </div>
+      )}
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer text-muted-foreground">More options</summary>
+        <div className="mt-2 space-y-1">
+          <RegionSelect
+            value={region}
+            onChange={(r) => {
+              setRegionOverride(r);
+              setFold(null);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Usually {week ? 'the class week' : 'the cohort'} decides the time zone (
+            {usual === 'India' ? 'India' : 'US Pacific'}). Change this only for a class taught in
+            the other time zone.
+          </p>
+        </div>
+      </details>
       <ErrorText error={err} />
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>

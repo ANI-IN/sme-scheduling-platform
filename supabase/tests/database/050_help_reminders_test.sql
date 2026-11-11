@@ -19,7 +19,7 @@ select is((select routed_to from public.help_request where id = :'hid'), array[:
 select is((select response_target_at from public.help_request where id = :'hid'), '2027-01-22 18:00+00'::timestamptz,
   'no rush and class > 7 days away → 24h target');
 select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'M13'), 2, 'instructor gets the acknowledgement (M13)');
-select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'T7'), 1, 'owner tagged right away (T7)');
+select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'T7' and unique_key not like '%:copy'), 1, 'owner tagged right away (T7)');
 select ok(:'h'::jsonb ->> 'message' = 'Thanks! Concurrency HP Owner will reply by Fri, Jan 22 · 10:00 AM PST.', 'confirmation shows who replies and by when (PT)');
 
 -- duplicate within 1 hour merges
@@ -31,7 +31,7 @@ select is((select categories from public.help_request where id = :'hid'), array[
 select tests.tick(:'dom', '2027-01-22 06:00+00');
 select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'REM'), 1, 'reminder to the assignee at half the target time');
 select tests.tick(:'dom', '2027-01-22 18:00+00');
-select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'T13'), 1, 'escalation to the alert channel when the target passes');
+select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'T13' and unique_key not like '%:copy'), 1, 'escalation to the alert channel when the target passes');
 
 select public.help_reply(:'hid', 'Slides are in the Drive folder.', false);
 select is((select status from public.help_request where id = :'hid'), 'WaitingOnInstructor', 'reply → waiting on instructor');

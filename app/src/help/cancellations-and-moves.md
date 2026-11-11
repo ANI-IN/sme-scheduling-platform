@@ -22,7 +22,7 @@ A class can move to any day, for example from Sunday to Wednesday. The class wee
 
 ## Move whole class weeks
 
-Under **More options**, use **Move dates** to move this class week and every later one by a number of weeks, for example around a holiday. Classes keep their Pacific times.
+Under **More options**, use **Move dates** to move this class week and every later one by a number of weeks, for example around a holiday. Each class keeps its local time.
 
 ## Cancel
 

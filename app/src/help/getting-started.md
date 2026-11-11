@@ -26,4 +26,4 @@ You set things up once: modules, instructors, your team and the timing. After th
 2. If your domain is new, follow the setup checklist on Home.
 3. Read [Setting up a new domain](/help/new-domain) for the full list of steps.
 
-> Times of classes are always shown in Pacific time. Times in Activity history are shown in your own time zone.
+> Each class is shown in its own time zone (US Pacific or India), and US classes also show the India time. See [US and India classes](/help/us-and-india-classes). Times in Activity history are shown in your own time zone.
