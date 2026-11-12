@@ -295,9 +295,9 @@ test('class week: cancel it, then restore it, and the automation can ask again',
     .getByRole('dialog', { name: 'Cancel this whole class week?' })
     .getByRole('button', { name: 'Cancel the class week' })
     .click();
-  await expect(page.getByText('Class week cancelled')).toBeVisible();
+  await expect(page.getByText('Class week cancelled', { exact: true })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Restore class week' }).click();
-  await expect(page.getByText('Class week restored')).toBeVisible();
+  await expect(page.getByText('Class week restored', { exact: true })).toBeVisible();
   const s = await one<{ s: string }>(`select status s from public.module_week where id = $1`, [
     w.id,
   ]);

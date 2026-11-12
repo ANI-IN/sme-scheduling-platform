@@ -149,7 +149,13 @@ test('a confirmed class moves to a weekday and the instructor is asked to confir
 });
 
 test('a one off class, and a warning accepted with a reason', async ({ page }) => {
-  // Thanksgiving is a holiday in the starting data, so a class on it needs a reason.
+  // A class on a holiday needs a reason. Reset Sandbox data removes the holidays, so add one if a spec
+  // before this one reset the data.
+  await sql(
+    `insert into public.holiday (domain_id, date, name)
+     select null, (current_date + 45), 'E2E holiday'
+      where not exists (select 1 from public.holiday where date > now())`,
+  );
   const hol = await one<{ date: string }>(
     `select date::text from public.holiday where date > now() order by date limit 1`,
   );

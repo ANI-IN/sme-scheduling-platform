@@ -8,11 +8,14 @@ test.afterAll(() => loadDemoData());
 
 const list = (page: import('@playwright/test').Page) =>
   page.locator('table').first().locator('tbody tr');
+/** The 16 servers of the test data (another spec may have added the test server itself). */
+const programServers = (page: import('@playwright/test').Page) =>
+  list(page).filter({ hasText: /Program server \d+/ });
 
 test('every server is listed with its own status', async ({ page }) => {
   await page.goto('/settings/connections');
   await ready(page);
-  await expect(list(page)).toHaveCount(16);
+  await expect(programServers(page)).toHaveCount(16);
   await expect(
     list(page).filter({ hasText: 'Program server 5' }).getByText('Needs a fix'),
   ).toBeVisible();
@@ -65,7 +68,7 @@ test('archive hides a server, Show archived brings it back, and restore', async 
     .getByRole('button', { name: 'Archive' })
     .click();
   await expect(page.getByText('Program server 4 archived')).toBeVisible();
-  await expect(list(page)).toHaveCount(15);
+  await expect(programServers(page)).toHaveCount(15);
   await page.getByLabel(/Show archived servers/).check();
   const row = list(page).filter({ hasText: 'Program server 4' });
   await expect(row.getByText('Archived')).toBeVisible();
@@ -84,7 +87,7 @@ test('delete forgets a server the bot is in, and says the bot stays there', asyn
   await expect(dlg.getByText(/The bot stays in the server/)).toBeVisible();
   await dlg.getByRole('button', { name: 'Delete permanently' }).click();
   await expect(page.getByText('Program server 16 deleted')).toBeVisible();
-  await expect(list(page)).toHaveCount(15);
+  await expect(programServers(page)).toHaveCount(15);
 });
 
 test('an instructor channel can come from any server the bot is in', async ({ page }) => {

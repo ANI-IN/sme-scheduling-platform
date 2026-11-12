@@ -5,6 +5,12 @@ test.describe.configure({ mode: 'default' });
 /** Empty the test stack the way "Reset Sandbox data" does. */
 const empty = async () => {
   await sql(`select public.reset_sandbox_data('RESET')`);
+  // The reset keeps real people, so people other specs added would tick "Add team members". Remove the ones
+  // nobody signs in as, and take access away from the ones who signed in.
+  await sql(
+    `delete from public.team_member
+      where auth_user_id is null and not is_placeholder and lower(email) like '%@example.com'`,
+  );
   // The test account is a made up person, so the reset removes it; put it back as someone who already
   // answered the Discord question (a real person keeps their account).
   await sql(
@@ -13,6 +19,10 @@ const empty = async () => {
       where not exists (select 1 from public.team_member where lower(email) = 'ops.placeholder@example.com')`,
   );
   await sql(`update public.team_member set discord_prompt_dismissed_at = now(), version = version`);
+  await sql(
+    `update public.team_member set access_removed_at = now()
+      where lower(email) <> 'ops.placeholder@example.com' and access_removed_at is null`,
+  );
 };
 test.beforeEach(empty);
 // Put the test data back for the specs after this one.
