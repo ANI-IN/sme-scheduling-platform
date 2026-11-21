@@ -62,8 +62,8 @@ select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'mw') as mw, (:'j'::j
 select tests.tick(:'dom', '2027-01-01 18:00+00');
 select tests.click(:'mw', :'i1', 'Yes');
 select tests.tick(:'dom', '2027-01-21 18:00+00');
-select ok(public.response_page(tests.token(:'mw', :'i1', 'NeedHelp')) like '%Here are your materials%I still need help%',
-  'Need help shows the materials first, then the form');
+select ok(public.response_page(tests.token(:'mw', :'i1', 'NeedHelp')) like '%Tell us what you need%Send help request%',
+  'Need help shows the help form at once (no materials, decision 284)');
 select ok(public.submit_response_page(tests.token(:'mw', :'i1', 'NeedHelp'),
   '{"cat_zoom":"1","details":"No Zoom link yet","urgency":"Within24h","reply_channel":"Email"}') like '%will reply by%',
   'help form submitted; confirmation page shows who will reply and by when');

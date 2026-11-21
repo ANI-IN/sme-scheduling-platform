@@ -60,5 +60,7 @@ check. The full list is `messageName` in `app/src/lib/plain.ts`.
 
 ## Proposed (not done)
 
-Instructor facing messages and the confirm pages still contain dashes. Rewording them changes
-text the database sends, so it is listed under "Proposed logic changes" in docs/DECISIONS.md (P1).
+Checked on 22 November 2026: the message templates (`private.template_defaults`) contain no dashes. The answer
+pages still have four sentences with a dash ("Already recorded — thank you!" twice, "we'll let the team know —
+they'll be in touch", "Great — thanks!"). Rewording them changes text the database sends, so it stays under
+"Proposed logic changes" in docs/DECISIONS.md (P1).

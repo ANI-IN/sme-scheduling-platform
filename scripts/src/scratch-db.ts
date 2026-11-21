@@ -29,7 +29,8 @@ grant usage on schema auth, extensions to anon, authenticated, service_role;
 
 export type Scratch = { url: string; drop: () => Promise<void> };
 
-export async function createScratchDb(serverUrl: string): Promise<Scratch> {
+/** `before`: apply only the migrations whose file name sorts before it (for the rollback check). */
+export async function createScratchDb(serverUrl: string, before?: string): Promise<Scratch> {
   const name = `sme_scratch_${process.pid}_${Date.now() % 100000}`;
   const admin = new pg.Client({ connectionString: serverUrl });
   await admin.connect();
@@ -40,7 +41,7 @@ export async function createScratchDb(serverUrl: string): Promise<Scratch> {
     await db.connect();
     await db.query(AUTH_STUB);
     for (const f of readdirSync(MIGRATIONS)
-      .filter((x) => x.endsWith('.sql'))
+      .filter((x) => x.endsWith('.sql') && (before === undefined || x < before))
       .sort()) {
       try {
         await db.query(readFileSync(join(MIGRATIONS, f), 'utf8'));

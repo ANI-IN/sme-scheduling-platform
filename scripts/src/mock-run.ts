@@ -322,7 +322,8 @@ async function race() {
       `insert into public.module_ranking (module_id, instructor_id, rank) values ($1, $2, 1)`,
       [m.id, s.i[1]],
     );
-    // An owner and materials, so the setup check lets the week be asked.
+    // An owner, so the setup check lets the week be asked. Materials are no longer needed (decision 269); the
+    // resource row below is unused and harmless.
     await c.query(
       `insert into public.module_owner (module_id, team_member_id)
        select $1, o.team_member_id from public.module_owner o join public.module m on m.id = o.module_id

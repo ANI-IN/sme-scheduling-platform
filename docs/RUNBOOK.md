@@ -59,6 +59,48 @@ WF3 saves `sme-backup-YYYY-MM-DD.json` to the shared Google Drive folder every n
 Activity history can also be downloaded as a spreadsheet from **Activity history**. Supabase's paid plan adds automatic
 backups when the whole team depends on the app.
 
+### Before any change to the live database (Release 3, decision 274)
+
+1. Back up and verify (Docker Desktop must be running, for the local Supabase stack):
+
+   ```bash
+   npm run backup -w scripts -- --label before-<milestone>
+   ```
+
+   It refuses any project but `abcdefghijklmnopqrst`, saves the whole database (structure and data) to
+   `C:\Users\you\Backups\sme-scheduling\` with the date in the name, restores it into a local throwaway database
+   and compares the row count of every table (saved next to it as `.counts.txt`). It only reads the live database.
+2. Every migration from Release 3 has a rollback file in `supabase/rollback/`, checked locally with:
+
+   ```bash
+   npm run check-rollbacks -w scripts
+   ```
+
+### The database clock (Release 3, M1)
+
+The hourly check and the calls to WF4 run from the database once the clock is on (decision 281). See its state, the
+scheduled jobs, whether the poke key is in Vault (yes or no only) and n8n runs this month:
+
+```bash
+npm run clock -w scripts -- status
+```
+
+`npm run clock -w scripts -- off` switches it off at once (for example if n8n runs look wrong); then publish the
+schedule triggers of WF4 and WF1 again so n8n keeps working on its own schedule.
+
+### Rolling back a deploy that failed its live checks
+
+Roll back first, then fix locally:
+
+- **App:** `npx vercel@65.14.0 rollback` (the previous deployment comes back in seconds).
+- **n8n:** open each changed workflow, restore its previous version from the version history, publish it.
+- **Database:** pause all messages, then run the migration's rollback file against the live database (in the Supabase
+  SQL editor, or with `psql` and the connection string from your local settings file). Remove the migration's row from
+  `supabase_migrations.schema_migrations` so it can be applied again after the fix.
+- **Last resort, if a rollback file cannot run:** restore the backup taken before the deploy with `pg_restore --clean`
+  into the live database. Anything done since the backup is lost, so do it only after pausing all messages and telling
+  the testers.
+
 ## Adding a new domain (no code)
 
 Follow the Help guide **Setting up a new domain**: create the domain on **Setup, Domains**, choose its Discord server

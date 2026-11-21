@@ -58,6 +58,9 @@ jobs:
       - name: Migrations apply cleanly on an empty database
         run: npm run check-migrations -w scripts
 
+      - name: Every rollback undoes its migration
+        run: npm run check-rollbacks -w scripts
+
       - name: Full engine timeline without accounts
         run: npm run mock -- --race
 

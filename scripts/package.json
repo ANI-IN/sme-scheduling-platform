@@ -12,6 +12,8 @@
     "demo": "tsx src/demo-data.ts",
     "demo:load": "tsx --env-file=../.env.sandbox src/demo-load.ts",
     "check-migrations": "tsx src/check-migrations.ts",
+    "check-rollbacks": "tsx src/check-rollbacks.ts",
+    "backup": "tsx --env-file=../.env.sandbox src/backup.ts",
     "db:test:scratch": "tsx src/db-test-scratch.ts",
     "discord": "tsx src/discord-lookups.ts",
     "discord:sandbox": "tsx --env-file=../.env.sandbox src/discord-lookups.ts",
