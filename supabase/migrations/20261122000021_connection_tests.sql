@@ -1,6 +1,7 @@
 -- Release 3, A7 (decision 310): Connections statuses that never look broken when they are not, and Send a test.
 --
--- connection_status now also says whether Discord and email are set up, and the last real failure of each with its
+-- connection_status now also says whether Discord (an approved server and the admin alert channel) and email (the
+-- automation service has handled work; it sends email with its own Gmail connection) are set up, and the last real failure of each with its
 -- reason, so Settings, Connections can show "Ready, no messages yet" (set up, nothing sent), "Working" (the last
 -- message went out) or "Problem" (the last attempt failed after the last success). A message the beta guard stops is
 -- Cancelled, not Failed, so it never counts as a problem.
@@ -27,7 +28,8 @@ as $$
     'discord_ready', exists (select 1 from public.discord_server s where s.access = 'Approved' and s.archived_at is null)
                      and (select c.admin_discord_channel_id is not null from public.app_config c where c.id = 1),
     'discord_has_server', exists (select 1 from public.discord_server s where s.access = 'Approved' and s.archived_at is null),
-    'email_ready', (select coalesce(nullif(trim(c.scheduling_email), ''), null) is not null from public.app_config c where c.id = 1),
+    -- Email is sent by the automation service's Gmail connection, so it is ready once the service has handled work.
+    'email_ready', exists (select 1 from public.action_queue q where q.processed_at is not null),
     'pending', (select count(*) from public.message where status in ('Pending', 'Sending')),
     'oldest_pending', (select min(created_at) from public.message where status = 'Pending'),
     'last_action_processed', (select max(processed_at) from public.action_queue),
@@ -66,9 +68,6 @@ begin
     end if;
     v_n := private.queue_team_message('T21', null, 'admin', null, '{}', 'Connection test', v_text, v_key, now());
   else
-    if (select coalesce(trim(c.scheduling_email), '') from public.app_config c where c.id = 1) = '' then
-      raise exception 'Fill in the sender email first, under Advanced: links on this page.' using errcode = '22023';
-    end if;
     if coalesce(trim(v_me.email), '') = '' then
       raise exception 'Your team profile has no email address.' using errcode = '22023';
     end if;

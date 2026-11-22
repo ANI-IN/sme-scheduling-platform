@@ -200,7 +200,7 @@ function Health() {
       </Row>
       <Row status={email} label="Email" action={isAdmin && <SendTest channel="Email" />}>
         {email === 'off'
-          ? 'Fill in the sender email under Advanced: links below.'
+          ? 'Not set up yet: email is sent by the automation service, which has not handled any work yet.'
           : email === 'ready'
             ? 'Set up. Nothing has been sent yet, so there is nothing to check.'
             : `Last email sent: ${when(c.email_last_sent as string)}. Failed in the last 24 hours: ${failedEmail}.`}
@@ -242,7 +242,7 @@ function ConfigForm({ config }: { config: Config }) {
   return (
     <Section
       title="Advanced: links"
-      description="The sender email and the links the automation needs. Who can sign in is set when the app is installed: company Google accounts only."
+      description="The sender email and the links the automation needs. Who may sign in is managed by admins on Settings, Admin: company Google accounts, and during the beta only people on the beta list."
     >
       <details>
         <summary className="cursor-pointer text-sm font-medium text-link">Show the links</summary>

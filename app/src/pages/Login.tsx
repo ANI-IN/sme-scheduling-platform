@@ -18,7 +18,7 @@ export function Login() {
       <Card className="w-full max-w-sm p-6">
         <h1 className="text-xl font-semibold">SME Scheduling</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in with your company Google account.
+          Sign in with your company Google account. An admin decides who may sign in.
         </p>
         {rejected && (
           <p role="alert" className="mt-3 rounded bg-danger-soft p-2 text-sm text-danger-strong">

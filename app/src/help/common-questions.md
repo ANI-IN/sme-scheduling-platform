@@ -19,7 +19,7 @@ A task tells you exactly what to fix, for example a channel that no longer exist
 
 ## I can't sign in
 
-Use your company Google account. If you were removed from the team, ask a colleague to give your access back on the Team page.
+Use your company Google account. During the beta, only people on the beta list can sign in: ask an admin to add you on Settings, Admin. If you were removed from the team, ask a colleague to give your access back on the Team page.
 
 ## The Connections page
 

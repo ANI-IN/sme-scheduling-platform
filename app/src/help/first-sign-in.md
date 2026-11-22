@@ -7,7 +7,7 @@ order: 2
 
 1. Open the app address your team gave you.
 2. Press **Sign in with Google**.
-3. Choose your company Google account. Personal Google accounts cannot sign in.
+3. Choose your company Google account. Personal Google accounts cannot sign in, and during the beta an admin must add you to the beta list first (Settings, Admin).
 
 The first time you sign in, the app adds you to the Team page by itself, using the name on your Google account. Nobody has to create an account for you.
 

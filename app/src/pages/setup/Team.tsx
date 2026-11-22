@@ -48,7 +48,7 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        description="Everyone who uses SME Scheduling. Add people here, or they appear after they sign in for the first time with their company Google account. Module owners, the operations team and escalation contacts are chosen from this list."
+        description="Everyone who uses SME Scheduling. Add people here, or they appear after they sign in for the first time with their company Google account (only people an admin allows on Settings, Admin can sign in). Module owners, the operations team and escalation contacts are chosen from this list."
       >
         <Button onClick={() => setEditing('new')}>
           <Plus className="h-4 w-4" aria-hidden /> Add team member
@@ -64,6 +64,7 @@ export default function Team() {
           action={<Button onClick={() => setEditing('new')}>Add team member</Button>}
         >
           Add them here, or ask your colleagues to sign in once with their company Google account.
+          During the beta, an admin adds them to the beta list first.
         </Empty>
       ) : (
         <div className={tableWrap}>

@@ -12,7 +12,8 @@ on conflict ((lower(email))) do update set auth_user_id = excluded.auth_user_id;
 select public.set_admin((select id from public.team_member where email = 'cta@example.com'), true);
 -- Nothing set up yet.
 update public.discord_server set access = 'Waiting';
-update public.app_config set admin_discord_channel_id = null, scheduling_email = null where id = 1;
+update public.app_config set admin_discord_channel_id = null where id = 1;
+update public.action_queue set processed_at = null;
 update public.message set status = 'Cancelled' where status in ('Sent', 'Failed', 'Pending', 'Scheduled');
 
 select tests.login_google('cta@example.com');
@@ -22,8 +23,7 @@ select ok(not (:'s'::jsonb ->> 'discord_ready')::boolean and not (:'s'::jsonb ->
 select throws_ok($$ select public.send_connection_test('Discord') $$, '22023',
   'No Discord server is approved yet. Add the bot with the invite link, then approve the server under Discord servers.',
   '2. a Discord test needs an approved server, and says how to get one');
-select throws_ok($$ select public.send_connection_test('Email') $$, '22023',
-  'Fill in the sender email first, under Advanced: links on this page.', '3. an email test needs the sender email');
+select throws_ok($$ select public.send_connection_test('Fax') $$, '22023', 'Choose Discord or Email.', '3. only Discord or Email');
 
 select tests.as_postgres();
 select tests.approve_server('999000000000004801');
@@ -33,7 +33,8 @@ select throws_ok($$ select public.send_connection_test('Discord') $$, '22023',
   'Choose the admin alert channel first, under Discord servers on this page.', '5. a Discord test needs the admin alert channel');
 
 select tests.as_postgres();
-update public.app_config set admin_discord_channel_id = '999000000000004811', scheduling_email = 'sender@example.com' where id = 1;
+update public.app_config set admin_discord_channel_id = '999000000000004811' where id = 1;
+insert into public.action_queue (action, payload, status, processed_at) values ('deliver', '{}', 'Done', now());
 insert into public.discord_channel (id, server_id, name) values ('999000000000004811', '999000000000004801', 'admin-alerts')
 on conflict (id) do nothing;
 select tests.login_google('cta@example.com');
