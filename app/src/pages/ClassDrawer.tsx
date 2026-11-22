@@ -27,6 +27,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  DateInput,
   Drawer,
   ErrorText,
   Field,
@@ -899,15 +900,14 @@ function ClassEditor({
             {timeFieldLabel(t.region, t.date)}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date"
+            <DateInput
               aria-label="Date"
               value={t.date}
-              onChange={(ev) => {
-                setT({ ...t, date: ev.target.value });
+              onChange={(date) => {
+                setT({ ...t, date });
                 setFold(null);
               }}
-              className="h-8 w-40"
+              className="w-48"
             />
             <Input
               type="time"
