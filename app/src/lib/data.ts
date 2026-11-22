@@ -104,6 +104,45 @@ export const useWeeks = (domainId: string | undefined) =>
 
 export type WeekRow = NonNullable<ReturnType<typeof useWeeks>['data']>[number];
 
+/** A domain's standard schedules with their module order, breaks and own class times (decision 298). */
+export const useStandards = (domainId: string | undefined) =>
+  useQuery({
+    queryKey: ['standard_schedule', domainId],
+    enabled: !!domainId,
+    queryFn: async () =>
+      check(
+        await supabase
+          .from('standard_schedule')
+          .select(
+            '*, standard_schedule_module(*), standard_schedule_break(*), standard_schedule_class(*)',
+          )
+          .eq('domain_id', domainId!)
+          .order('name'),
+      ),
+  });
+
+export type StandardRow = NonNullable<ReturnType<typeof useStandards>['data']>[number];
+
+/** "Standard", "Custom" (with the number of changes) or "Fully custom" for one cohort. */
+export type CohortScheduleStatus = {
+  cohort_id: string;
+  standard_schedule_id: string | null;
+  schedule: string | null;
+  changes: number;
+  mode: 'Standard' | 'Custom' | 'Fully custom';
+};
+
+/** How each cohort of a domain follows its standard schedule (decision 298). */
+export const useCohortScheduleStatus = (domainId: string | undefined) =>
+  useQuery({
+    queryKey: ['module_week', 'schedule_status', domainId],
+    enabled: !!domainId,
+    queryFn: async () =>
+      (await rpc('cohort_schedule_status', {
+        p_domain_id: domainId!,
+      })) as unknown as CohortScheduleStatus[],
+  });
+
 export const useSystem = () =>
   useQuery({
     queryKey: ['system_state'],

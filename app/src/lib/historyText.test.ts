@@ -169,3 +169,106 @@ describe('plain wording for database text', () => {
     expect(e.sentence).toContain('Shelly Carver as an escalation contact');
   });
 });
+
+describe('standard schedules in plain sentences (decisions 298 and 299)', () => {
+  it('names the parts of a standard schedule', () => {
+    expect(
+      describeHistory(
+        {
+          ...base,
+          action: 'standard_schedule_module added',
+          entity_table: 'standard_schedule_module',
+          after: { module_id: ids.api, position: 2, label: 'SWEs: 2. API Design' },
+        },
+        book,
+      ).sentence,
+    ).toBe('Sienna added API Design as module 2 of the standard schedule SWEs');
+    expect(
+      describeHistory(
+        {
+          ...base,
+          action: 'standard_schedule_break added',
+          entity_table: 'standard_schedule_break',
+          after: { after_position: 1, weeks: 2, label: 'SWEs: 2 week break after module 1' },
+        },
+        book,
+      ).sentence,
+    ).toBe('Sienna added the 2 week break after module 1 in the standard schedule SWEs');
+    const c = describeHistory(
+      {
+        ...base,
+        action: 'standard_schedule_class changed',
+        entity_table: 'standard_schedule_class',
+        before: {
+          module_id: ids.api,
+          class_type: 'Live class',
+          day_offset: 0,
+          start_time: '09:00:00',
+          label: 'SWEs: API Design, Live class',
+        },
+        after: {
+          module_id: ids.api,
+          class_type: 'Live class',
+          day_offset: 0,
+          start_time: '10:00:00',
+          label: 'SWEs: API Design, Live class',
+        },
+      },
+      book,
+    );
+    expect(c.sentence).toBe(
+      'Sienna changed start time (local time) for the live class on the first day at 10:00 AM (local time) for API Design in the standard schedule SWEs from 9:00 AM to 10:00 AM',
+    );
+  });
+
+  it('says when a standard schedule is archived', () => {
+    expect(
+      describeHistory(
+        {
+          ...base,
+          action: 'standard_schedule changed',
+          entity_table: 'standard_schedule',
+          before: { name: 'SWEs', archived_at: null },
+          after: { name: 'SWEs', archived_at: '2026-11-22T10:00:00Z' },
+        },
+        book,
+      ).sentence,
+    ).toBe('Sienna archived the standard schedule SWEs');
+  });
+
+  it('describes planning from a standard, Reset to standard and updating cohorts', () => {
+    const team = { ...base, category: 'Team actions' };
+    expect(
+      describeHistory(
+        {
+          ...team,
+          action: 'Cohorts planned from a standard',
+          after: { schedule: 'SWEs', cohorts: ['March A', 'March B'], class_weeks: 6 },
+        },
+        book,
+      ).sentence,
+    ).toBe('Sienna planned March A, March B from the standard schedule SWEs: 6 class weeks');
+    expect(
+      describeHistory(
+        {
+          ...team,
+          action: 'Reset to standard',
+          after: { cohort_id: null, class_weeks_changed: 1, not_updated: 0 },
+        },
+        book,
+      ).sentence,
+    ).toBe('Sienna reset 1 class week to the standard');
+    expect(
+      describeHistory(
+        {
+          ...team,
+          action: 'Standard applied: SWEs',
+          after: { schedule: 'SWEs', new_class_weeks: 1, class_weeks_changed: 2, not_updated: 3 },
+        },
+        book,
+      ).sentence,
+    ).toBe(
+      'Sienna updated cohorts from the standard schedule SWEs: 2 class weeks changed, 1 new, 3 not updated',
+    );
+  });
+});

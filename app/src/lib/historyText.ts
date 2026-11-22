@@ -67,6 +67,14 @@ const HIDDEN = new Set([
   'module_id',
   'domain_id',
   'team_member_id',
+  'schedule_id',
+]);
+
+/** The parts of a standard schedule (decision 298): their label names the schedule, which the row does not. */
+const STANDARD_PARTS = new Set([
+  'standard_schedule_module',
+  'standard_schedule_break',
+  'standard_schedule_class',
 ]);
 
 const FIELD: Record<string, string> = {
@@ -118,6 +126,9 @@ const FIELD: Record<string, string> = {
   scheduling_sender_name: 'Sender name',
   company_email_domain: 'Company email domain',
   key: 'Setting',
+  position: 'Place in the order',
+  after_position: 'After module',
+  weeks: 'Weeks',
 };
 
 const STATUS_WORD: Record<string, string> = { Test: 'Testing' };
@@ -200,17 +211,33 @@ function noun(e: HistoryLike, book: NameBook): string {
       }`;
     case 'app_config':
       return 'the connection settings';
+    case 'standard_schedule':
+      return `the standard schedule ${r.name ?? e.entity_label ?? ''}`.trim();
+    case 'standard_schedule_module':
+      return `${n(r.module_id)} as module ${r.position} of ${standardOf(r, /^(.+?): \d+\. /)}`;
+    case 'standard_schedule_break':
+      return `the ${value(r.weeks, book)} week break after module ${r.after_position} in ${standardOf(r, /^(.+): \d+ week break after module \d+$/)}`;
+    case 'standard_schedule_class':
+      return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.day_offset, book, 'day_offset')} at ${value(r.start_time, book)} (local time) for ${n(r.module_id)} in ${standardOf(r, /^(.+?): /)}`;
     default:
       return e.entity_label ?? 'a setup record';
   }
+}
+
+/** "the standard schedule SWEs", read from the label of one of its parts. */
+function standardOf(r: Record<string, unknown>, re: RegExp): string {
+  const m = String(r.label ?? '').match(re);
+  return m ? `the standard schedule ${m[1]}` : 'a standard schedule';
 }
 
 function changesOf(e: HistoryLike, book: NameBook): Change[] {
   if (!e.before || !e.after) return [];
   const b = e.before as Record<string, unknown>;
   const a = e.after as Record<string, unknown>;
+  const hidden = (k: string) =>
+    HIDDEN.has(k) || (k === 'label' && STANDARD_PARTS.has(e.entity_table ?? ''));
   return Object.keys({ ...b, ...a })
-    .filter((k) => !HIDDEN.has(k) && JSON.stringify(b[k]) !== JSON.stringify(a[k]))
+    .filter((k) => !hidden(k) && JSON.stringify(b[k]) !== JSON.stringify(a[k]))
     .map((k) => ({
       label: FIELD[k] ?? k.replace(/_/g, ' '),
       from: value(b[k], book, k),
@@ -369,6 +396,38 @@ const rewrites: [
   [/^Sign-in rejected$/, () => 'Someone outside the company tried to sign in'],
 ];
 
+const weeks = (n: unknown) => `${Number(n ?? 0)} class week${Number(n ?? 0) === 1 ? '' : 's'}`;
+
+/** Planning cohorts from a standard, Reset to standard and updating cohorts from a standard (decisions 298, 299). */
+function standardEvent(e: HistoryLike, actor: string, book: NameBook): Described | null {
+  const a = (e.after ?? {}) as Record<string, unknown>;
+  const notUpdated = Number(a.not_updated ?? 0);
+  const rest = notUpdated ? `, ${notUpdated} not updated` : '';
+  if (e.action === 'Cohorts planned from a standard') {
+    const cohorts = Array.isArray(a.cohorts) ? (a.cohorts as unknown[]).map(String) : [];
+    return {
+      sentence: `${actor} planned ${cohorts.join(', ') || 'new cohorts'} from the standard schedule ${a.schedule ?? ''}: ${weeks(a.class_weeks)}`,
+      changes: [],
+    };
+  }
+  if (e.action === 'Reset to standard') {
+    const cohort = book.name(a.cohort_id as string);
+    return {
+      sentence: `${actor} reset ${weeks(a.class_weeks_changed)}${cohort ? ` of ${cohort}` : ''} to the standard${rest}`,
+      changes: [],
+    };
+  }
+  const m = e.action.match(/^Standard applied: (.+)$/);
+  if (m) {
+    const added = Number(a.new_class_weeks ?? 0);
+    return {
+      sentence: `${actor} updated cohorts from the standard schedule ${m[1]}: ${weeks(a.class_weeks_changed)} changed${added ? `, ${added} new` : ''}${rest}`,
+      changes: [],
+    };
+  }
+  return null;
+}
+
 export function describeHistory(e: HistoryLike, book: NameBook): Described {
   const actor =
     e.actor_kind === 'System'
@@ -376,6 +435,8 @@ export function describeHistory(e: HistoryLike, book: NameBook): Described {
       : (e.actor_label ?? (e.actor_kind === 'Instructor' ? 'An instructor' : 'Someone'));
   const module = book.name(e.module_id) ?? 'the class';
   if (e.action === 'Ranking saved') return rankingChange(e, actor, book);
+  const standard = standardEvent(e, actor, book);
+  if (standard) return standard;
   if (e.category === 'Setup changes' && e.entity_table) {
     const undo = e.action.startsWith('Undo: ');
     const verb = e.action.replace(/^Undo: /, '');
@@ -406,6 +467,16 @@ export function describeHistory(e: HistoryLike, book: NameBook): Described {
       };
     }
     if (verb.endsWith(' added')) return { sentence: `${actor} added ${thing}`, changes: [] };
+    // Archiving and restoring a standard schedule change only when it was archived.
+    if (e.entity_table === 'standard_schedule' && verb.endsWith(' changed')) {
+      const b = (e.before ?? {}) as Record<string, unknown>;
+      const r = rowOf(e);
+      if (!b.archived_at !== !r.archived_at)
+        return {
+          sentence: `${actor} ${r.archived_at ? 'archived' : 'restored'} ${thing}`,
+          changes: [],
+        };
+    }
     if (verb.endsWith(' removed')) return { sentence: `${actor} removed ${thing}`, changes: [] };
     const changes = changesOf(e, book);
     if (changes.length === 1) {

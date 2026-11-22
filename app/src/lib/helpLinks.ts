@@ -6,6 +6,7 @@ export function guideForPath(pathname: string): string {
   if (pathname.startsWith('/classes')) return 'planning-classes';
   if (pathname.startsWith('/requests')) return 'what-happens-automatically';
   if (pathname.startsWith('/setup/modules')) return 'setting-up-a-module';
+  if (pathname.startsWith('/setup/standards')) return 'standard-schedules';
   if (pathname.startsWith('/setup/instructors')) return 'instructors';
   if (pathname.startsWith('/setup/team')) return 'first-sign-in';
   if (pathname.startsWith('/setup/domains')) return 'new-domain';

@@ -12,8 +12,10 @@ order: 16
 - **Cohort:** one group of students going through the modules, for example a weekend cohort.
 - **Contact check:** a short message that proves an instructor's Discord and email work.
 - **Contact details checked:** the instructor answered a contact check.
+- **Custom:** a cohort planned from a standard schedule, with class weeks changed for it alone. Custom (2 changes) means two class weeks.
 - **Domain:** a program area such as Backend, with its own modules, people and settings.
 - **Escalation contacts:** people told when an urgent problem is not fixed in time.
+- **Fully custom:** a cohort that was not planned from a standard schedule.
 - **Instructor order:** the order instructors are asked for a module.
 - **Instructor requests:** asking instructors to teach, one at a time.
 - **Needs real details:** a record created during setup that still has made up details.
@@ -28,6 +30,7 @@ order: 16
 - **Region:** US or India. It decides the time zone of a cohort's classes.
 - **Reminder before class:** a message to a confirmed instructor before the class.
 - **Setup check:** the check that a module has everything it needs before instructors are asked.
+- **Standard schedule:** the usual plan for a cohort: its modules in order, their class times and any break weeks.
 - **Task:** something a person on the team needs to do.
 - **Testing:** a domain whose messages go only to the testing channel and testing email.
 - **Very close to the class:** the last days before a class, when replies are expected fastest (3 by default).

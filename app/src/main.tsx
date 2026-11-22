@@ -20,6 +20,7 @@ const Outreach = lazy(() => import('@/pages/Outreach'));
 const Modules = lazy(() => import('@/pages/setup/Modules'));
 const ModuleDetail = lazy(() => import('@/pages/setup/ModuleDetail'));
 const ModuleNew = lazy(() => import('@/pages/setup/ModuleNew'));
+const Standards = lazy(() => import('@/pages/setup/Standards'));
 const Instructors = lazy(() => import('@/pages/Instructors'));
 const Team = lazy(() => import('@/pages/setup/Team'));
 const Domains = lazy(() => import('@/pages/setup/Domains'));
@@ -74,6 +75,7 @@ function Gate() {
             <Route path="/setup/modules" element={<Modules />} />
             <Route path="/setup/modules/new" element={<ModuleNew />} />
             <Route path="/setup/modules/:id" element={<ModuleDetail />} />
+            <Route path="/setup/standards" element={<Standards />} />
             <Route path="/setup/instructors" element={<Instructors />} />
             <Route path="/setup/team" element={<Team />} />
             <Route path="/setup/domains" element={<Domains />} />

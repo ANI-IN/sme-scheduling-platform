@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
-import { useCohorts, useModules, type Domain } from '@/lib/data';
+import { useCohorts, useModules, useStandards, type Domain } from '@/lib/data';
+import { PlanFromStandardDialog } from './setup/standardParts';
 import { parseDateList } from '@/lib/time';
 import { asRegion, REGION_NAME, type Region } from '@/lib/region';
 import { RegionBadge, TimeCheck, timeReady } from '@/components/ClassTime';
@@ -77,6 +78,12 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
   const [pending, setPending] = useState<Warning[] | null>(null);
+  // A new cohort can instead be planned from a standard schedule (decision 298).
+  const standards = useStandards(domain.id);
+  const hasStandard = (standards.data ?? []).some(
+    (s) => !s.archived_at && s.standard_schedule_module.length > 0,
+  );
+  const [fromStandard, setFromStandard] = useState(false);
 
   // Suggest a name for a new cohort from the first date.
   useEffect(() => {
@@ -232,6 +239,8 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
     }
   }
 
+  if (fromStandard) return <PlanFromStandardDialog domainId={domain.id} onClose={onClose} />;
+
   return (
     <Modal
       open
@@ -293,6 +302,20 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
               </Select>
             </Field>
           </div>
+          {cohortChoice === NEW && hasStandard && (
+            <Notice tone="info">
+              This domain has standard schedules. To give a new cohort every class week of one, with
+              its breaks and class times,{' '}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={() => setFromStandard(true)}
+              >
+                plan it from a standard
+              </button>
+              .
+            </Notice>
+          )}
           {noTimes.length > 0 && (
             <Notice tone="warning">
               {noTimes.length === 1 ? 'This module has' : 'These modules have'} no class times yet

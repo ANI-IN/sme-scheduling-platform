@@ -18,6 +18,7 @@ import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import { DeleteButton } from '@/components/Lifecycle';
 import { useDomain } from '@/lib/domain';
 import { AddClassDialog } from './AddClassDialog';
+import { ResetToStandard } from './setup/standardParts';
 import {
   Badge,
   Button,
@@ -196,6 +197,8 @@ export function ClassDrawer({
             <ClassEditor key={`${c.id}:${c.version}`} c={c} run={run} />
           ))}
         </DrawerGroup>
+
+        {week.standard_position !== null && <StandardGroup week={week} />}
 
         <DrawerGroup title="Instructor">
           {booking ? (
@@ -740,6 +743,94 @@ function DrawerGroup({
       </div>
       {children}
     </section>
+  );
+}
+
+type Compare = {
+  follows_standard: boolean;
+  standard?: {
+    module: string;
+    week_start_date: string;
+    classes: { title: string; shown: string }[];
+  };
+  current?: { classes: { title: string; shown: string }[] };
+  differs?: boolean;
+  customized_at?: string | null;
+  reset?: { actions: string[]; not_updated: string | null };
+};
+
+/** A class week planned from a standard schedule: its standard version next to the current one (decision 299). */
+function StandardGroup({ week }: { week: WeekRow }) {
+  const cmp = useQuery({
+    queryKey: ['module_week', 'standard_compare', week.id],
+    queryFn: async () =>
+      (await rpc('standard_compare', { p_module_week_id: week.id })) as unknown as Compare,
+  });
+  const c = cmp.data;
+  if (!c?.follows_standard || !c.standard || !c.current) return null;
+  const list = (classes: { title: string; shown: string }[]) =>
+    classes.length === 0 ? (
+      <p className="text-muted-foreground">No classes.</p>
+    ) : (
+      <ul className="space-y-1">
+        {classes.map((k, i) => (
+          <li key={i}>
+            <span className="font-medium">{plain(k.title)}</span>
+            <span className="block text-xs text-muted-foreground">{plain(k.shown)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  return (
+    <DrawerGroup
+      title="Standard schedule"
+      description="This class week was planned from a standard schedule."
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {c.customized_at ? (
+          <>
+            <Badge tone="warning">Custom</Badge>
+            <span className="text-muted-foreground">
+              Changed for this cohort on {DateTime.fromISO(c.customized_at).toFormat('LLL d, yyyy')}
+              .
+            </span>
+          </>
+        ) : c.differs ? (
+          <>
+            <Badge tone="success">Standard</Badge>
+            <span className="text-muted-foreground">
+              The standard changed after this class week was planned.
+            </span>
+          </>
+        ) : (
+          <>
+            <Badge tone="success">Standard</Badge>
+            <span className="text-muted-foreground">It follows its standard.</span>
+          </>
+        )}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-md border border-border p-3">
+          <div className="mb-1 text-xs font-semibold text-muted-foreground uppercase">
+            Standard: {c.standard.module}
+          </div>
+          {list(c.standard.classes)}
+        </div>
+        <div className="rounded-md border border-border p-3">
+          <div className="mb-1 text-xs font-semibold text-muted-foreground uppercase">Now</div>
+          {list(c.current.classes)}
+        </div>
+      </div>
+      {c.reset?.not_updated ? (
+        c.differs || c.customized_at ? (
+          <p className="text-muted-foreground">
+            Reset to standard is not possible here: {plain(c.reset.not_updated)}
+          </p>
+        ) : null
+      ) : (
+        c.differs && <ResetToStandard moduleWeekId={week.id} />
+      )}
+    </DrawerGroup>
   );
 }
 

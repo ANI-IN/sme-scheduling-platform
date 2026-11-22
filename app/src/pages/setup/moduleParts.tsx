@@ -53,15 +53,31 @@ export const dayLabel = (o: number) =>
 
 export type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
+/** A class time of a standard schedule (decision 298): the same columns as a module's class time. */
+export type StandardClassRow = {
+  id: string;
+  module_id: string;
+  class_type: string;
+  day_offset: number;
+  start_time: string;
+  duration_minutes: number;
+};
+
 export function PatternEditor({
   module: m,
   run,
   cohortId,
+  standard,
+  empty,
 }: {
   module: ModuleRow;
   run: Run;
   /** Class times for one cohort only (otherwise the module's default times). */
   cohortId?: string;
+  /** The class times of this module in a standard schedule (otherwise the module's own). */
+  standard?: { scheduleId: string; items: StandardClassRow[] };
+  /** What to say when there are no class times yet. */
+  empty?: React.ReactNode;
 }) {
   const types = useQuery({
     queryKey: ['class_type', m.domain_id],
@@ -86,17 +102,57 @@ export function PatternEditor({
   const [editId, setEditId] = useState<string | null>(null);
   const removePart = useRemovePart();
   const qc = useQueryClient();
-  const items = [...m.class_pattern_item]
-    .filter((p) => (p.cohort_id ?? undefined) === cohortId)
-    .sort((a, b) => a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time));
+  const items: StandardClassRow[] = (
+    standard
+      ? standard.items.filter((p) => p.module_id === m.id)
+      : m.class_pattern_item.filter((p) => (p.cohort_id ?? undefined) === cohortId)
+  ).sort((a, b) => a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time));
+  // A standard schedule's class times allow the same days as a module's own (decision 300).
+  const days = 14;
+  const later = standard
+    ? 'Cohorts that follow it change only when you press Update cohorts.'
+    : 'Classes already planned stay as they are.';
+  const remove = async (id: string) =>
+    standard
+      ? check(await supabase.from('standard_schedule_class').delete().eq('id', id))
+      : check(await supabase.from('class_pattern_item').delete().eq('id', id));
+  const save = async () => {
+    if (standard) {
+      if (editId)
+        return check(
+          await supabase.from('standard_schedule_class').update(n).eq('id', editId).select(),
+        );
+      return check(
+        await supabase.from('standard_schedule_class').insert({
+          schedule_id: standard.scheduleId,
+          domain_id: m.domain_id,
+          module_id: m.id,
+          ...n,
+          title_template: '{module}: {class_type}',
+          sort_order: items.length + 1,
+        }),
+      );
+    }
+    if (editId)
+      return check(await supabase.from('class_pattern_item').update(n).eq('id', editId).select());
+    return check(
+      await supabase.from('class_pattern_item').insert({
+        module_id: m.id,
+        cohort_id: cohortId ?? null,
+        ...n,
+        title_template: '{module}: {class_type}',
+        sort_order: items.length + 1,
+      }),
+    );
+  };
   const time = (t: string) => DateTime.fromFormat(t.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   return (
     <section>
       {items.length === 0 ? (
-        <p className="mb-3 text-sm text-muted-foreground">
-          No classes yet. Add the live class and its review, for example Sunday 9:00 AM for 240
-          minutes and Thursday 6:00 PM for 120 minutes.
-        </p>
+        <div className="mb-3 text-sm text-muted-foreground">
+          {empty ??
+            'No classes yet. Add the live class and its review, for example Sunday 9:00 AM for 240 minutes and Thursday 6:00 PM for 120 minutes.'}
+        </div>
       ) : (
         <div className="mb-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -143,11 +199,8 @@ export function PatternEditor({
                         if (
                           await removePart(
                             `the ${p.class_type.toLowerCase()} on ${dayLabel(p.day_offset)}`,
-                            async () =>
-                              check(
-                                await supabase.from('class_pattern_item').delete().eq('id', p.id),
-                              ),
-                            'Class time removed. Classes already planned stay as they are.',
+                            () => remove(p.id),
+                            `Class time removed. ${later}`,
                           )
                         )
                           await qc.invalidateQueries();
@@ -175,7 +228,7 @@ export function PatternEditor({
             value={n.day_offset}
             onChange={(e) => setN({ ...n, day_offset: Number(e.target.value) })}
           >
-            {Array.from({ length: 14 }, (_, i) => (
+            {Array.from({ length: days }, (_, i) => (
               <option key={i} value={i}>
                 {dayLabel(i)}
               </option>
@@ -205,25 +258,7 @@ export function PatternEditor({
         <Button
           variant="secondary"
           onClick={async () => {
-            await run(
-              async () =>
-                editId
-                  ? check(
-                      await supabase.from('class_pattern_item').update(n).eq('id', editId).select(),
-                    )
-                  : check(
-                      await supabase.from('class_pattern_item').insert({
-                        module_id: m.id,
-                        cohort_id: cohortId ?? null,
-                        ...n,
-                        title_template: '{module}: {class_type}',
-                        sort_order: items.length + 1,
-                      }),
-                    ),
-              editId
-                ? 'Class time saved. Classes already planned stay as they are.'
-                : 'Class time added',
-            );
+            await run(save, editId ? `Class time saved. ${later}` : 'Class time added');
             setEditId(null);
             setN(blank);
           }}

@@ -19,6 +19,7 @@ const PAGES = [
   '/setup/modules',
   '/setup/modules/new',
   'MODULE',
+  '/setup/standards',
   '/setup/instructors',
   '/setup/team',
   '/setup/domains',
@@ -103,6 +104,11 @@ const OPENERS: { name: string; path: string; open: (page: Page) => Promise<void>
     name: 'add one class dialog',
     path: '/classes',
     open: (p) => p.getByRole('button', { name: 'Add one class' }).click(),
+  },
+  {
+    name: 'add standard schedule',
+    path: '/setup/standards',
+    open: (p) => p.getByRole('button', { name: 'Add standard schedule' }).first().click(),
   },
   {
     name: 'instructor drawer',

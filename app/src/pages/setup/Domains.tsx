@@ -5,7 +5,8 @@ import { Globe2, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
+import { useCohortScheduleStatus, useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
+import { CohortScheduleBadge, PlanFromStandardDialog, ResetToStandard } from './standardParts';
 import { RegionBadge } from '@/components/ClassTime';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
@@ -553,6 +554,8 @@ function ClassTypes({ domainId }: { domainId: string }) {
 function Cohorts({ domainId }: { domainId: string }) {
   const qc = useQueryClient();
   const cohorts = useCohorts(domainId, true);
+  const schedule = useCohortScheduleStatus(domainId);
+  const [planning, setPlanning] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const [adding, setAdding] = useState({ name: '', region: 'US', start: '' });
   const [touched, setTouched] = useState(false);
@@ -615,6 +618,9 @@ function Cohorts({ domainId }: { domainId: string }) {
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{c.name}</span>
                     <RegionBadge region={c.region} />
+                    <CohortScheduleBadge
+                      status={(schedule.data ?? []).find((x) => x.cohort_id === c.id)}
+                    />
                     {c.archived_at && <Badge tone="neutral">Archived</Badge>}
                     <Button
                       size="sm"
@@ -654,6 +660,9 @@ function Cohorts({ domainId }: { domainId: string }) {
                 </Select>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
+                {(schedule.data ?? []).some((x) => x.cohort_id === c.id && x.mode === 'Custom') && (
+                  <ResetToStandard cohortId={c.id} name={c.name} />
+                )}
                 <ArchiveButton kind="cohort" id={c.id} name={c.name} archived={!!c.archived_at} />
                 <DeleteButton kind="cohort" id={c.id} />
               </div>
@@ -714,8 +723,14 @@ function Cohorts({ domainId }: { domainId: string }) {
         >
           Add cohort
         </Button>
+        <Button variant="outline" onClick={() => setPlanning(true)}>
+          Plan cohorts from a standard
+        </Button>
       </div>
       <ErrorText error={err} />
+      {planning && (
+        <PlanFromStandardDialog domainId={domainId} onClose={() => setPlanning(false)} />
+      )}
     </Section>
   );
 }

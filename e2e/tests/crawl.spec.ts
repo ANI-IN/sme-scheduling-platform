@@ -37,6 +37,7 @@ const ROUTES = [
   '/setup/instructors',
   '/setup/team',
   '/setup/domains',
+  '/setup/standards',
   '/settings/automation',
   '/settings/messages',
   '/settings/testing',

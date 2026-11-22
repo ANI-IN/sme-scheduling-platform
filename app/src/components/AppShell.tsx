@@ -23,6 +23,7 @@ import {
   Users,
   X,
   LifeBuoy,
+  ListOrdered,
   MessageSquareText,
   OctagonPause,
   ShieldCheck,
@@ -54,6 +55,7 @@ const groups: { label?: string; items: Item[] }[] = [
     label: 'Setup',
     items: [
       { to: '/setup/modules', label: 'Modules', icon: BookOpen },
+      { to: '/setup/standards', label: 'Standard schedules', icon: ListOrdered },
       { to: '/setup/instructors', label: 'Instructors', icon: UserRound },
       { to: '/setup/team', label: 'Team', icon: Users },
       { to: '/setup/domains', label: 'Domains', icon: Globe2 },
