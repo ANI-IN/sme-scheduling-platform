@@ -293,7 +293,32 @@ async function drawMarks(page: Page, marks: Mark[]) {
   }
 }
 
+/**
+ * The test data names its made up colleagues "Sandbox ..." (older tests use those names). Pictures show the app as
+ * people use it, so they are renamed in the test copy first (decision 313).
+ */
+async function plainNames() {
+  const c = new pg.Client({ connectionString: DB });
+  await c.connect();
+  try {
+    // Not a change anyone made, so it is not added to Activity history.
+    await c.query(`select set_config('app.suppress_setup_log', 'on', false)`);
+    await c.query(
+      `update public.team_member set name = replace(name, 'Sandbox ', 'Example '), version = version
+        where name like 'Sandbox %'`,
+    );
+    await c
+      .query(
+        `update public.history_event set actor_label = 'Test data' where actor_label = 'Sandbox data'`,
+      )
+      .catch(() => {});
+  } finally {
+    await c.end();
+  }
+}
+
 async function main() {
+  await plainNames();
   const only = process.argv.slice(2);
   const pics = only.length ? PICS.filter((p) => only.some((o) => p.file.startsWith(o))) : PICS;
   const { api, secret, publishable } = localKeys();
