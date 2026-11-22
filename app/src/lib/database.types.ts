@@ -337,14 +337,14 @@ isOneToOne: false
                   ]
                 },"cohort": {
                   Row: {
-                    "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"standard_schedule_id": string | null,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"region"?: string,"standard_schedule_id"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "archived_at"?: string | null,"created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"region"?: string,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"region"?: string,"standard_schedule_id"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -352,6 +352,12 @@ isOneToOne: false
       columns: ["domain_id"]
 isOneToOne: false
       referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cohort_standard_schedule_id_fkey"
+      columns: ["standard_schedule_id"]
+isOneToOne: false
+      referencedRelation: "standard_schedule"
       referencedColumns: ["id"]
     }
                   ]
@@ -879,14 +885,14 @@ isOneToOne: false
                   ]
                 },"module_week": {
                   Row: {
-                    "archive_paused": boolean,"at_risk": boolean,"at_risk_reason": string | null,"cohort": string,"cohort_id": string,"created_at": string,"domain_id": string,"first_class_at": string | null,"id": string,"last_class_end_at": string | null,"manual_end_behaviour": string,"module_id": string,"outreach_mode": string,"outreach_started_at": string | null,"owner_checkin_sent_at": string | null,"paused": boolean,"readiness_checked_at": string | null,"readiness_escalated_at": string | null,"readiness_problems": Json | null,"same_instructor": boolean,"seq": number,"split_group": string | null,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number,"week_start_date": string
+                    "archive_paused": boolean,"at_risk": boolean,"at_risk_reason": string | null,"cohort": string,"cohort_id": string,"created_at": string,"customized_at": string | null,"domain_id": string,"first_class_at": string | null,"id": string,"last_class_end_at": string | null,"manual_end_behaviour": string,"module_id": string,"outreach_mode": string,"outreach_started_at": string | null,"owner_checkin_sent_at": string | null,"paused": boolean,"readiness_checked_at": string | null,"readiness_escalated_at": string | null,"readiness_problems": Json | null,"same_instructor": boolean,"seq": number,"split_group": string | null,"standard_position": number | null,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number,"week_start_date": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id": string,"created_at"?: string,"domain_id": string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id": string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor": boolean,"seq"?: number,"split_group"?: string | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date": string
+                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id": string,"created_at"?: string,"customized_at"?: string | null,"domain_id": string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id": string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor": boolean,"seq"?: number,"split_group"?: string | null,"standard_position"?: number | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date": string
                   }
                   Update: {
-                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id"?: string,"created_at"?: string,"domain_id"?: string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id"?: string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor"?: boolean,"seq"?: number,"split_group"?: string | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date"?: string
+                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id"?: string,"created_at"?: string,"customized_at"?: string | null,"domain_id"?: string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id"?: string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor"?: boolean,"seq"?: number,"split_group"?: string | null,"standard_position"?: number | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date"?: string
                   }
                   Relationships: [
                     {
@@ -1071,6 +1077,116 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"standard_schedule": {
+                  Row: {
+                    "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "standard_schedule_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"standard_schedule_break": {
+                  Row: {
+                    "after_position": number,"created_at": string,"domain_id": string,"id": string,"label": string | null,"schedule_id": string,"updated_at": string,"updated_by": string | null,"version": number,"weeks": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "after_position": number,"created_at"?: string,"domain_id": string,"id"?: string,"label"?: string | null,"schedule_id": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"weeks": number
+                  }
+                  Update: {
+                    "after_position"?: number,"created_at"?: string,"domain_id"?: string,"id"?: string,"label"?: string | null,"schedule_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"weeks"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "standard_schedule_break_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "standard_schedule_break_schedule_id_fkey"
+      columns: ["schedule_id"]
+isOneToOne: false
+      referencedRelation: "standard_schedule"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"standard_schedule_class": {
+                  Row: {
+                    "class_type": string,"created_at": string,"day_offset": number,"domain_id": string,"duration_minutes": number,"id": string,"label": string | null,"module_id": string,"schedule_id": string,"sort_order": number,"start_time": string,"title_template": string,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "class_type": string,"created_at"?: string,"day_offset"?: number,"domain_id": string,"duration_minutes": number,"id"?: string,"label"?: string | null,"module_id": string,"schedule_id": string,"sort_order"?: number,"start_time": string,"title_template"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "class_type"?: string,"created_at"?: string,"day_offset"?: number,"domain_id"?: string,"duration_minutes"?: number,"id"?: string,"label"?: string | null,"module_id"?: string,"schedule_id"?: string,"sort_order"?: number,"start_time"?: string,"title_template"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "standard_schedule_class_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "standard_schedule_class_module_id_fkey"
+      columns: ["module_id"]
+isOneToOne: false
+      referencedRelation: "module"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "standard_schedule_class_schedule_id_fkey"
+      columns: ["schedule_id"]
+isOneToOne: false
+      referencedRelation: "standard_schedule"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"standard_schedule_module": {
+                  Row: {
+                    "created_at": string,"domain_id": string,"id": string,"label": string | null,"module_id": string,"position": number,"schedule_id": string,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"domain_id": string,"id"?: string,"label"?: string | null,"module_id": string,"position": number,"schedule_id": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "created_at"?: string,"domain_id"?: string,"id"?: string,"label"?: string | null,"module_id"?: string,"position"?: number,"schedule_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "standard_schedule_module_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "standard_schedule_module_module_id_fkey"
+      columns: ["module_id"]
+isOneToOne: false
+      referencedRelation: "module"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "standard_schedule_module_schedule_id_fkey"
+      columns: ["schedule_id"]
+isOneToOne: false
+      referencedRelation: "standard_schedule"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"system_state": {
                   Row: {
                     "created_at": string,"id": number,"kill_switch_changed_at": string | null,"kill_switch_changed_by": string | null,"last_daily_run_at": string | null,"last_digest_date": string | null,"last_heartbeat_at": string | null,"last_hourly_run_at": string | null,"last_hourly_status": string | null,"last_hourly_summary": Json | null,"outreach_enabled": boolean,"updated_at": string,"updated_by": string | null,"version": number
@@ -1119,6 +1235,9 @@ isOneToOne: false
                            },
 "advance_test_clock":
 { Args: { "p_domain_id": string,"p_hours": number }; Returns: Json
+                           },
+"archive_standard_schedule":
+{ Args: { "p_archived": boolean,"p_id": string }; Returns: undefined
                            },
 "assign_manually":
 { Args: { "p_accept_warnings"?: boolean,"p_instructor_id": string,"p_module_week_id": string,"p_note"?: string,"p_reason"?: string }; Returns: Json
@@ -1199,6 +1318,9 @@ isOneToOne: false
         isOneToOne: false
         isSetofReturn: true
       } },
+"cohort_schedule_status":
+{ Args: { "p_domain_id": string }; Returns: Json
+                           },
 "complete_action":
 { Args: { "p_action_id": string,"p_error"?: string,"p_ok": boolean,"p_result"?: Json }; Returns: undefined
                            },
@@ -1219,6 +1341,9 @@ isOneToOne: false
                            },
 "create_module_weeks":
 { Args: { "p_accept_warnings"?: boolean,"p_domain_id": string,"p_fold"?: number,"p_reason"?: string,"p_rows": Json }; Returns: Json
+                           },
+"create_standard_cohorts":
+{ Args: { "p_accept_warnings"?: boolean,"p_cohorts": Json,"p_fold"?: number,"p_reason"?: string,"p_schedule_id": string }; Returns: Json
                            },
 "daily_jobs":
 { Args: { "p_now"?: string }; Returns: Json
@@ -1339,6 +1464,9 @@ isOneToOne: false
 "preview_next":
 { Args: { "p_module_week_id": string }; Returns: Json
                            },
+"preview_standard_cohorts":
+{ Args: { "p_cohorts": Json,"p_schedule_id": string }; Returns: Json
+                           },
 "pt_to_utc":
 { Args: { "p_date": string,"p_time": string }; Returns: string
                            },
@@ -1407,6 +1535,9 @@ isOneToOne: false
                            },
 "save_ranking":
 { Args: { "p_cohort_id"?: string,"p_expected_ids"?: (string)[],"p_instructor_ids": (string)[],"p_module_id": string }; Returns: undefined
+                           },
+"save_standard_schedule":
+{ Args: { "p_breaks"?: Json,"p_domain_id": string,"p_expected_version"?: number,"p_id": string,"p_module_ids": (string)[],"p_name": string,"p_notes"?: string }; Returns: Json
                            },
 "schedule_problems":
 { Args: { "p_module_week_ids": (string)[] }; Returns: Json
