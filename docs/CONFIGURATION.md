@@ -3,12 +3,17 @@
 Every value the system needs, in one place: what it is for, whether it is secret, where it goes, the Production value
 where it is known, and the step that sets it.
 
-**There is one hosted environment: Production.** Since 22 November 2026 the Supabase project `abcdefghijklmnopqrst`,
-the n8n instance and the Vercel app that used to be called Sandbox are Production. They were switched with
-`npm run configure:production -w scripts`, and the database now refuses any reset. Some names keep the word Sandbox on
-purpose: every n8n credential (for example `Supabase Sandbox`), the webhook paths such as `sandbox-respond` (links in
-messages already sent use them), `app/.env.sandbox` and `npm run dev:sandbox`. The column "Separate setup (not used)"
-holds the values of a second Production setup that was planned but never used.
+**There is one environment: Production.** It is the old Sandbox under a new name: the same Supabase project
+`abcdefghijklmnopqrst`, the same n8n instance and the same Vercel app <https://your-app.vercel.app>. It was
+switched on 22 November 2026 with `npm run configure:production -w scripts`, and the database now refuses any reset.
+There is no Sandbox any more.
+
+**Internal names keep the word Sandbox on purpose**, because renaming them could break things. They are internal names
+only: the n8n credentials `Gmail Sandbox`, `Discord Bot Sandbox`, `Supabase Sandbox`, `Poke Secret Sandbox` and
+`Google Drive Backups`, the n8n tag `Sandbox`, the webhook paths such as `/webhook/sandbox-respond` and
+`/webhook/sandbox-sme-poke` (links in messages already sent use them), the folder `n8n/sandbox/`, the files
+`app/.env.sandbox`, `.env.sandbox.example` and `app/.env.sandbox.example`, and the command `npm run dev:sandbox`. The
+column "Separate setup (not used)" holds the values of a second Production setup that was planned but never used.
 
 **Secrets never go into this file, the repository, chat or tickets.** They go only into the place the table names:
 Supabase, n8n, Vercel, or a `.env.production` file on your own computer (ignored by git). Keep a copy in your password
@@ -17,10 +22,11 @@ manager.
 Where a value goes:
 
 - **`.env.production`**: on your computer, read by the scripts (backup, clock, admins, configure, Discord lookups). It
-  is the renamed `.env.sandbox`, with the same setting names. Start from `.env.sandbox.example`, which already holds
-  every value except the database password.
-- **`app/.env.sandbox`**: on your computer, read by the web app when you run it against the hosted database with
-  `npm run dev:sandbox` (the file keeps its name). Start from `app/.env.sandbox.example`.
+  is the live settings file. It replaced the old `.env.sandbox`, which was deleted on 22 November 2026, and uses the
+  same setting names. Start from `.env.sandbox.example` (an internal file name): add the database password in
+  `DATABASE_URL` and change `APP_BASE_URL` to `https://your-app.vercel.app`.
+- **`app/.env.sandbox`**: on your computer, read by the web app when you run it against the Production database with
+  `npm run dev:sandbox` (internal names, kept on purpose). Start from `app/.env.sandbox.example`.
 - **Vercel**: the hosting variables of the hosted app (the Production environment of the Vercel project).
 - **Supabase**: the dashboard of the project.
 - **n8n credential** or **n8n Config node**: in n8n Cloud.
@@ -48,9 +54,9 @@ Where a value goes:
 | # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
 |---|---|---|---|---|---|---|---|
 | 13 | `ALLOWED_EMAIL_DOMAIN` | Only accounts of this domain may sign in | No | `.env.production`; also `VITE_ALLOWED_EMAIL_DOMAIN` in `app/.env.sandbox` and Vercel | `yourcompany.com` | `yourcompany.com` | Command 4 |
-| 14 | `APP_ENVIRONMENT` | Sandbox or Production rules | No | Set by `configure:production` (`configure:sandbox` only to roll back the switch) | `Production` | `Production` | Command 4 |
-| 15 | `SANDBOX_ALLOWED_DISCORD_SERVERS` | The only Discord server the Sandbox could post to. **Not used in Production** | No | `.env.production` | `1200000000000000010` | not used | Command 4 |
-| 16 | `SANDBOX_ALLOWED_EMAIL_DOMAINS` | The only email domain the Sandbox could send to. **Not used in Production** | No | `.env.production` | `yourcompany.com` | not used | Command 4 |
+| 14 | `APP_ENVIRONMENT` | Which rules the database uses: Production (the old Sandbox rules are kept only for a rollback) | No | Set by `configure:production` (`configure:sandbox` only to roll back the switch) | `Production` | `Production` | Command 4 |
+| 15 | `SANDBOX_ALLOWED_DISCORD_SERVERS` | The only Discord server the old Sandbox could post to (an internal setting name). **Not used in Production** | No | `.env.production` | `1200000000000000010` | not used | Command 4 |
+| 16 | `SANDBOX_ALLOWED_EMAIL_DOMAINS` | The only email domain the old Sandbox could send to (an internal setting name). **Not used in Production** | No | `.env.production` | `yourcompany.com` | not used | Command 4 |
 | 17 | `RESPONSE_BASE_URL` | The address of the answer page (n8n WF2) in instructors' buttons | No | `.env.production` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` (the path keeps its name) | `https://your-instance.app.n8n.cloud/webhook/respond` | Command 4 |
 | 18 | `APP_BASE_URL` | "Open the app" links in messages | No | `.env.production` | `https://your-app.vercel.app` (done) | Its own address | Commands 4, 7 |
 
@@ -71,8 +77,8 @@ receive Discord messages** = Test instructors and signed in colleagues.
 | 25 | `Poke Secret Sandbox` | Lets the app ask n8n to send at once instead of within 6 minutes | Low (the browser can see it) | n8n credential (Header Auth: name `x-poke-key`); the same value in every Config node `pokeKey` and in `VITE_N8N_POKE_KEY` | A long random string you make | `Poke Secret Production` | Command 5 |
 | 26 | Config node `supabaseUrl`, `pokeUrl` | Where each workflow finds the database and WF4 | No | n8n, the Config node of each workflow (filled in) | Row 2, and `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | | Done |
 | 27 | `VITE_N8N_POKE_URL` | The WF4 address the app pokes | No | `app/.env.sandbox` and Vercel | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | `…/webhook/sme-poke` | Command 6 |
-| 46 | n8n schedule | How often n8n runs without being asked | No | n8n: WF4 every 6 minutes (delivery, Discord checks, typed replies), WF1 every hour (engine), WF3 daily 09:00 IST, WF6 not published | About 8,900 executions a month, within an assumed 10,000 (decision 270) | The same | Done |
-| 49 | Database clock (Release 3, M1) | The hourly check and the calls to WF4 run from the database (pg_cron jobs `sme-engine-hourly` and `sme-clock`), so n8n runs only when there is work (decision 281) | No | `npm run clock -w scripts -- on <WF4 poke address>` (it sets `app_config.clock_enabled` and `n8n_poke_url`) | Built and deployed **off**; switched on after row 50 | The same | Waiting for row 50 |
+| 46 | n8n schedule | How often n8n runs without being asked | No | n8n: WF4 every 6 minutes (delivery, Discord checks, typed replies), WF1 every hour (engine), WF3 daily 09:00 IST, WF6 not published | About 8,900 executions a month without the database clock (decision 270). The n8n Cloud Pro plan gives 10,000 a month, shared with the other workflows in the same n8n account | The same | Done |
+| 49 | Database clock (Release 3, M1) | The hourly check and the calls to WF4 run from the database (pg_cron jobs `sme-engine-hourly` and `sme-clock`), so n8n runs only when there is work (decision 281) | No | `npm run clock -w scripts -- on <WF4 poke address>` (it sets `app_config.clock_enabled` and `n8n_poke_url`) | **On** since 22 November, 17:36 UTC (poke address `.../webhook/sandbox-sme-poke`; the poke key is in Vault as `n8n_poke_key`) | The same | Done |
 | 50 | Poke key in Supabase Vault | The database sends it to WF4 in the `x-poke-key` header | **Yes** | Supabase, SQL editor: `select vault.create_secret('<the poke key>', 'n8n_poke_key');` (you paste the value; it never goes in a file or this chat) | The value of the n8n credential "Poke Secret Sandbox" | The same | You add it |
 | 47 | Gmail label | Marks replies WF4 has read, instead of marking them as read | No | Gmail, label "SME Scheduling/Processed"; its ID in `scripts/src/n8n-export.ts` | `Label_1` | Create it in the Production mailbox and put its ID in the export | Done |
 | 48 | Reply-To address | Replies to system emails go here, so WF4 never reads the rest of the shared inbox | No | WF4 "Send email" (filled in) | `scheduling-mailbox+scheduling@yourcompany.com` | Its own +scheduling address | Done |
@@ -154,8 +160,8 @@ With the current Supabase command line, `db:push` without `--remote` goes to the
 "Allow new users to sign up" on (row 11). Add the "Before User Created" hook (row 12).
 
 **4. Tell the database it is Production (done on 22 November 2026).** In `.env.production` (if you have none, copy
-`.env.sandbox.example` to `.env.production`), put the Session pooler connection string with your password in
-`DATABASE_URL`, then:
+`.env.sandbox.example` to `.env.production` and change `APP_BASE_URL` to `https://your-app.vercel.app`), put the
+Session pooler connection string with your password in `DATABASE_URL`, then:
 
 ```bash
 npm run configure:production -w scripts
@@ -181,14 +187,15 @@ Then, in n8n Cloud (n8n/README.md has every click):
 3. In the Config node of WF2 to WF5, set `pokeKey` to the Poke Secret Sandbox value.
 4. Set WF5 as the Error workflow of WF1 to WF4, then publish WF5 and WF4 first, then WF2, WF1 and WF3. Leave WF6 unpublished: WF4 does its Discord checks (decision 270).
 
-**6. Run the app on your computer against the hosted database.** Copy `app/.env.sandbox.example` to `app/.env.sandbox`, add
-the publishable key (row 4) and the poke key (row 25), then:
+**6. Run the app on your computer against the Production database.** Copy `app/.env.sandbox.example` to
+`app/.env.sandbox` (internal file names), add the publishable key (row 4) and the poke key (row 25), then:
 
 ```bash
 npm run dev:sandbox
 ```
 
-Open <http://localhost:5173> and sign in with your company Google account.
+Open <http://localhost:5173> and sign in with a Google account that is on the beta list (admins manage the list on
+**Settings, Admin**).
 
 **7. Hosting (done).** Deploy from this folder with the Vercel command line:
 

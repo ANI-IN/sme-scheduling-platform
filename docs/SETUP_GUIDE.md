@@ -2,11 +2,17 @@
 
 This guide connects the app to the real services.
 
-**There is one hosted environment: Production.** Since 22 November 2026 the Supabase project
-`abcdefghijklmnopqrst`, the n8n instance and the Vercel app <https://your-app.vercel.app> that used to be called
-Sandbox are Production. They were switched with `npm run configure:production -w scripts`, and the database now
-refuses any reset. Some names keep the word Sandbox on purpose: every n8n credential (for example `Supabase Sandbox`),
-the webhook paths such as `sandbox-respond`, `app/.env.sandbox` and `npm run dev:sandbox`.
+**There is one environment: Production.** It is the old Sandbox under a new name: the same Supabase project
+`abcdefghijklmnopqrst`, the same n8n instance and the same Vercel app <https://your-app.vercel.app>. It was
+switched on 22 November 2026 with `npm run configure:production -w scripts`, and the database now refuses any reset.
+There is no Sandbox any more, and nothing in this guide asks you to set one up.
+
+**Internal names keep the word Sandbox on purpose**, because renaming them could break things. They are internal names
+only, not a second environment: the n8n credentials `Gmail Sandbox`, `Discord Bot Sandbox`, `Supabase Sandbox`,
+`Poke Secret Sandbox` and `Google Drive Backups`, the n8n tag `Sandbox`, the webhook paths such as
+`/webhook/sandbox-respond` and `/webhook/sandbox-sme-poke`, the folder `n8n/sandbox/`, the files `app/.env.sandbox`,
+`.env.sandbox.example` and `app/.env.sandbox.example`, and the command `npm run dev:sandbox`. The live settings file
+on your computer is `.env.production`.
 
 You do not need to write code. Follow the parts in order and tick the checklist at the end as you go.
 
@@ -22,7 +28,8 @@ documents, the checklist or the repository. Keep a copy in your company password
 
 - A Google Workspace account in the company domain (`yourcompany.com`).
 - Admin rights on the Discord servers the bot will be in (15 or more is fine), and the test Discord server.
-- n8n Cloud (`https://your-instance.app.n8n.cloud`) where you can create credentials and import workflows.
+- n8n Cloud (`https://your-instance.app.n8n.cloud`) where you can create credentials and import workflows. It is the
+  owner's paid n8n Cloud Pro plan: 10,000 executions a month, shared with the other workflows in the same n8n account.
 - A Vercel account on a paid plan, or a free Cloudflare account (see part 7).
 - Node.js 22 and Git installed on your computer, and a copy of this repository. On Windows, copy
   `.npmrc.windows-example` to `.npmrc` in the repository folder before you start, so the commands below run in Git Bash.
@@ -36,7 +43,7 @@ Production uses the Supabase project `abcdefghijklmnopqrst`. A new setup would n
 
 ### 1.1 Create the project
 
-**Production: done.** Project ID `abcdefghijklmnopqrst`, region South Asia (Mumbai), organization "NP Automation".
+**Production: done.** Project ID `abcdefghijklmnopqrst`, region Northeast Asia (Tokyo, AWS `ap-northeast-1`), organization "NP Automation".
 
 For a new setup: go to <https://supabase.com/dashboard>, **New project**, name it `sme-scheduling-production`, choose a
 strong database password and save it in the password manager, pick the same region, and wait about two minutes.
@@ -78,10 +85,11 @@ you add every domain, module, instructor and team member in the app, guided by t
 
 ### 1.4 Tell the database which environment it is
 
-1. The scripts read `.env.production` in the repository root: the renamed `.env.sandbox`, with the same setting
-   names. If you have none, copy `.env.sandbox.example` to `.env.production`; it already holds every Production value
-   except the database connection string. For a new setup, copy `.env.example` to `.env.production`. The file is
-   ignored by Git, so it never leaves your computer.
+1. The scripts read `.env.production` in the repository root. It replaced the old `.env.sandbox` (deleted on
+   22 November 2026) and uses the same setting names. If you have none, copy `.env.sandbox.example` (the example keeps
+   its old name) to `.env.production`. It holds the Production values except two: add the database connection string,
+   and change `APP_BASE_URL` from `http://localhost:5173` to `https://your-app.vercel.app`. For a new setup, copy
+   `.env.example` to `.env.production`. The file is ignored by Git, so it never leaves your computer.
 2. Fill in:
 
    | Name | Production | A new setup |
@@ -106,12 +114,12 @@ you add every domain, module, instructor and team member in the app, guided by t
    It prints the environment and the allowed sign in domain. Run it again whenever you change one of these values
    (for example after you know the Discord server ID, the WF2 webhook or the app address).
 
-   Until this has run, the database counts as Sandbox: only company Google accounts can sign in and nothing can be
-   reset. Production refuses any reset too. `Development` is refused for a database that is not on your own computer. The answer link
+   On a new database, until this has run, the database uses its starting rules (still called Sandbox inside the
+   database): only company Google accounts can sign in and nothing can be reset. Production refuses any reset too. `Development` is refused for a database that is not on your own computer. The answer link
    (`RESPONSE_BASE_URL`) and the app address (`APP_BASE_URL`) can only be set here, never from inside the app, so
    nobody can send instructors' answer buttons to another address.
 
-### 1.5 Only company Google accounts may sign in
+### 1.5 Who may sign in: the beta list
 
 1. **Authentication → Sign In / Providers**: switch **off** "Allow new users to sign up" for **Email**, and keep
    **Google** on (you fill it in at 2.2).
@@ -171,10 +179,11 @@ The app uses Discord servers you already have. It never creates servers or chann
   `#test-instructor-c`. **One more channel is needed: create `#testing`**. While a domain's status is Testing, all its
   messages go there. You choose it from the list in the app; no ID is needed.
 
-### 4.2 One bot per environment
+### 4.2 The bot
 
-1. Go to <https://discord.com/developers/applications>, **New Application**, name `SME Scheduling Sandbox` (or
-   `SME Scheduling`).
+**Production: done.** The steps below are for a new setup.
+
+1. Go to <https://discord.com/developers/applications>, **New Application**, name `SME Scheduling`.
 2. **Bot**, **Reset Token**, copy the token (it is shown once). It goes only into the n8n credential
    `Discord Bot Sandbox` (Production keeps this name) or, for a new setup, `Discord Bot Production` (type Discord Bot
    API). Never put it in a file that is committed. **Production: done.**
@@ -234,8 +243,8 @@ The system works fully without AI. If you want a one line summary of typed repli
 1. Go to <https://platform.openai.com> → **API keys** → **Create new secret key**, name `SME Scheduling (<env>)`.
 2. **Settings → Limits**: set a low monthly budget (for example 5 US dollars). Replies are short, so the real cost is
    under one dollar a month.
-3. In n8n create a credential of type **OpenAI**, name `OpenAI Sandbox` (Production keeps the Sandbox credential
-   names), paste the key.
+3. In n8n create a credential of type **OpenAI**, name `OpenAI Sandbox` (an internal name that matches the other
+   credentials), paste the key.
 4. In WF1, add an **OpenAI** node where the note "Optional AI summary" says, using the smallest suitable model. It only
    fills the summary; it never decides anything.
 
@@ -250,9 +259,10 @@ The app is a set of static files. Both options below work; choose one.
 ### 7.0 First, on your own computer
 
 You can run the app on your computer against the hosted Production database: copy `app/.env.sandbox.example` to
-`app/.env.sandbox`, add the publishable key and the poke key, and run `npm run dev:sandbox` (the file and the command
-keep their Sandbox names). Open <http://localhost:5173> (the Supabase Site URL and Redirect URLs already allow it) and
-sign in with your company Google account.
+`app/.env.sandbox`, add the publishable key and the poke key, and run `npm run dev:sandbox` (the files and the command
+keep their old internal names; they point at Production). Open <http://localhost:5173> (the Supabase Site URL and
+Redirect URLs already allow it) and sign in with a Google account that is on the beta list (admins manage the list on
+**Settings, Admin**).
 
 **Vercel** needs a paid plan (Pro) for company use: the free Hobby plan does not allow commercial use.
 **Cloudflare Pages** is free for company use. Production runs on Vercel's Hobby plan today, deployed with the Vercel
@@ -333,8 +343,9 @@ Do this once the app is online (7.2 or 7.3) and the workflows are published in n
 
 ### 8.1 Production
 
-1. Open <https://your-app.vercel.app>. No **Sandbox** label shows at the top.
-2. **Sign in with Google** with your company account. Try an account from outside the company: it must be refused.
+1. Open <https://your-app.vercel.app>. No environment label shows at the top.
+2. **Sign in with Google** with an account on the beta list. Try an account that is not on the list: it must be
+   refused.
 3. **Home** shows the **Get started** list: add a domain, choose its Discord server, add team members, add
    instructors, add modules, create a cohort, plan classes. Each step opens the page where you do it. The hosted app
    starts empty and each tester sets up their own domain; the database refuses any reset.
@@ -382,7 +393,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 6 | Tables and functions | `npm run db:push` | Supabase | | | ☐ |
 | 7 | Starting data | None: the app starts empty; follow Get started on Home | App | | | ☐ |
 | 8 | Environment and sign in domain | You decide | `npm run configure:production -w scripts` | Production | Production | ☐ |
-| 9 | Sandbox allowed Discord servers and email domains (not used in Production) | Discord server ID; your domain | `.env.production`, then configure | not used | not used | ☐ |
+| 9 | Old allow lists `SANDBOX_ALLOWED_DISCORD_SERVERS` and `SANDBOX_ALLOWED_EMAIL_DOMAINS` (not used in Production) | Discord server ID; your domain | `.env.production`, then configure | not used | not used | ☐ |
 | 10 | Sign in hook | Authentication → Hooks | Before User Created → `public.hook_before_user_created` | | | ☐ |
 | 11 | Email sign up switched off | Authentication → Sign In / Providers | Supabase | | | ☐ |
 | 12 | Google Cloud project, Internal | console.cloud.google.com | | | | ☐ |
@@ -392,7 +403,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 16 | Backup folder ID | Google Drive address bar | n8n WF3 (filled in) | `your-drive-folder-id` | | ☐ |
 | 17 | Scheduling mailbox | The B2C mailbox | n8n Gmail sign in; app Sender email | `scheduling-mailbox@yourcompany.com` | | ☐ |
 | 18 | Discord server | Discord | | | | ☐ |
-| 19 | Test Discord server ID | Right click server → Copy Server ID | The app lists servers itself (the Sandbox allow list in 1.4 is not used in Production) | | | ☐ |
+| 19 | Test Discord server ID | Right click server → Copy Server ID | The app lists servers itself (the old allow list in 1.4 is not used in Production) | | | ☐ |
 | 20 | Discord bot token (secret) | Developer Portal → Bot | n8n `Discord Bot Sandbox` | done | in password manager | ☐ |
 | 21 | Server Members Intent and Message Content Intent on | Developer Portal → Bot | | | | ☐ |
 | 22 | Bot invited and can see channels | Invite link on Connections (7.5) | Discord server | | | ☐ |

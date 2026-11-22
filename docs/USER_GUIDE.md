@@ -5,8 +5,9 @@ step by step guides with pictures, kept up to date with the screens. This page i
 
 ## Signing in
 
-Sign in with your company Google account. Choose the domain at the top of the sidebar. A **Sandbox** label means you
-are in the practice copy of the app, where real instructors are never contacted.
+Sign in with Google. Only people on the beta list can sign in; admins manage the list on **Settings, Admin**. Then
+choose the domain at the top of the sidebar. There is one copy of the app, Production, so there is no environment
+label to look for.
 
 ## The pages
 

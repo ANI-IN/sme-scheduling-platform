@@ -19,10 +19,14 @@ WF4 "there is work in the database, process it now". WF4 also runs every 5 minut
 
 ## The Production workflows and the two folders
 
-There is one hosted environment, **Production** (since 22 November 2026). It runs in the same n8n instance that used
-to run the Sandbox, and the live workflows are now named `[Production] WF1 Hourly engine`,
+There is one environment, **Production** (since 22 November 2026). It is the old Sandbox under a new name, in the same
+n8n instance, and there is no Sandbox any more. The live workflows are named `[Production] WF1 Hourly engine`,
 `[Production] WF2 Response handler`, `[Production] WF3 Daily jobs`, `[Production] WF4 Action runner`,
 `[Production] WF5 Error handler` and `[Production] WF6 Discord checks`.
+
+Some internal names keep the word Sandbox on purpose, because renaming them could break things. They are internal
+names only, not a second environment: the credential names, the tag `Sandbox`, the webhook paths
+`/webhook/sandbox-respond` and `/webhook/sandbox-sme-poke`, and the folder `n8n/sandbox/`.
 
 The files in this folder are the **base** workflows. Do not import them directly. Run
 
@@ -39,7 +43,7 @@ to build the two exported sets:
 | | `n8n/sandbox/` (live Production) | `n8n/production/` (not used) |
 |---|---|---|
 | Workflow names | `[Production] WF1 Hourly engine` and so on | `[Production] WF1 Hourly engine` and so on |
-| Tag | `Sandbox` | `Production` |
+| Tag | `Sandbox` (internal name, kept on purpose) | `Production` |
 | Credential names | `Gmail Sandbox`, `Discord Bot Sandbox`, `Google Drive Backups`, `Supabase Sandbox`, `Poke Secret Sandbox` (kept on purpose) | The same with `Production` |
 | WF2 webhook | `/webhook/sandbox-respond` (kept: links in messages already sent use it) | `/webhook/respond` |
 | WF4 webhook | `/webhook/sandbox-sme-poke` (kept) | `/webhook/sme-poke` |
@@ -65,7 +69,7 @@ You need:
 ## 2. Create the credentials
 
 In n8n: **Overview → Credentials → Create credential**. The workflows look credentials up by these exact names
-(decision 264). Production keeps the Sandbox names and already has three of them; you only create the other two.
+(decision 264). Production keeps the internal Sandbox credential names and already has three of them; you only create the other two.
 
 | Name (Production) | Name (separate setup, not used) | Type | State in Production |
 |---|---|---|---|
@@ -156,7 +160,7 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
    the WF2 production address in `RESPONSE_BASE_URL` in `.env.production` (`/webhook/sandbox-respond` for
    Production), then run `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). It must start with `https://`. The app shows
    it read only on **Settings, Connections, Advanced: links**; it cannot be changed from the app (decision 205).
-2. **Poke URL + secret (WF4)** — in the app's environment (Vercel → your project → Settings → Environment Variables, and `app/.env.local` for local use):
+2. **Poke URL and secret (WF4)**, in the app's environment (Vercel → your project → Settings → Environment Variables, and `app/.env.sandbox` when you run the app on your computer against Production):
    - `VITE_N8N_POKE_URL` = `https://<your-n8n>/webhook/sandbox-sme-poke` for Production (`/webhook/sme-poke` in a
      separate setup)
    - `VITE_N8N_POKE_KEY` = the Poke secret value

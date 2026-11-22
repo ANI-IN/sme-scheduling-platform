@@ -3,10 +3,13 @@
 What to check each day, how to stop messages fast, and what to do when something looks wrong. The app's own Help
 (the **Help** link in the sidebar) explains every page step by step.
 
-There is one hosted environment, **Production** (since 22 November 2026): the Supabase project `abcdefghijklmnopqrst`,
-the n8n instance and <https://your-app.vercel.app>, all of which used to be called Sandbox. The n8n workflows
-are named `[Production] WF1 Hourly engine` and so on; the n8n credentials and webhook paths keep their Sandbox names.
-The script commands below read `.env.production` (the renamed `.env.sandbox`). The database refuses any reset.
+There is one environment, **Production** (since 22 November 2026). It is the old Sandbox under a new name: the same
+Supabase project `abcdefghijklmnopqrst`, the same n8n instance and the same app <https://your-app.vercel.app>.
+There is no Sandbox any more. The n8n workflows are named `[Production] WF1 Hourly engine` and so on. Some internal
+names keep the word Sandbox on purpose, because renaming them could break things: the n8n credentials (for example
+`Supabase Sandbox`), the n8n tag `Sandbox`, the webhook paths (for example `/webhook/sandbox-sme-poke`) and the
+folder `n8n/sandbox/`. The script commands below read `.env.production`, the live settings file. The database refuses
+any reset.
 
 ## Stop all messages to instructors (do this first in an emergency)
 
@@ -40,13 +43,13 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 |---|---|---|
 | No daily system summary this morning | n8n is down, WF3 is not published, or no admin alert channel is chosen | Open n8n, **Executions**. Check WF3 is published and its Config node. Choose the admin alert channel on **Settings, Connections**. |
 | The automatic check on Connections is old | WF1 is not published, n8n is down, or the Supabase project is paused | Publish WF1. Check n8n **Executions** (WF5 also posts errors in the admin alert channel). A free Supabase project pauses after a week without use: restore it in the Supabase dashboard. |
-| Messages stay waiting to send | Messages are paused, WF4 is not running, or the Supabase key in n8n is wrong | Check for the red paused bar first. Run WF4 by hand in n8n. Check the n8n credential **Supabase secret key**. |
+| Messages stay waiting to send | Messages are paused, WF4 is not running, or the Supabase key in n8n is wrong | Check for the red paused bar first. Run WF4 by hand in n8n. Check the n8n credential `Supabase Sandbox` (the internal name of the Production Supabase key). |
 | Buttons in the app do not send at once | `VITE_N8N_POKE_URL` or `VITE_N8N_POKE_KEY` is wrong in the hosting settings | Messages still go within 5 minutes (WF4 runs on a schedule). Fix the hosting variables and deploy again. |
 | A task says a Discord message was not delivered | The bot cannot post in the instructor's channel, or the channel was deleted | The task says exactly what to fix. Give the bot's role access to the channel, or choose a new channel for the instructor on **Setup, Instructors**. The email was still sent. |
 | A task says an email bounced | Wrong email address | Fix it on **Setup, Instructors**. Discord is still used meanwhile. |
 | An answer link says "This link isn't valid" | The link was copied only in part, or the answer page link is wrong | **Settings, Connections, Advanced: links** shows the answer page link. It must be the WF2 production address. Change it with `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). |
 | An instructor presses the button on the answer page and nothing happens | The answer page link points to the n8n test address (`/webhook-test/`) | Use the n8n production address (`/webhook/sandbox-respond`; the path keeps its name) and publish WF2. |
-| Someone cannot sign in | Not a company Google account, or the Supabase redirect address is missing | Only company Google accounts work. Check Supabase, **Authentication, URL Configuration**. The refusal is in Activity history. |
+| Someone cannot sign in | They are not on the beta list, or the Supabase redirect address is missing | Only people on the beta list can sign in: an admin adds them on **Settings, Admin**. Check Supabase, **Authentication, URL Configuration**. The refusal is in Activity history. |
 | "This changed, reload" | Someone else saved the same record | Reload the page and make your change again. |
 | Requests do not start for a class week | Setup is not finished (no owner, nobody can be asked, and so on) | **Needs your attention** says why. Fix it and asking starts at the next automatic check. |
 | "Needs an instructor" | Everyone in the instructor order said no, did not reply or cannot be asked | Phone people, then open the class week and press **Assign and confirm instructor** or **Record a phone or chat confirmation**. Or add instructors to the module's instructor order: asking starts again by itself. |
@@ -111,8 +114,8 @@ Roll back first, then fix locally:
 - **Last resort, if a rollback file cannot run:** restore the backup taken before the deploy with `pg_restore --clean`
   into the live database. Anything done since the backup is lost, so do it only after pausing all messages and telling
   the testers.
-- **The switch to Production:** `npm run configure:sandbox -w scripts` sets the database back to Sandbox rules. It is
-  kept only as this rollback, and it also reads `.env.production`.
+- **The switch to Production:** `npm run configure:sandbox -w scripts` sets the database back to the old Sandbox rules.
+  It is kept only as this rollback, and it also reads `.env.production`.
 
 ### Admins (Release 3, M2)
 
