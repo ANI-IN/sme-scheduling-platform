@@ -127,7 +127,6 @@ export function DomainDiscordServer({ domain }: { domain: Domain }) {
               <Button
                 size="sm"
                 variant="secondary"
-                aria-label={`Approve ${s.name} for this domain`}
                 onClick={() =>
                   void run(async () => {
                     await rpc('set_discord_server_access', {
@@ -139,7 +138,7 @@ export function DomainDiscordServer({ domain }: { domain: Domain }) {
                   }, `${s.name} approved for ${domain.name}`)
                 }
               >
-                Approve for this domain
+                Approve for this domain<span className="sr-only">: {s.name}</span>
               </Button>
             </li>
           ))}

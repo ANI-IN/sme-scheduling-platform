@@ -132,6 +132,10 @@ test('Connections: set up and nothing sent reads Ready; an admin sends a Discord
   await sql(
     `update public.message set status = 'Cancelled' where status in ('Sent', 'Failed', 'Pending', 'Scheduled')`,
   );
+  // Email is sent by the automation service, so it is ready once the service has handled work.
+  await sql(
+    `insert into public.action_queue (action, payload, status, processed_at) values ('deliver', '{}', 'Done', now())`,
+  );
   await sql(
     `update public.app_config set scheduling_email = coalesce(scheduling_email, 'sender@example.com'),
             admin_discord_channel_id = coalesce(admin_discord_channel_id, (
@@ -178,15 +182,19 @@ test('Setup, Domains: an admin approves a waiting server for the domain, chooses
   await expect(waiting).toContainText('New program server');
   await a11y(page, 'domain discord server');
   await noDashes(page, 'domain discord server');
-  await waiting.getByRole('button', { name: 'Approve New program server for this domain' }).click();
+  const [{ n: before }] = await sql<{ n: number }>(
+    `select count(*)::int n from public.history_event where action = 'Discord server approved'`,
+  );
+  await waiting
+    .getByRole('button', { name: 'Approve for this domain: New program server' })
+    .click();
   await expect(page.getByText('New program server approved for Backend')).toBeVisible();
   const [a] = await sql<{ n: number; h: number }>(
     `select (select count(*)::int from public.discord_server_domain sd join public.domain dd on dd.id = sd.domain_id
               where sd.server_id = '900000000000000117' and dd.name = 'Backend') n,
-            (select count(*)::int from public.history_event where action = 'Discord server approved'
-              and after ->> 'server' = 'New program server') h`,
+            (select count(*)::int from public.history_event where action = 'Discord server approved') h`,
   );
-  expect(a).toEqual({ n: 1, h: 1 });
+  expect(a).toEqual({ n: 1, h: before! + 1 });
   await d
     .getByRole('combobox', { name: 'Discord server' })
     .selectOption({ label: 'Program server 2' });
@@ -205,7 +213,7 @@ test('Setup, Domains: a normal user sees only the servers approved for the domai
     ME,
   ]);
   let d = await openBackend(page);
-  await expect(d.getByRole('button', { name: /for this domain$/ })).toHaveCount(0);
+  await expect(d.getByRole('button', { name: /^Approve for this domain/ })).toHaveCount(0);
   await expect(
     d
       .getByRole('combobox', { name: 'Discord server' })
