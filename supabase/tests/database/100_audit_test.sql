@@ -41,6 +41,9 @@ select ok((select not public.undoable(e) from public.history_event e where entit
   'creating a domain cannot be undone');
 select ok((select not public.undoable(e) from public.history_event e where entity_table = 'module' and action = 'module added' and entity_id = :'mod'::uuid),
   'creating a module cannot be undone');
+-- A team member edits the module in the app (only their changes can be undone).
+select tests.login_member('au.ops@example.com');
+update public.module set rotation_order = 8 where id = :'mod';
 select tests.login_as('ops@example.com');
 select ok((select public.undoable(e) from public.history_event e where entity_table = 'module' and action = 'module changed' order by id desc limit 1),
   'editing a module can be undone');

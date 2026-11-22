@@ -20,6 +20,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  DateInput,
   Drawer,
   Empty,
   ErrorText,
@@ -962,20 +963,14 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
       </ul>
       <div className="flex flex-wrap items-start gap-2">
         <Field label="First day" error={v.show('from')}>
-          <Input
-            type="date"
+          <DateInput
             value={r.from}
             onBlur={v.touch('from')}
-            onChange={(e) => setR({ ...r, from: e.target.value })}
+            onChange={(from) => setR({ ...r, from })}
           />
         </Field>
         <Field label="Last day" error={v.show('to')}>
-          <Input
-            type="date"
-            value={r.to}
-            onBlur={v.touch('to')}
-            onChange={(e) => setR({ ...r, to: e.target.value })}
-          />
+          <DateInput value={r.to} onBlur={v.touch('to')} onChange={(to) => setR({ ...r, to })} />
         </Field>
         <Field label="Reason (optional)">
           <Input value={r.reason} onChange={(e) => setR({ ...r, reason: e.target.value })} />

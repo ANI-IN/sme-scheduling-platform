@@ -180,7 +180,10 @@ select ok(not exists (select id from hist_before except select id from public.hi
 select ok(not private.can_undo((select h from public.history_event h where action = 'Domain deleted: DX')),
   'undo 1. a permanent delete cannot be undone');
 insert into public.holiday (domain_id, date, name) values (:'ydom', '2027-05-01', 'DY day') returning id as hol \gset
+-- A team member edits it in the app (only their changes can be undone).
+select tests.login_member('dy.ops@example.com');
 update public.holiday set name = 'DY holiday' where id = :'hol';
+select tests.as_postgres();
 delete from public.holiday where id = :'hol';
 select ok(private.can_undo((select h from public.history_event h where entity_id = :'hol' and action = 'holiday changed')),
   'undo 2. an edit can still be undone');
