@@ -26,6 +26,7 @@ import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { instructorStatusLabel } from '@/lib/labels';
+import { WEEK_STATUS } from '@/lib/status';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useWeeks } from '@/lib/data';
 import { fmtAt, weekRegion } from '@/lib/region';
@@ -676,7 +677,7 @@ export function WhoIsNext({ moduleId }: { moduleId: string }) {
               <span>
                 {p.asking ? (
                   <>
-                    Asking <strong>{p.asking.name}</strong> now, then{' '}
+                    {WEEK_STATUS.Waiting.word} from <strong>{p.asking.name}</strong>, then{' '}
                   </>
                 ) : (
                   'Next: '

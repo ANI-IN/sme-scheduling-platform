@@ -63,7 +63,6 @@ const REPLACEMENTS: [RegExp, string][] = [
   [/\s+[—–]\s+/g, ': '],
   [/[—–]/g, ' to '],
   [/\be\.g\./gi, 'for example'],
-  [/\bNeeds instructor: /g, 'No instructor yet for '],
   [/\bAt risk: /g, 'At risk: '],
   [/\bReadiness check failed\b/g, 'Setup check needs fixing'],
   [/\bReadiness check passed\b/g, 'Setup check passed'],

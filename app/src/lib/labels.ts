@@ -1,14 +1,3 @@
-export const weekStatusLabel: Record<string, string> = {
-  Planned: 'Not started yet',
-  NotReady: 'Setup not finished',
-  Ready: 'Ready to ask',
-  Asking: 'Asking',
-  Confirmed: 'Confirmed',
-  Completed: 'Completed',
-  NeedsInstructor: 'Needs an instructor',
-  Cancelled: 'Cancelled',
-};
-
 export const attentionTypeLabel: Record<string, string> = {
   RankingExhausted: 'Nobody left to ask',
   ClassAtRisk: 'Class at risk',

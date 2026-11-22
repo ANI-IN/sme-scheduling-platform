@@ -4,7 +4,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BADGE, decisionLabel, legendGroups, renderableLabels } from './boardBadges';
+import type { WeekRow } from '@/lib/data';
+import { WEEK_KINDS, weekState, weeksById } from '@/lib/status';
+import { BADGE, STATUS, decisionLabel, legendGroups, renderableLabels } from './boardBadges';
 
 const MIGRATIONS = join(__dirname, '..', '..', '..', 'supabase', 'migrations');
 const sqlFiles = readdirSync(MIGRATIONS)
@@ -88,5 +90,105 @@ describe('Schedule board legend', () => {
     expect(decisionLabel('clash')).toBe('Clash');
     expect(decisionLabel('needs_instructor')).toBe('Needs instructor');
     expect(decisionLabel('proposed_time')).toBe('Proposed time');
+  });
+});
+
+/** The status words of a class week, everywhere a person sees them (owner's item 1), in this order. */
+const STATUS_WORDS = [
+  'Confirmed',
+  'Waiting for an answer',
+  'Needs instructor',
+  'Proposed time',
+  'Not asked yet',
+  'Setup incomplete',
+  'Paused',
+  'Cancelled',
+  'Completed',
+  'Break',
+];
+/** Words for the same states that are not used any more (docs/GLOSSARY.md). */
+const OLD_WORDS = [
+  'Asking',
+  'Asking now',
+  'Being asked',
+  'Ready to ask',
+  'Not started yet',
+  'Setup not finished',
+  'Needs an instructor',
+  'Requests paused',
+  'Waiting for a reply',
+];
+
+describe('class week status words', () => {
+  it('the Legend lists exactly the agreed statuses, in order', () => {
+    const statuses = legendGroups().find((g) => g.title === 'Statuses')!;
+    expect(statuses.items.map((i) => i.label)).toEqual(STATUS_WORDS);
+    expect(WEEK_KINDS).toEqual(STATUS_WORDS.slice(0, -1));
+    expect(Object.values(STATUS).map((s) => s.word)).toEqual(STATUS_WORDS.slice(0, -1));
+  });
+
+  it('no badge or Legend entry uses an old status word', () => {
+    const shown = new Set([
+      ...renderableLabels(),
+      ...legendGroups().flatMap((g) => g.items.map((i) => i.label)),
+    ]);
+    for (const old of OLD_WORDS) expect(shown, old).not.toContain(old);
+  });
+});
+
+describe('weekState', () => {
+  const names = new Map([
+    ['i1', 'Priya'],
+    ['i2', 'Sam'],
+  ]);
+  const week = (over: Record<string, unknown> = {}) =>
+    ({
+      id: 'w1',
+      status: 'Ready',
+      at_risk: false,
+      paused: false,
+      shared_with: null,
+      booking: [],
+      request: [],
+      time_proposal: [],
+      ...over,
+    }) as unknown as WeekRow;
+  const asked = [{ kind: 'Outreach', status: 'Sent', instructor_id: 'i1' }];
+  const booked = [{ status: 'Active', instructor_id: 'i2' }];
+  const kind = (over: Record<string, unknown>) => weekState(week(over), names).kind;
+
+  it('gives every database status the agreed word', () => {
+    expect(kind({ status: 'Planned' })).toBe('Not asked yet');
+    expect(kind({ status: 'Ready' })).toBe('Not asked yet');
+    expect(kind({ status: 'NotReady' })).toBe('Setup incomplete');
+    expect(kind({ status: 'NeedsInstructor' })).toBe('Needs instructor');
+    expect(kind({ status: 'Ready', at_risk: true })).toBe('Needs instructor');
+    expect(kind({ status: 'Asking', request: asked })).toBe('Waiting for an answer');
+    expect(kind({ status: 'Asking', request: asked, time_proposal: [{ status: 'Pending' }] })).toBe(
+      'Proposed time',
+    );
+    expect(kind({ status: 'Confirmed', booking: booked })).toBe('Confirmed');
+    expect(kind({ status: 'Ready', paused: true })).toBe('Paused');
+    expect(kind({ status: 'Cancelled', booking: booked })).toBe('Cancelled');
+    expect(kind({ status: 'Completed', booking: booked })).toBe('Completed');
+  });
+
+  it('names the instructor in the download words, and keeps at risk as a flag', () => {
+    const waiting = weekState(week({ status: 'Asking', request: asked }), names);
+    expect(waiting.label).toBe('Waiting for an answer (Priya)');
+    expect(waiting.asking).toBe('Priya');
+    const risky = weekState(week({ status: 'Confirmed', booking: booked, at_risk: true }), names);
+    expect(risky.label).toBe('Confirmed (Sam), at risk');
+    expect(risky.short).toBe('Confirmed, at risk');
+    expect(risky.atRisk).toBe(true);
+  });
+
+  it('shows a shared class week with the status of the class week it is taught in', () => {
+    const host = week({ id: 'h1', status: 'Confirmed', booking: booked });
+    const guest = week({ id: 'g1', shared_with: 'h1', paused: true });
+    const st = weekState(guest, names, weeksById([host, guest]));
+    expect(st.kind).toBe('Confirmed');
+    expect(st.confirmed).toBe('Sam');
+    expect(st.shared).toBe(true);
   });
 });

@@ -149,7 +149,7 @@ test('replacing an instructor: release from the class drawer, the next one is as
     [w.id],
   );
   expect(next.name).not.toBe(w.name);
-  await expect(dlg.getByText(`Asking ${next.name} now.`)).toBeVisible();
+  await expect(dlg.getByText(`Waiting for an answer from ${next.name}.`)).toBeVisible();
 });
 
 test('reminders: the daily summary is switched off for the domain and back on', async ({

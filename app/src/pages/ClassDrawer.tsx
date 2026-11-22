@@ -4,15 +4,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
-import { useNameBook, type WeekRow } from '@/lib/data';
+import { useNameBook, useWeeks, type WeekRow } from '@/lib/data';
 import { discordNames } from '@/lib/discordNames';
 import { messageTitle, plain } from '@/lib/plain';
 import { describeHistory } from '@/lib/historyText';
 import { fmtLocal } from '@/lib/time';
 import { asRegion, localParts, timeFieldLabel } from '@/lib/region';
-import { COHORT_BADGE, MSG_STATUS, PANEL_BADGE } from './boardBadges';
+import { COHORT_BADGE, MSG_STATUS, PANEL_BADGE, STATUS } from './boardBadges';
 import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
-import { weekState } from '@/lib/status';
+import { weekState, weeksById } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
@@ -81,7 +81,9 @@ export function ClassDrawer({
 }) {
   const confirm = useConfirm();
   const { run, err, busy } = useRun();
-  const state = weekState(week, names);
+  // A shared class week shows the status of the class week it is taught in.
+  const all = useWeeks(week.shared_with ? week.domain_id : undefined);
+  const state = weekState(week, names, weeksById(all.data));
   const classes = [...week.class_session].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const booking = week.booking.find((b) => b.status === 'Active');
 
@@ -186,7 +188,7 @@ export function ClassDrawer({
       <div className="space-y-6 text-sm">
         <div className="flex flex-wrap gap-2">
           <Badge tone={state.tone}>{state.short}</Badge>
-          {week.at_risk && state.kind !== 'At risk' && (
+          {week.at_risk && state.status !== 'Confirmed' && (
             <Badge tone="danger">{PANEL_BADGE.atRisk}</Badge>
           )}
           <Badge>
@@ -195,7 +197,8 @@ export function ClassDrawer({
           {week.shared_with ? (
             <Badge tone="accent">{PANEL_BADGE.sharedClass}</Badge>
           ) : (
-            week.paused && <Badge tone="accent">{PANEL_BADGE.requestsPaused}</Badge>
+            week.paused &&
+            state.status !== 'Paused' && <Badge tone="neutral">{STATUS.Paused.word}</Badge>
           )}
           {openHelp && <Badge tone="warning">{PANEL_BADGE.helpOpen}</Badge>}
         </div>
@@ -256,7 +259,9 @@ export function ClassDrawer({
             </div>
           ) : (
             <p className="text-muted-foreground">
-              {state.asking ? `Asking ${state.asking} now.` : 'No instructor confirmed yet.'}
+              {state.asking
+                ? `${STATUS.Waiting.word} from ${state.asking}.`
+                : 'No instructor confirmed yet.'}
             </p>
           )}
           {!booking && week.status !== 'Cancelled' && (
@@ -434,7 +439,9 @@ export function ClassDrawer({
                             p_module_week_id: week.id,
                             p_paused: !week.paused,
                           }),
-                        week.paused ? 'Requests resumed' : 'Requests paused',
+                        week.paused
+                          ? 'Requests for this class week resumed'
+                          : 'Requests for this class week are paused',
                       )
                     }
                   >
@@ -466,7 +473,7 @@ export function ClassDrawer({
                     onClick={() =>
                       run(
                         () => rpc('start_asking_now', { p_module_week_id: week.id }),
-                        'Asking now',
+                        'Started asking',
                       )
                     }
                   >

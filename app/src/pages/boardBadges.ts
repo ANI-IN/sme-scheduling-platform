@@ -14,84 +14,40 @@ import {
 } from 'lucide-react';
 import type { Tone } from '@/components/ui';
 import { REGION_NAME, REGIONS } from '@/lib/region';
-import { CONFIRMED_AT_RISK, WEEK_KINDS, type WeekKind } from '@/lib/status';
+import { AT_RISK, BREAK_WORD, CONFIRMED_AT_RISK, WEEK_STATUS, type WeekStatus } from '@/lib/status';
 
-export type Status =
-  | 'Confirmed'
-  | 'Waiting'
-  | 'Needs instructor'
-  | 'Proposed time'
-  | 'Not asked yet'
-  | 'Setup incomplete'
-  | 'Paused'
-  | 'Cancelled'
-  | 'Completed';
+export type Status = WeekStatus;
 
-/** The main statuses of a cell: always colour, icon and word together. */
-export const STATUS: Record<
-  Status,
-  {
-    tone: 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
-    icon: typeof Circle;
-    word: string;
-    text: string;
-  }
-> = {
-  Confirmed: {
-    tone: 'success',
-    icon: CheckCircle2,
-    word: 'Confirmed',
-    text: 'An instructor said yes to this class week.',
-  },
-  Waiting: {
-    tone: 'warning',
-    icon: Clock,
-    word: 'Waiting for an answer',
-    text: 'An instructor was asked and has not answered yet.',
-  },
+/** The main statuses of a cell: always colour, icon and word together. The words come from WEEK_STATUS. */
+const STATUS_LOOK: Record<Status, { icon: typeof Circle; text: string }> = {
+  Confirmed: { icon: CheckCircle2, text: 'An instructor said yes to this class week.' },
+  Waiting: { icon: Clock, text: 'An instructor was asked and has not answered yet.' },
   'Needs instructor': {
-    tone: 'danger',
     icon: AlertTriangle,
-    word: 'Needs instructor',
     text: 'Nobody is confirmed or being asked, so you need to choose an instructor.',
   },
   'Proposed time': {
-    tone: 'accent',
     icon: CalendarClock,
-    word: 'Proposed time',
     text: 'The instructor proposed another time, which you accept or reject.',
   },
   'Not asked yet': {
-    tone: 'neutral',
     icon: Circle,
-    word: 'Not asked yet',
     text: 'Nobody was asked yet, and the cell names the Primary instructor who is asked first.',
   },
   'Setup incomplete': {
-    tone: 'neutral',
     icon: Wrench,
-    word: 'Setup incomplete',
     text: 'Something is missing, such as class times or an instructor order, so nobody can be asked yet.',
   },
   Paused: {
-    tone: 'neutral',
     icon: PauseCircle,
-    word: 'Paused',
     text: 'Requests for this class week are paused, so nobody is asked.',
   },
-  Cancelled: {
-    tone: 'neutral',
-    icon: XCircle,
-    word: 'Cancelled',
-    text: 'This class week or class will not take place.',
-  },
-  Completed: {
-    tone: 'neutral',
-    icon: CheckCircle2,
-    word: 'Completed',
-    text: 'Every class of this week has finished.',
-  },
+  Cancelled: { icon: XCircle, text: 'This class week or class will not take place.' },
+  Completed: { icon: CheckCircle2, text: 'Every class of this week has finished.' },
 };
+export const STATUS = Object.fromEntries(
+  (Object.keys(WEEK_STATUS) as Status[]).map((s) => [s, { ...WEEK_STATUS[s], ...STATUS_LOOK[s] }]),
+) as Record<Status, (typeof WEEK_STATUS)[Status] & (typeof STATUS_LOOK)[Status]>;
 
 /**
  * Exception badges on a cell, by the code the database puts in its badges (schedule_board), in the glossary's words.
@@ -170,7 +126,7 @@ export function decisionLabel(code: string): string {
 
 /** Other marks a cell can carry. Break and Program break are followed by the reason. */
 export const MARK = {
-  break: 'Break',
+  break: BREAK_WORD,
   programBreak: 'Program break',
   notInStandard: 'Not in the standard',
   differs: 'Differs from the standard',
@@ -190,14 +146,12 @@ export const confirmedCount = (confirmed: number, total: number) =>
 
 /** Badges only the side panel shows. */
 export const PANEL_BADGE = {
-  atRisk: 'At risk',
+  atRisk: AT_RISK,
   chosenList: 'Chosen list',
   instructorOrder: 'Instructor order',
   sharedClass: 'Shared class',
-  requestsPaused: 'Requests paused',
   helpOpen: 'Help request open',
   moved: 'Moved',
-  beingAsked: 'Being asked',
 } as const;
 
 /** A message's status in the side panel's Activity. */
@@ -213,22 +167,6 @@ export const MSG_STATUS: Record<string, string> = {
 /** A single class's status in the side panel, when it is not planned. */
 export const CLASS_STATUS = ['Cancelled', 'Completed'] as const;
 
-const WEEK_KIND_TEXT: Record<WeekKind, string> = {
-  'Not started yet': 'Nothing has happened for this class week yet.',
-  'Setup not finished':
-    'Something is missing, such as class times or an instructor order, so nobody can be asked yet.',
-  'Ready to ask': 'Everything is set, and the first instructor can be asked.',
-  Asking: 'An instructor is being asked now.',
-  'Needs an instructor': 'Nobody is confirmed or being asked, so you need to choose an instructor.',
-  'At risk': 'The class week may not have an instructor in time.',
-  Confirmed: 'An instructor said yes to this class week.',
-  'Shared class':
-    'This class week is taught together with another cohort, and the side panel says which one.',
-  'Requests paused': 'Requests for this class week are paused, so nobody is asked.',
-  Completed: 'Every class of this week has finished.',
-  Cancelled: 'This class week or class will not take place.',
-};
-
 export type LegendItem = { label: string; tone: Tone; text: string; icon?: typeof Circle };
 export type LegendGroup = { title: string; items: LegendItem[] };
 
@@ -237,12 +175,20 @@ export function legendGroups(): LegendGroup[] {
   const groups: LegendGroup[] = [
     {
       title: 'Statuses',
-      items: (Object.keys(STATUS) as Status[]).map((s) => ({
-        label: STATUS[s].word,
-        tone: STATUS[s].tone,
-        icon: STATUS[s].icon,
-        text: STATUS[s].text,
-      })),
+      items: [
+        ...(Object.keys(STATUS) as Status[]).map((s) => ({
+          label: STATUS[s].word,
+          tone: STATUS[s].tone,
+          icon: STATUS[s].icon,
+          text: STATUS[s].text,
+        })),
+        {
+          label: MARK.break,
+          icon: Pause,
+          tone: 'neutral',
+          text: 'The cohort has a break this week, and the reason follows.',
+        },
+      ],
     },
     {
       title: 'Badges on a class week',
@@ -252,12 +198,6 @@ export function legendGroups(): LegendGroup[] {
           tone: (SERIOUS.has(k) ? 'danger' : 'warning') as Tone,
           text: BADGE_TEXT[k],
         })),
-        {
-          label: MARK.break,
-          icon: Pause,
-          tone: 'neutral',
-          text: 'The cohort has a break this week, and the reason follows.',
-        },
         {
           label: MARK.programBreak,
           icon: Pause,
@@ -319,11 +259,11 @@ export function legendGroups(): LegendGroup[] {
     {
       title: 'Side panel',
       items: [
-        ...WEEK_KINDS.map((k) => ({
-          label: k as string,
-          tone: 'neutral' as Tone,
-          text: WEEK_KIND_TEXT[k],
-        })),
+        {
+          label: PANEL_BADGE.atRisk,
+          tone: 'danger',
+          text: 'The class week may not have an instructor in time.',
+        },
         {
           label: CONFIRMED_AT_RISK,
           tone: 'amber',
@@ -338,11 +278,6 @@ export function legendGroups(): LegendGroup[] {
           label: PANEL_BADGE.instructorOrder,
           tone: 'neutral',
           text: "Instructors are asked in the module's instructor order.",
-        },
-        {
-          label: PANEL_BADGE.beingAsked,
-          tone: 'accent',
-          text: 'The instructor who proposed a time is being asked and has not said yes yet.',
         },
         { label: MSG_STATUS.Scheduled!, tone: 'neutral', text: 'The message will be sent later.' },
         { label: MSG_STATUS.Pending!, tone: 'neutral', text: 'The message is waiting to be sent.' },
@@ -379,7 +314,6 @@ export function renderableLabels(): string[] {
     ...Object.values(COHORT_BADGE),
     confirmedCount(2, 6),
     ...REGIONS,
-    ...WEEK_KINDS,
     CONFIRMED_AT_RISK,
     ...Object.values(PANEL_BADGE),
     ...Object.values(MSG_STATUS),
