@@ -10,6 +10,7 @@
     "screenshots": "tsx src/screenshots.ts",
     "scan-text": "tsx src/scan-text.ts",
     "demo": "tsx src/demo-data.ts",
+    "review-data": "tsx src/review-data.ts",
     "check-migrations": "tsx src/check-migrations.ts",
     "check-rollbacks": "tsx src/check-rollbacks.ts",
     "backup": "tsx --env-file=../.env.production src/backup.ts",
