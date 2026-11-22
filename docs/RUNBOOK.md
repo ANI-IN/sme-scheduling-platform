@@ -101,6 +101,22 @@ Roll back first, then fix locally:
   into the live database. Anything done since the backup is lost, so do it only after pausing all messages and telling
   the testers.
 
+### Admins (Release 3, M2)
+
+- `npm run admins -w scripts -- list` shows the admins. `add <email>` makes a signed in team member an admin, and
+  `remove <email>` removes admin rights (never the last admin). Each change is in Activity history as "Setup command".
+- Run `add` with your own address right after the M2 deploy: until then nobody is an admin, so nobody can change
+  Pause all, the beta list or the Discord server approvals. After that, admins manage each other on Settings, Admin.
+
+### Clearing the demo data (Release 3, M5, once)
+
+- Only after a fresh backup that was verified, and only with the owner's OK.
+- `npm run clear-demo -w scripts -- --preview` lists every table with its row count before and after, inside a
+  transaction that is rolled back: nothing changes.
+- `npm run clear-demo -w scripts -- --run --confirm CLEAR-DEMO-DATA` deletes the demo domains with everything in
+  them, the test instructors, every message and task. It keeps team members, Discord servers and channels, app
+  settings and all Activity history. It refuses a Production database.
+
 ## Adding a new domain (no code)
 
 Follow the Help guide **Setting up a new domain**: create the domain on **Setup, Domains**, choose its Discord server

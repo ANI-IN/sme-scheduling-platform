@@ -168,6 +168,22 @@
               {
                 "name": "Cache-Control",
                 "value": "no-store"
+              },
+              {
+                "name": "X-Frame-Options",
+                "value": "DENY"
+              },
+              {
+                "name": "Content-Security-Policy",
+                "value": "frame-ancestors 'none'"
+              },
+              {
+                "name": "Referrer-Policy",
+                "value": "no-referrer"
+              },
+              {
+                "name": "X-Content-Type-Options",
+                "value": "nosniff"
               }
             ]
           }
@@ -244,6 +260,22 @@
               {
                 "name": "Cache-Control",
                 "value": "no-store"
+              },
+              {
+                "name": "X-Frame-Options",
+                "value": "DENY"
+              },
+              {
+                "name": "Content-Security-Policy",
+                "value": "frame-ancestors 'none'"
+              },
+              {
+                "name": "Referrer-Policy",
+                "value": "no-referrer"
+              },
+              {
+                "name": "X-Content-Type-Options",
+                "value": "nosniff"
               }
             ]
           }
@@ -304,6 +336,22 @@
               {
                 "name": "Cache-Control",
                 "value": "no-store"
+              },
+              {
+                "name": "X-Frame-Options",
+                "value": "DENY"
+              },
+              {
+                "name": "Content-Security-Policy",
+                "value": "frame-ancestors 'none'"
+              },
+              {
+                "name": "Referrer-Policy",
+                "value": "no-referrer"
+              },
+              {
+                "name": "X-Content-Type-Options",
+                "value": "nosniff"
               }
             ]
           }
