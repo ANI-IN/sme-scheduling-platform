@@ -148,19 +148,23 @@ test('Connections: set up and nothing sent reads Ready; an admin sends a Discord
   await expect(page.getByText('Not connected')).toHaveCount(0);
   await a11y(page, 'connections ready');
   await noDashes(page, 'connections ready');
+  // Counted before and after: other tests (the crawl presses every button) may have sent tests already.
+  const count = () =>
+    sql<{ d: number; e: number; h: number }>(
+      `select count(*) filter (where channel = 'Discord')::int d, count(*) filter (where channel = 'Email' and lower(to_address) = $1)::int e,
+              (select count(*)::int from public.history_event where action like 'Connection test sent: %') h
+         from public.message where template_id = 'T21'`,
+      [ME],
+    );
+  const [b] = await count();
   const tests = page.getByRole('button', { name: 'Send a test' });
   await expect(tests).toHaveCount(2);
   await tests.first().click();
   await expect(page.getByText('Test sent to the admin alert channel.')).toBeVisible();
   await tests.last().click();
   await expect(page.getByText('Test email sent to your own address.')).toBeVisible();
-  const [m] = await sql<{ d: number; e: number; h: number }>(
-    `select count(*) filter (where channel = 'Discord')::int d, count(*) filter (where channel = 'Email' and lower(to_address) = $1)::int e,
-            (select count(*)::int from public.history_event where action like 'Connection test sent: %') h
-       from public.message where template_id = 'T21'`,
-    [ME],
-  );
-  expect(m).toEqual({ d: 1, e: 1, h: 2 });
+  const [m] = await count();
+  expect({ d: m!.d - b!.d, e: m!.e - b!.e, h: m!.h - b!.h }).toEqual({ d: 1, e: 1, h: 2 });
 });
 
 // Release 3, B3 (decision 312): a domain's Discord server is chosen in Setup, Domains.
