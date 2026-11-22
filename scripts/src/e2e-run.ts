@@ -3,6 +3,7 @@
 //   npm run e2e                                   every project
 //   npm run e2e -- --project=scenarios            Playwright options after --
 //   npm run e2e -- --keep --project=scenarios     keep the test stack running afterwards (faster reruns)
+//   npm run e2e:scale                             time limits per page with 60 cohorts and 160 instructors
 //
 // It starts the test stack (scripts/src/test-stack.ts, ports 5552x) or empties it if it is running, loads
 // the test data, runs Playwright against an app server on port 5174 that talks to the test stack, and
@@ -14,7 +15,8 @@ import { down, keys, TEST_APP_URL, TEST_DB_URL, up } from './test-stack.ts';
 const ROOT = join(import.meta.dirname, '..', '..');
 const all = process.argv.slice(2);
 const keep = all.includes('--keep') || process.env.E2E_KEEP_STACK === '1';
-const args = all.filter((a) => a !== '--keep');
+const scale = all.includes('--scale');
+const args = all.filter((a) => a !== '--keep' && a !== '--scale');
 
 up();
 const k = keys();
@@ -37,7 +39,12 @@ const playwright = (a: string[], phase = '') =>
 
 let status = run(
   process.execPath,
-  [join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), 'src/demo-data.ts', 'load'],
+  [
+    join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+    'src/demo-data.ts',
+    'load',
+    ...(scale ? ['--scale'] : []),
+  ],
   join(ROOT, 'scripts'),
 );
 if (status === 0) {

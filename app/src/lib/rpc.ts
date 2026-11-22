@@ -59,6 +59,23 @@ export async function fetchAll<T>(
   }
 }
 
+/** How many IDs go in one `in(...)` filter: each is 37 characters of the address, which must stay short. */
+export const IDS_PER_REQUEST = 100;
+
+/**
+ * Read the rows for a long list of IDs (Release 3, M6) in requests of at most 100 IDs each, at the same time, and
+ * join the results. `part` builds the same query for one group of IDs. No IDs means no request.
+ */
+export async function fetchByIds<T>(
+  ids: readonly string[],
+  part: (ids: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const groups: string[][] = [];
+  for (let i = 0; i < ids.length; i += IDS_PER_REQUEST)
+    groups.push(ids.slice(i, i + IDS_PER_REQUEST));
+  return (await Promise.all(groups.map(async (g) => check(await part(g))))).flat();
+}
+
 /** Ask n8n (WF4) to deliver queued messages now. Carries no data; safe to call often. */
 export async function poke(): Promise<void> {
   if (!env.pokeUrl) return;

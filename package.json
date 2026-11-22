@@ -25,6 +25,7 @@
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run check-build -w scripts",
     "help:screenshots": "npm run test-stack -w scripts -- up && npm run demo -w scripts -- load && (npm run help-shots -w scripts; s=$?; npm run test-stack -w scripts -- down; exit $s)",
     "e2e": "tsx scripts/src/e2e-run.ts",
+    "e2e:scale": "tsx scripts/src/e2e-run.ts --scale --project=scale",
     "dev": "node node_modules/vite/bin/vite.js app --config app/vite.config.ts --port 5173",
     "dev:sandbox": "node node_modules/vite/bin/vite.js app --config app/vite.config.ts --mode sandbox --port 5173 --strictPort"
   },

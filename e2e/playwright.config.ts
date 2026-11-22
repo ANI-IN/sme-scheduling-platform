@@ -54,6 +54,8 @@ export default defineConfig({
     { name: 'crawl-desktop', testMatch: /crawl\.spec/, use: { ...desktop, colorScheme: 'light' } },
     { name: 'crawl-mobile', testMatch: /crawl\.spec/, use: { ...mobile, colorScheme: 'dark' } },
     { name: 'scenarios', testMatch: /scenarios\.spec/, use: { ...desktop, colorScheme: 'light' } },
+    // Only with npm run e2e:scale (60 cohorts and 160 instructors, decision 294).
+    { name: 'scale', testMatch: /scale\.spec/, use: { ...laptop, colorScheme: 'light' } },
   ],
   webServer: {
     command:

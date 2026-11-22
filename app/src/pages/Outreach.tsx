@@ -30,7 +30,7 @@ import { RegionBadge } from '@/components/ClassTime';
 import { weekState } from '@/lib/status';
 import { plain } from '@/lib/plain';
 import { supabase } from '@/lib/supabase';
-import { check } from '@/lib/rpc';
+import { fetchByIds } from '@/lib/rpc';
 import { useConfirm } from '@/components/Confirm';
 import {
   Badge,
@@ -170,18 +170,20 @@ export default function Outreach() {
   const checkinMsgs = useQuery({
     queryKey: ['message', 'checkins', domain?.id],
     enabled: confirmed.length > 0,
+    // A big program has hundreds of confirmed class weeks: their IDs go 100 at a time (decision 294).
     queryFn: async () =>
-      check(
-        await supabase
-          .from('message')
-          .select('id, module_week_id, request_id, template_id, created_at')
-          .in('template_id', ['M6', 'M7', 'M8'])
-          .in(
-            'module_week_id',
-            confirmed.map((w) => w.id),
-          )
-          .order('created_at', { ascending: false }),
-      ),
+      (
+        await fetchByIds(
+          confirmed.map((w) => w.id),
+          (ids) =>
+            supabase
+              .from('message')
+              .select('id, module_week_id, request_id, template_id, created_at')
+              .in('template_id', ['M6', 'M7', 'M8'])
+              .in('module_week_id', ids)
+              .order('created_at', { ascending: false }),
+        )
+      ).sort((a, b) => b.created_at.localeCompare(a.created_at)),
   });
 
   const helpOpen = upcoming.filter(hasHelp).length;

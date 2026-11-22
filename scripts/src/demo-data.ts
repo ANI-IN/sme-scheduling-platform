@@ -2,6 +2,7 @@
 // (decision 250). The app database and the hosted projects are never touched: the app itself starts empty.
 //
 //   npm run demo -w scripts -- load    # empty the test stack, then load the test data and a few answers
+//   npm run demo -w scripts -- load --scale    # the same, plus 60 cohorts and 160 instructors (decision 294)
 //
 // The test data comes from supabase/tests/fixtures/starting_data.sql (two domains, cohorts, modules, test
 // instructors and eight weeks of classes). Then the app's own functions (engine_tick, submit_response_page,
@@ -151,6 +152,14 @@ async function load() {
   console.log(
     `Demo ready: ${s.weeks} class weeks, ${s.confirmed} confirmed, ${s.asking} being asked, ${s.tasks} open tasks.`,
   );
+  // With --scale (npm run e2e:scale), a program the size of the team's tracker is added (decision 294).
+  if (process.argv.includes('--scale')) {
+    await c.query(readFileSync(join(ROOT, 'supabase/tests/fixtures/scale_data.sql'), 'utf8'));
+    const r = await one<{ r: Record<string, number> }>(`select tests.load_scale_data() as r`);
+    console.log(
+      `Scale data: ${r.r.domains} domains, ${r.r.cohorts} cohorts, ${r.r.instructors} instructors, ${r.r.class_weeks} class weeks.`,
+    );
+  }
   // Every table was just replaced: give the planner fresh numbers now, so the first page loads of a
   // test run do not wait on stale plans or on the automatic analyze (decision 249).
   await c.query('analyze');

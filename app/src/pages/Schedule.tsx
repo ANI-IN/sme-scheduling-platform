@@ -10,7 +10,7 @@ import {
 import { DateTime } from 'luxon';
 import { CalendarDays, Download, LifeBuoy, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { check, rpc } from '@/lib/rpc';
+import { check, fetchAll, fetchByIds, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
 import { PT } from '@/lib/time';
@@ -92,13 +92,19 @@ export default function Schedule() {
   const checklist = useQuery({
     queryKey: ['checklist_item', 'grid', domain?.id, weekIds.length],
     enabled: weekIds.length > 0,
-    queryFn: async () =>
-      check(
-        await supabase
-          .from('checklist_item')
-          .select('class_id, done, class_session!inner(module_week_id)')
-          .in('class_session.module_week_id', weekIds),
-      ),
+    // Every class week of the domain: 100 class weeks per request, each read a page at a time (decision 294).
+    queryFn: () =>
+      fetchByIds(weekIds, async (ids) => ({
+        data: await fetchAll((from, to) =>
+          supabase
+            .from('checklist_item')
+            .select('id, class_id, done, class_session!inner(module_week_id)')
+            .in('class_session.module_week_id', ids)
+            .order('id')
+            .range(from, to),
+        ),
+        error: null,
+      })),
   });
   const checklistByWeek = useMemo(() => {
     const m = new Map<string, { done: number; total: number }>();

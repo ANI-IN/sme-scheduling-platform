@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./supabase', () => ({ supabase: {} }));
 vi.mock('./env', () => ({ env: {} }));
-const { fetchAll, PAGE_ROWS } = await import('./rpc');
+const { fetchAll, fetchByIds, IDS_PER_REQUEST, PAGE_ROWS } = await import('./rpc');
 
 describe('fetchAll', () => {
   it('reads every page until one comes back short, so nothing past 1,000 rows is lost', async () => {
@@ -36,6 +36,31 @@ describe('fetchAll', () => {
     expect(calls).toBe(1);
     await expect(
       fetchAll(async () => ({ data: null, error: { message: 'permission denied' } })),
+    ).rejects.toThrow();
+  });
+
+  it('sends a long list of IDs 100 at a time and joins the results', async () => {
+    const ids = Array.from({ length: IDS_PER_REQUEST * 2 + 30 }, (_, i) => `id${i}`);
+    const sizes: number[] = [];
+    const rows = await fetchByIds(ids, async (group) => {
+      sizes.push(group.length);
+      return { data: group.map((id) => ({ id })), error: null };
+    });
+    expect(sizes).toEqual([100, 100, 30]);
+    expect(rows.map((r) => r.id)).toEqual(ids);
+  });
+
+  it('asks nothing for no IDs, and passes on an error', async () => {
+    let calls = 0;
+    expect(
+      await fetchByIds([], async () => {
+        calls += 1;
+        return { data: [], error: null };
+      }),
+    ).toEqual([]);
+    expect(calls).toBe(0);
+    await expect(
+      fetchByIds(['a'], async () => ({ data: null, error: { message: 'permission denied' } })),
     ).rejects.toThrow();
   });
 });
