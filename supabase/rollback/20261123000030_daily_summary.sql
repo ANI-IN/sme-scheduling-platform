@@ -21,13 +21,13 @@ begin
          count(*) filter (where status = 'Failed' and updated_at > v_now - interval '24 hours')
     into v_sent, v_failed from public.message;
   select count(*), count(*) filter (where severity = 'Urgent') into v_open, v_urgent from public.attention_item where status <> 'Done';
-  v_text := '💓 Daily heartbeat — last hourly run: ' || coalesce(private.fmt_ist(s.last_hourly_run_at), 'never')
+  v_text := '💓 Daily heartbeat. Last hourly run: ' || coalesce(private.fmt_ist(s.last_hourly_run_at), 'never')
     || ' (' || coalesce(s.last_hourly_status, 'n/a') || ')'
     || E'\nMessages sent (24h): ' || v_sent || ' · failed: ' || v_failed
     || E'\nOpen items: ' || v_open || ' (' || v_urgent || ' urgent)'
     || coalesce(E'\nIn TEST MODE: ' || (select string_agg(d.name, ', ') from public.domain d where private.is_test_domain(d.id)), '')
     || case when not s.outreach_enabled then E'\n⛔ Kill switch is ON since ' || coalesce(private.fmt_ist(s.kill_switch_changed_at), '?')
-            || ' — no instructor messages are going out. Turn it off in Settings → System when ready.' else '' end;
+            || ', so no instructor messages are going out. Turn it off in Settings → System when ready.' else '' end;
   perform private.queue_team_message('T15', null, 'admin', null, '{}', 'Daily heartbeat', v_text,
     'T15:' || to_char(v_now at time zone 'Asia/Kolkata', 'YYYY-MM-DD'), v_now);
   update public.system_state set last_daily_run_at = now(), last_heartbeat_at = now() where id = 1;

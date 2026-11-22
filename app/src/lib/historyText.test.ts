@@ -135,6 +135,16 @@ describe('plain wording for database text', () => {
     );
   });
 
+  it('reads a no reply the old way (a dash) and the new way (a comma)', () => {
+    for (const action of [
+      'No reply from Shelly Carver — moving on',
+      'No reply from Shelly Carver, moving on',
+    ])
+      expect(describeHistory({ ...base, action, module_id: ids.api }, book).sentence).toBe(
+        'Shelly Carver did not reply about API Design, so the next instructor was asked',
+      );
+  });
+
   it('describes going live, pausing messages and downloads', () => {
     expect(describeHistory({ ...base, action: 'Went live' }, book).sentence).toBe(
       'Sienna took the domain live: real instructors now get messages',
