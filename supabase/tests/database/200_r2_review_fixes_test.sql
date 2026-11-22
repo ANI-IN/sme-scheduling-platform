@@ -43,6 +43,8 @@ select ok(private.discord_can_post('{"permission_overwrites": [{"id": "1", "type
   'DIS-12 the bot''s role allowed in a private channel (like the 1-1 category): the bot can post');
 insert into public.discord_channel (id, server_id, name, bot_can_post) values ('920000000000000001', '111111111111111111', 'locked', false),
   ('920000000000000002', '111111111111111111', 'rf-shared', true);
+-- Release 3 M4: the server is approved first (decision 288).
+select tests.approve_server('111111111111111111');
 update public.domain set discord_server_id = '111111111111111111', version = version where id = :'dom';
 select throws_like($$ select public.set_instructor_channel('$$ || :'i2' || $$'::uuid, '$$ || :'dom' || $$'::uuid, '920000000000000001') $$,
   '%cannot post in #locked%', 'DIS-12 a channel the bot cannot post in cannot be chosen');

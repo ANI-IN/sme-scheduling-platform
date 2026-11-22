@@ -9,7 +9,8 @@ create or replace function tests.step(p_key text) returns boolean language sql a
 $$;
 -- Start from an empty Sandbox, as a real one is after a reset.
 update public.app_config set environment = 'Sandbox' where id = 1;
-insert into public.team_member (name, email) values ('GS Me', 'gs.me@example.com');
+-- Release 3 M2: removing access, Pause all messages and Reset are for admins (decision 286).
+insert into public.team_member (name, email, is_admin) values ('GS Me', 'gs.me@example.com', true);
 select tests.login_google('gs.me@example.com');
 select public.reset_sandbox_data('RESET');
 -- Keep the team member's sign in, but add the setup rows as the database owner (like the app would, step by step).

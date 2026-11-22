@@ -5,7 +5,7 @@ import { CheckCircle2, CircleAlert, PlugZap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { check, rpc } from '@/lib/rpc';
 import { supabase } from '@/lib/supabase';
-import { useSystem, useTeam } from '@/lib/data';
+import { useMe, useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { PauseAllSection } from '@/components/PauseAll';
 import { DiscordServers } from './DiscordServers';
@@ -162,6 +162,7 @@ const FIELDS: { key: keyof Config & string; label: string; hint: string }[] = [
 
 function ConfigForm({ config }: { config: Config }) {
   const qc = useQueryClient();
+  const isAdmin = !!useMe()?.is_admin;
   const [err, setErr] = useState<unknown>(null);
   const [cfg, setCfg] = useState<Record<string, string>>(
     Object.fromEntries(FIELDS.map((f) => [f.key, String(config[f.key] ?? '')])),
@@ -205,9 +206,12 @@ function ConfigForm({ config }: { config: Config }) {
             here.
           </p>
           <ErrorText error={err} />
+          {!isAdmin && (
+            <p className="mt-4 text-sm text-muted-foreground">Only an admin can change these.</p>
+          )}
           <Button
             className="mt-4"
-            disabled={!dirty}
+            disabled={!dirty || !isAdmin}
             onClick={async () => {
               setErr(null);
               try {

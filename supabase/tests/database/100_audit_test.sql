@@ -52,6 +52,9 @@ select throws_ok(format('select public.undo_history_event(%s)',
 select tests.as_postgres();
 
 -- =============================================================== events that must be recorded
+-- Release 3 M2: removing access, Pause all messages and Reset are for admins (decision 286).
+insert into public.team_member (name, email, is_admin) values ('Ops', 'ops@example.com', true)
+  on conflict ((lower(email))) do update set is_admin = true;
 select tests.login_as('ops@example.com');
 select public.set_domain_status(:'dom', 'Live');
 select ok(exists (select 1 from public.history_event where action = 'Went live' and domain_id = :'dom'::uuid), 'going live is recorded');

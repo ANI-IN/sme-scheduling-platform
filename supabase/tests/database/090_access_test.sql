@@ -73,6 +73,9 @@ select t.auth_user_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 
  where t.email = 'new.person@example.com' and not exists (select 1 from auth.users u where u.id = t.auth_user_id);
 insert into auth.sessions (id, user_id)
 select gen_random_uuid(), auth_user_id from public.team_member where email = 'new.person@example.com';
+-- Release 3 M2: removing access, Pause all messages and Reset are for admins (decision 286).
+insert into public.team_member (name, email, is_admin) values ('Admin Person', 'admin.person@example.com', true)
+  on conflict ((lower(email))) do update set is_admin = true;
 select tests.login_as('admin.person@example.com');
 select public.set_member_access((select id from public.team_member where email = 'new.person@example.com'), false, 'Left the company');
 select ok(exists (select 1 from public.history_event where action = 'Access removed' and note = 'Left the company'),

@@ -15,6 +15,8 @@
     "check-rollbacks": "tsx src/check-rollbacks.ts",
     "backup": "tsx --env-file=../.env.sandbox src/backup.ts",
     "clock": "tsx --env-file=../.env.sandbox src/clock.ts",
+    "admins": "tsx --env-file=../.env.sandbox src/admins.ts",
+    "clear-demo": "tsx --env-file=../.env.sandbox src/clear-demo.ts",
     "db:test:scratch": "tsx src/db-test-scratch.ts",
     "discord": "tsx src/discord-lookups.ts",
     "discord:sandbox": "tsx --env-file=../.env.sandbox src/discord-lookups.ts",

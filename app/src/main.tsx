@@ -28,6 +28,7 @@ const Messages = lazy(() => import('@/pages/settings/Messages'));
 const Help = lazy(() => import('@/pages/Help'));
 const Testing = lazy(() => import('@/pages/settings/Testing'));
 const Connections = lazy(() => import('@/pages/settings/Connections'));
+const Admin = lazy(() => import('@/pages/settings/Admin'));
 const History = lazy(() => import('@/pages/History'));
 
 function ThemedToaster() {
@@ -83,6 +84,7 @@ function Gate() {
             <Route path="/help/:slug" element={<Help />} />
             <Route path="/settings/testing" element={<Testing />} />
             <Route path="/settings/connections" element={<Connections />} />
+            <Route path="/settings/admin" element={<Admin />} />
             <Route path="/activity" element={<History />} />
             {/* Old addresses keep working. */}
             <Route path="/attention" element={<Navigate to="/" replace />} />

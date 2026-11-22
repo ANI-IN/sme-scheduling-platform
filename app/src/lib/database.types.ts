@@ -3,7 +3,25 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type Database = {
   
-  "public": {
+  "graphql_public": {
+          Tables: {
+            [_ in never]: never
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "graphql":
+{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        },"public": {
           Tables: {
             "action_queue": {
                   Row: {
@@ -21,14 +39,14 @@ export type Database = {
                   ]
                 },"app_config": {
                   Row: {
-                    "admin_discord_channel_id": string | null,"app_base_url": string | null,"company_email_domain": string,"created_at": string,"discord_bot_user_id": string | null,"discord_guild_id": string | null,"environment": string,"environment_set_at": string | null,"id": number,"response_base_url": string | null,"sandbox_allowed_discord_servers": (string)[],"sandbox_allowed_email_domains": (string)[],"scheduling_email": string | null,"scheduling_sender_name": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "admin_discord_channel_id": string | null,"app_base_url": string | null,"clock_enabled": boolean,"company_email_domain": string,"created_at": string,"daily_email_cap": number,"discord_bot_user_id": string | null,"discord_guild_id": string | null,"environment": string,"environment_set_at": string | null,"id": number,"message_recipients": string,"n8n_poke_url": string | null,"recipient_email_domains": (string)[],"response_base_url": string | null,"sandbox_allowed_discord_servers": (string)[],"sandbox_allowed_email_domains": (string)[],"scheduling_email": string | null,"scheduling_sender_name": string,"sign_in_mode": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_bot_user_id"?: string | null,"discord_guild_id"?: string | null,"environment"?: string,"environment_set_at"?: string | null,"id"?: number,"response_base_url"?: string | null,"sandbox_allowed_discord_servers"?: (string)[],"sandbox_allowed_email_domains"?: (string)[],"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"clock_enabled"?: boolean,"company_email_domain"?: string,"created_at"?: string,"daily_email_cap"?: number,"discord_bot_user_id"?: string | null,"discord_guild_id"?: string | null,"environment"?: string,"environment_set_at"?: string | null,"id"?: number,"message_recipients"?: string,"n8n_poke_url"?: string | null,"recipient_email_domains"?: (string)[],"response_base_url"?: string | null,"sandbox_allowed_discord_servers"?: (string)[],"sandbox_allowed_email_domains"?: (string)[],"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"sign_in_mode"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"company_email_domain"?: string,"created_at"?: string,"discord_bot_user_id"?: string | null,"discord_guild_id"?: string | null,"environment"?: string,"environment_set_at"?: string | null,"id"?: number,"response_base_url"?: string | null,"sandbox_allowed_discord_servers"?: (string)[],"sandbox_allowed_email_domains"?: (string)[],"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "admin_discord_channel_id"?: string | null,"app_base_url"?: string | null,"clock_enabled"?: boolean,"company_email_domain"?: string,"created_at"?: string,"daily_email_cap"?: number,"discord_bot_user_id"?: string | null,"discord_guild_id"?: string | null,"environment"?: string,"environment_set_at"?: string | null,"id"?: number,"message_recipients"?: string,"n8n_poke_url"?: string | null,"recipient_email_domains"?: (string)[],"response_base_url"?: string | null,"sandbox_allowed_discord_servers"?: (string)[],"sandbox_allowed_email_domains"?: (string)[],"scheduling_email"?: string | null,"scheduling_sender_name"?: string,"sign_in_mode"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -118,6 +136,26 @@ isOneToOne: false
       columns: ["message_id"]
 isOneToOne: false
       referencedRelation: "message"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"beta_access": {
+                  Row: {
+                    "added_at": string,"added_by": string | null,"email": string,"note": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_at"?: string,"added_by"?: string | null,"email": string,"note"?: string | null
+                  }
+                  Update: {
+                    "added_at"?: string,"added_by"?: string | null,"email"?: string,"note"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "beta_access_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "team_member"
       referencedColumns: ["id"]
     }
                   ]
@@ -283,6 +321,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"clock_state": {
+                  Row: {
+                    "budget_alert_month": string | null,"id": number,"last_poke_at": string | null,"last_reason": string | null,"last_reply_read_at": string | null,"last_result": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "budget_alert_month"?: string | null,"id"?: number,"last_poke_at"?: string | null,"last_reason"?: string | null,"last_reply_read_at"?: string | null,"last_result"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "budget_alert_month"?: string | null,"id"?: number,"last_poke_at"?: string | null,"last_reason"?: string | null,"last_reply_read_at"?: string | null,"last_result"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"cohort": {
                   Row: {
                     "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
@@ -333,17 +385,49 @@ isOneToOne: false
                   ]
                 },"discord_server": {
                   Row: {
-                    "archived_at": string | null,"checked_at": string | null,"id": string,"name": string,"problem": string | null,"refreshed_at": string,"status": string
+                    "access": string,"access_changed_at": string | null,"access_changed_by": string | null,"archived_at": string | null,"checked_at": string | null,"id": string,"name": string,"problem": string | null,"refreshed_at": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"checked_at"?: string | null,"id": string,"name": string,"problem"?: string | null,"refreshed_at"?: string,"status"?: string
+                    "access"?: string,"access_changed_at"?: string | null,"access_changed_by"?: string | null,"archived_at"?: string | null,"checked_at"?: string | null,"id": string,"name": string,"problem"?: string | null,"refreshed_at"?: string,"status"?: string
                   }
                   Update: {
-                    "archived_at"?: string | null,"checked_at"?: string | null,"id"?: string,"name"?: string,"problem"?: string | null,"refreshed_at"?: string,"status"?: string
+                    "access"?: string,"access_changed_at"?: string | null,"access_changed_by"?: string | null,"archived_at"?: string | null,"checked_at"?: string | null,"id"?: string,"name"?: string,"problem"?: string | null,"refreshed_at"?: string,"status"?: string
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "discord_server_access_changed_by_fkey"
+      columns: ["access_changed_by"]
+isOneToOne: false
+      referencedRelation: "team_member"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"discord_server_domain": {
+                  Row: {
+                    "added_at": string,"domain_id": string,"server_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_at"?: string,"domain_id": string,"server_id": string
+                  }
+                  Update: {
+                    "added_at"?: string,"domain_id"?: string,"server_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "discord_server_domain_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "discord_server_domain_server_id_fkey"
+      columns: ["server_id"]
+isOneToOne: false
+      referencedRelation: "discord_server"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"domain": {
                   Row: {
@@ -825,6 +909,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"n8n_usage": {
+                  Row: {
+                    "last_at": string | null,"month": string,"runs": number,"workflow": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "last_at"?: string | null,"month": string,"runs"?: number,"workflow": string
+                  }
+                  Update: {
+                    "last_at"?: string | null,"month"?: string,"runs"?: number,"workflow"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"reminder": {
                   Row: {
                     "attention_item_id": string,"created_at": string,"id": string,"level": string,"message_id": string | null,"recipient": string | null,"sent_at": string,"updated_at": string,"updated_by": string | null,"version": number
@@ -989,14 +1087,14 @@ isOneToOne: false
                   ]
                 },"team_member": {
                   Row: {
-                    "access_removed_at": string | null,"access_removed_by": string | null,"active": boolean,"auth_user_id": string | null,"created_at": string,"digest_channel": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_prompt_dismissed_at": string | null,"discord_status": string,"discord_user_id": string | null,"discord_username": string | null,"email": string,"id": string,"is_placeholder": boolean,"job_title": string | null,"last_sign_in_at": string | null,"name": string,"receives_digest": boolean,"updated_at": string,"updated_by": string | null,"version": number
+                    "access_removed_at": string | null,"access_removed_by": string | null,"active": boolean,"auth_user_id": string | null,"created_at": string,"digest_channel": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_prompt_dismissed_at": string | null,"discord_status": string,"discord_user_id": string | null,"discord_username": string | null,"email": string,"id": string,"is_admin": boolean,"is_placeholder": boolean,"job_title": string | null,"last_sign_in_at": string | null,"name": string,"receives_digest": boolean,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_prompt_dismissed_at"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email": string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name": string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_prompt_dismissed_at"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email": string,"id"?: string,"is_admin"?: boolean,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name": string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_prompt_dismissed_at"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email"?: string,"id"?: string,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name"?: string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "access_removed_at"?: string | null,"access_removed_by"?: string | null,"active"?: boolean,"auth_user_id"?: string | null,"created_at"?: string,"digest_channel"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_prompt_dismissed_at"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email"?: string,"id"?: string,"is_admin"?: boolean,"is_placeholder"?: boolean,"job_title"?: string | null,"last_sign_in_at"?: string | null,"name"?: string,"receives_digest"?: boolean,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1033,6 +1131,12 @@ isOneToOne: false
                            },
 "attention_done":
 { Args: { "p_item_id": string,"p_note"?: string }; Returns: undefined
+                           },
+"beta_list_add":
+{ Args: { "p_email": string,"p_note"?: string }; Returns: Json
+                           },
+"beta_list_remove":
+{ Args: { "p_email": string }; Returns: Json
                            },
 "cancel_class":
 { Args: { "p_class_id": string,"p_reason"?: string }; Returns: Json
@@ -1097,6 +1201,9 @@ isOneToOne: false
       } },
 "complete_action":
 { Args: { "p_action_id": string,"p_error"?: string,"p_ok": boolean,"p_result"?: Json }; Returns: undefined
+                           },
+"configure_clock":
+{ Args: { "p_enabled": boolean,"p_poke_url"?: string }; Returns: Json
                            },
 "configure_environment":
 { Args: { "p_allowed_email_domain": string,"p_app_base_url"?: string,"p_environment": string,"p_response_base_url"?: string,"p_sandbox_discord_servers"?: (string)[],"p_sandbox_email_domains"?: (string)[] }; Returns: undefined
@@ -1195,6 +1302,9 @@ isOneToOne: false
                            },
 "my_account":
 { Args: { "p_signed_in"?: boolean }; Returns: Json
+                           },
+"n8n_runs_this_month":
+{ Args: { "p_now"?: string }; Returns: number
                            },
 "next_actions":
 { Args: { "p_limit"?: number }; Returns: {
@@ -1307,6 +1417,9 @@ isOneToOne: false
 "send_test_message":
 { Args: { "p_instructor_id": string }; Returns: Json
                            },
+"set_admin":
+{ Args: { "p_admin": boolean,"p_team_member_id": string }; Returns: Json
+                           },
 "set_app_config":
 { Args: { "p_config": Json }; Returns: undefined
                            },
@@ -1318,6 +1431,9 @@ isOneToOne: false
                            },
 "set_discord_cursor":
 { Args: { "p_channel_id": string,"p_last_message_id": string }; Returns: undefined
+                           },
+"set_discord_server_access":
+{ Args: { "p_access": string,"p_domain_ids"?: (string)[],"p_server_id": string }; Returns: Json
                            },
 "set_domain_discord_server":
 { Args: { "p_domain_id": string,"p_server_id": string }; Returns: undefined
@@ -1337,6 +1453,9 @@ isOneToOne: false
 "set_outreach_queue":
 { Args: { "p_decision"?: string,"p_end_behaviour"?: string,"p_instructor_ids"?: (string)[],"p_mode": string,"p_module_week_id": string,"p_start_now"?: boolean }; Returns: Json
                            },
+"set_recipient_rules":
+{ Args: { "p_daily_email_cap"?: number,"p_email_domains": (string)[],"p_message_recipients": string }; Returns: undefined
+                           },
 "set_setting":
 { Args: { "p_domain_id": string,"p_key": string,"p_value": Json }; Returns: undefined
                            },
@@ -1345,6 +1464,9 @@ isOneToOne: false
                            },
 "set_settings_at":
 { Args: { "p_reason"?: string,"p_scope": string,"p_scope_id": string,"p_values": Json }; Returns: undefined
+                           },
+"set_sign_in_mode":
+{ Args: { "p_mode": string }; Returns: undefined
                            },
 "set_test_clock":
 { Args: { "p_at": string,"p_domain_id": string }; Returns: undefined
@@ -1510,7 +1632,11 @@ export type CompositeTypes<
   : never
 
 export const Constants = {
-  "public": {
+  "graphql_public": {
+          Enums: {
+            
+          }
+        },"public": {
           Enums: {
             
           }

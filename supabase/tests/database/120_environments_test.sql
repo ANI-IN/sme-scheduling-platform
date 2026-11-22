@@ -43,11 +43,14 @@ insert into public.message (domain_id, audience, template_id, channel, unique_ke
 values (:'tdom', 'Instructor', 'M1', 'Email', 'ev-4d', 'Pending', :'ti1', 'testing@allowed.test', 'Hello') returning status as test_status \gset
 select is(:'test_status'::text, 'Pending', 'a real instructor''s copy in a domain being tested goes to the testing email');
 insert into public.discord_channel (id, server_id, name) values ('222222222222222222', '111111111111111111', 'testing');
+-- Release 3 M4: the server is approved first (decision 288).
+select tests.approve_server('111111111111111111');
 select is(tests.out_msg('ev-5', 'Discord', :'tester', null, '222222222222222222'), 'Pending', 'Sandbox posts in an allowed Discord server');
 select is(tests.out_msg('ev-5b', 'Discord', :'tester', null, '333333333333333333'), 'Cancelled',
   'Sandbox never posts to a channel the bot has not listed (no guessing the server, SEC-5)');
-update public.app_config set sandbox_allowed_discord_servers = '{}' where id = 1;
-select is(tests.out_msg('ev-6', 'Discord', :'tester', null, '222222222222222222'), 'Cancelled', 'and nowhere else');
+-- Release 3 M4: an admin's approval replaced the allowed servers list (decision 288); removing it stops posts.
+update public.discord_server set access = 'Removed' where id = '111111111111111111';
+select is(tests.out_msg('ev-6', 'Discord', :'tester', null, '222222222222222222'), 'Cancelled', 'and nowhere else (the server''s approval removed)');
 select is((select status from public.message where unique_key = 'ev-4'), 'Pending', 'messages already allowed are not changed');
 update public.message set status = 'Sending' where unique_key = 'ev-4';
 update public.app_config set sandbox_allowed_email_domains = '{}' where id = 1;
@@ -59,6 +62,8 @@ create temp table hist_before on commit drop as select id from public.history_ev
 insert into public.holiday (date, name) values ('2028-01-01', 'EV global holiday') on conflict do nothing;
 insert into public.team_member (name, email) select 'EV Ops', 'ops@example.com'
   where not exists (select 1 from public.team_member where email = 'ops@example.com');
+-- Release 3 M2: removing access, Pause all messages and Reset are for admins (decision 286).
+update public.team_member set is_admin = true where email = 'ops@example.com';
 select tests.login_google('ops@example.com');
 select throws_ok($$ select public.reset_sandbox_data('yes') $$, '22023', null, 'resetting needs RESET typed');
 insert into public.team_member (name, email, is_placeholder) values ('EV Placeholder', 'ev.placeholder@example.com', true);

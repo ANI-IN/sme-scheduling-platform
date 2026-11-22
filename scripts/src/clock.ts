@@ -40,7 +40,9 @@ try {
       from public.app_config c, public.clock_state st where c.id = 1 and st.id = 1`);
   console.log(s.rows[0]);
   const jobs = await c
-    .query(`select jobname, schedule, active from cron.job where jobname like 'sme-%' order by jobname`)
+    .query(
+      `select jobname, schedule, active from cron.job where jobname like 'sme-%' order by jobname`,
+    )
     .catch(() => ({ rows: [{ note: 'pg_cron is not installed' }] }));
   console.log('Scheduled jobs:', jobs.rows);
   const runs = await c.query(

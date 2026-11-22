@@ -64,10 +64,22 @@ test('Discord servers: refresh, choose a server, see a fix, then its channels', 
   });
   await page.reload();
   await ready(page);
-  await page
-    .getByRole('combobox', { name: 'Discord server for Backend' })
-    .selectOption({ label: 'E2E Backend server' });
-  // Refresh servers already queued a check of the new server (decision 262): answer it once the domain uses it.
+  // A new server waits for an admin (decision 288): it is not offered to a domain until it is approved.
+  const picker = page.getByRole('combobox', { name: 'Discord server for Backend' });
+  await expect(picker.locator('option', { hasText: 'E2E Backend server' })).toHaveCount(0);
+  const row = page
+    .locator('table')
+    .first()
+    .locator('tbody tr')
+    .filter({ hasText: 'E2E Backend server' });
+  await expect(row.getByText('Waiting for approval')).toBeVisible();
+  await row.getByRole('button', { name: 'Approve' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Approve E2E Backend server' });
+  await dlg.getByLabel('Backend').check();
+  await dlg.getByRole('button', { name: 'Approve' }).click();
+  await expect(page.getByText('E2E Backend server approved')).toBeVisible();
+  await picker.selectOption({ label: 'E2E Backend server' });
+  // Approving queued a check of the new server: answer it once the domain uses it.
   await expect
     .poll(
       async () =>

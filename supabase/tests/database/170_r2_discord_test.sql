@@ -32,6 +32,9 @@ select is((select string_agg(name, ', ' order by name) from public.discord_serve
 -- =============================================================== 2. choosing a domain's server
 select throws_ok(format($$ select public.set_domain_discord_server(%L, '333333333333333333') $$, :'dom'), '22023', null,
   '2. a server the bot is not in cannot be chosen');
+-- Release 3 M4: the server is approved first (decision 288).
+select tests.approve_server('111111111111111111');
+select tests.approve_server('222222222222222222');
 select public.set_domain_discord_server(:'dom', '111111111111111111');
 select public.set_domain_discord_server(:'dom2', '222222222222222222');
 select is((select discord_status from public.domain where id = :'dom'), 'Checking', '2. choosing a server starts a check');

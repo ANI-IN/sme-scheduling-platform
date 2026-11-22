@@ -68,13 +68,35 @@ async function load() {
       from generate_series(1, 3) n
     union all select '900000000000000210', '900000000000000101', 'alerts', null, 0
     on conflict (id) do nothing;`);
+  // Discord servers approved by an admin (decision 288): a "Test server" holds the channels the test domains
+  // post in, and it and the 16 program servers are approved for both test domains. One new server still waits
+  // for approval, so the Approve and Refuse buttons can be seen.
+  await c.query(`
+    insert into public.discord_server (id, name, status, checked_at, access)
+    values ('900000000000000099', 'Test server', 'Ready', now(), 'Approved')
+    on conflict (id) do update set access = 'Approved';
+    insert into public.discord_channel (id, server_id, name, category, position)
+    select distinct x.id, '900000000000000099', 'testing-' || right(x.id, 4), 'Testing', 0 from (
+      select alert_discord_channel_id id from public.domain union select test_discord_channel_id from public.domain
+      union select discord_channel_id from public.instructor union select channel_id from public.instructor_channel) x
+     where x.id ~ '^\\d{17,20}$'
+    on conflict (id) do nothing;
+    update public.discord_server set access = 'Approved', access_changed_at = now()
+     where id like '9000000000000001%' or id = '900000000000000099';
+    insert into public.discord_server_domain (server_id, domain_id)
+    select s.id, d.id from public.discord_server s cross join public.domain d where s.access = 'Approved'
+    on conflict do nothing;
+    insert into public.discord_server (id, name, status, access)
+    values ('900000000000000117', 'New program server', 'NotChecked', 'Waiting')
+    on conflict (id) do nothing;`);
   // The screenshot account plays the Sandbox operations person and skips the Discord question.
   // A reset keeps real people, so first remove an earlier copy of the screenshot account.
   await c.query(`delete from public.team_member where email = $1`, [
     process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com',
   ]);
   await c.query(
-    `update public.team_member set email = $1, discord_prompt_dismissed_at = now(), version = version
+    `update public.team_member set email = $1, discord_prompt_dismissed_at = now(), is_admin = true,
+            version = version
       where email = 'sandbox.operations@example.com'`,
     [process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com'],
   );

@@ -1,7 +1,7 @@
 -- Core readiness step 4: a bot in 15 or more Discord servers (decisions 261 to 263).
 begin;
 \ir ../helpers/helpers.psql
-select plan(17);
+select plan(18);
 
 select tests.company();
 select tests.make_domain('MS') as dom \gset
@@ -28,7 +28,13 @@ select public.record_discord_result(
   jsonb_build_object('guilds', jsonb_build_object('status', 200, 'body',
     (select jsonb_agg(jsonb_build_object('id', (55500000000000000 + n)::text, 'name', 'Program server ' || n))
        from generate_series(1, 16) n))));
-select is((select count(*)::int from public.discord_server), 16, 'many 1. all 16 servers the bot is in are listed');
+select is((select count(*)::int from public.discord_server where id like '555%'), 16, 'many 1. all 16 servers the bot is in are listed');
+-- Release 3 M4 (decision 288): a listed server waits; an admin approves these 16, which queues one check each.
+select is((select count(*)::int from public.action_queue where action = 'discord_server'), 0, 'many 1b. a server waiting for approval is not checked');
+select tests.approve_server((55500000000000000 + n)::text, true) from generate_series(1, 16) n;
+-- Queued in server order, as the list came in (the checks are taken in the order they were queued).
+update public.action_queue set created_at = created_at + (right(payload ->> 'server_id', 2)::int * interval '1 millisecond')
+ where action = 'discord_server';
 select is((select count(*)::int from public.discord_server where status = 'Checking'), 16,
   'many 2. each server gets its own status, and the ones never checked are checked');
 select is((select count(*)::int from public.action_queue where action = 'discord_server' and status = 'Queued'), 16,

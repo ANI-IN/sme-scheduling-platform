@@ -4,12 +4,13 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
-import { useDomains, useSystem } from '@/lib/data';
+import { useDomains, useMe, useSystem } from '@/lib/data';
 import { ago } from '@/lib/time';
 import { botInviteUrl } from '@/lib/discord';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useRun } from '@/pages/ClassDrawer';
 import { ArchiveButton, DeleteButton } from '@/components/Lifecycle';
+import { useConfirm } from '@/components/Confirm';
 import {
   Badge,
   Button,
@@ -17,6 +18,7 @@ import {
   ErrorText,
   Field,
   Input,
+  Modal,
   Notice,
   Section,
   Select,
@@ -26,6 +28,35 @@ import {
   thead,
   trow,
 } from '@/components/ui';
+
+/** Which domains each approved server may be used for (decision 288). */
+export const useServerDomains = () =>
+  useQuery({
+    queryKey: ['discord_server_domain'],
+    queryFn: async () => {
+      const rows = check(
+        await supabase.from('discord_server_domain').select('server_id, domain_id'),
+      );
+      const m = new Map<string, Set<string>>();
+      for (const r of rows) {
+        if (!m.has(r.server_id)) m.set(r.server_id, new Set());
+        m.get(r.server_id)!.add(r.domain_id);
+      }
+      return m;
+    },
+  });
+
+export const accessLabel: Record<
+  string,
+  { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
+> = {
+  Waiting: { label: 'Waiting for approval', tone: 'warning' },
+  Approved: { label: 'Approved', tone: 'success' },
+  Refused: { label: 'Refused', tone: 'danger' },
+  Removed: { label: 'Access removed', tone: 'neutral' },
+};
+const accessOf = (a: string) =>
+  accessLabel[a] ?? { label: 'Waiting for approval', tone: 'warning' as const };
 
 /**
  * Discord servers: each domain uses an existing server. The bot is invited with an invite link,
@@ -38,6 +69,8 @@ export function DiscordServers() {
   const system = useSystem();
   const config = system.data?.config;
   const { run, err } = useRun();
+  const isAdmin = !!useMe()?.is_admin;
+  const serverDomains = useServerDomains();
   const invite = botInviteUrl();
   const servers = useQuery({
     queryKey: ['discord_server'],
@@ -105,24 +138,27 @@ export function DiscordServers() {
           people by username) and Message Content Intent (to read replies).
         </li>
         <li>
-          Press <strong>Refresh servers</strong>, choose the server of each domain below, and wait
-          for Ready.
+          An admin presses <strong>Refresh servers</strong> and approves the server for its domains.
+          Until then the bot does nothing on it.
         </li>
+        <li>Choose the server of each domain below, and wait for Ready.</li>
       </ol>
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() =>
-            run(
-              () => rpc('check_discord', { p_kind: 'servers' }),
-              'Asked the bot for its servers. This takes up to a minute.',
-            )
-          }
-        >
-          <RefreshCw className="h-4 w-4" aria-hidden /> Refresh servers
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              run(
+                () => rpc('check_discord', { p_kind: 'servers' }),
+                'Asked the bot for its servers. This takes up to a minute.',
+              )
+            }
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden /> Refresh servers
+          </Button>
+        )}
         <span className="text-muted-foreground">
           {servers.data?.length
             ? `The bot is in ${servers.data.length} server${servers.data.length === 1 ? '' : 's'}${
@@ -173,13 +209,27 @@ export function DiscordServers() {
                         <option value={d.discord_server_id}>Server not listed yet</option>
                       )}
                     {(servers.data ?? [])
-                      .filter((s) => !s.archived_at || s.id === d.discord_server_id)
+                      .filter(
+                        (s) =>
+                          s.id === d.discord_server_id ||
+                          (!s.archived_at &&
+                            s.access === 'Approved' &&
+                            !!serverDomains.data?.get(s.id)?.has(d.id)),
+                      )
                       .map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
                         </option>
                       ))}
                   </Select>
+                  {serverDomains.data &&
+                    !(servers.data ?? []).some(
+                      (s) => s.access === 'Approved' && serverDomains.data.get(s.id)?.has(d.id),
+                    ) && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        No server is approved for {d.name} yet. Ask an admin.
+                      </div>
+                    )}
                   {d.discord_server_id && counts.data && (
                     <div className="mt-1 text-xs text-muted-foreground">
                       {counts.data.get(d.discord_server_id) ?? 0} channels the bot can see
@@ -211,7 +261,7 @@ export function DiscordServers() {
           </tbody>
         </table>
       </div>
-      {config && (
+      {config && isAdmin && (
         <div className="mt-4 space-y-1">
           <div className="text-sm font-medium">Admin alert channel</div>
           <p className="text-xs text-muted-foreground">
@@ -252,6 +302,10 @@ export function DiscordServers() {
 function ServerList() {
   const domains = useDomains();
   const { run, err } = useRun();
+  const isAdmin = !!useMe()?.is_admin;
+  const serverDomains = useServerDomains();
+  const confirm = useConfirm();
+  const [approving, setApproving] = useState<{ id: string; name: string } | null>(null);
   const [q, setQ] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const servers = useQuery({
@@ -319,6 +373,7 @@ function ServerList() {
             <thead className={thead}>
               <tr>
                 <th className={th}>Server</th>
+                <th className={th}>Access</th>
                 <th className={th}>Status</th>
                 <th className={th}>Channels</th>
                 <th className={th}>Used by</th>
@@ -338,6 +393,18 @@ function ServerList() {
                     {s.archived_at && <Badge tone="neutral">Archived</Badge>}
                   </td>
                   <td className={td}>
+                    <Badge tone={accessOf(s.access).tone}>{accessOf(s.access).label}</Badge>
+                    {s.access === 'Approved' && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        For{' '}
+                        {(domains.data ?? [])
+                          .filter((d) => serverDomains.data?.get(s.id)?.has(d.id))
+                          .map((d) => d.name)
+                          .join(', ') || 'no domain yet'}
+                      </div>
+                    )}
+                  </td>
+                  <td className={td}>
                     <ServerStatus status={s.status} problem={s.problem} />
                   </td>
                   <td className={td}>{counts.data?.get(s.id) ?? 0}</td>
@@ -345,28 +412,83 @@ function ServerList() {
                     {usedBy(s.id) || <span className="text-muted-foreground">No domain</span>}
                   </td>
                   <td className={td}>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={s.status === 'Checking'}
-                        onClick={() =>
-                          run(
-                            () => rpc('check_discord_server', { p_server_id: s.id }),
-                            `Checking ${s.name}. This takes up to a minute.`,
-                          )
-                        }
-                      >
-                        Check again
-                      </Button>
-                      <ArchiveButton
-                        kind="discord_server"
-                        id={s.id}
-                        name={s.name}
-                        archived={!!s.archived_at}
-                      />
-                      <DeleteButton kind="discord_server" id={s.id} />
-                    </div>
+                    {isAdmin && (
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant={s.access === 'Approved' ? 'outline' : 'primary'}
+                          onClick={() => setApproving({ id: s.id, name: s.name })}
+                        >
+                          {s.access === 'Approved' ? 'Change domains' : 'Approve'}
+                        </Button>
+                        {s.access === 'Waiting' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              run(
+                                () =>
+                                  rpc('set_discord_server_access', {
+                                    p_server_id: s.id,
+                                    p_access: 'Refused',
+                                  }),
+                                `${s.name} refused. The bot does nothing there.`,
+                              )
+                            }
+                          >
+                            Refuse
+                          </Button>
+                        )}
+                        {s.access === 'Approved' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              const used = usedBy(s.id);
+                              const ok = await confirm({
+                                title: `Remove access to ${s.name}?`,
+                                body: used
+                                  ? `${used} use this server. Their Discord messages stop and each gets a task; emails still go out.`
+                                  : 'The bot stops doing anything on this server.',
+                                danger: true,
+                                confirmLabel: 'Remove access',
+                              });
+                              if (!ok) return;
+                              await run(
+                                () =>
+                                  rpc('set_discord_server_access', {
+                                    p_server_id: s.id,
+                                    p_access: 'Removed',
+                                  }),
+                                `Access to ${s.name} removed`,
+                              );
+                            }}
+                          >
+                            Remove access
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={s.status === 'Checking' || s.access !== 'Approved'}
+                          onClick={() =>
+                            run(
+                              () => rpc('check_discord_server', { p_server_id: s.id }),
+                              `Checking ${s.name}. This takes up to a minute.`,
+                            )
+                          }
+                        >
+                          Check again
+                        </Button>
+                        <ArchiveButton
+                          kind="discord_server"
+                          id={s.id}
+                          name={s.name}
+                          archived={!!s.archived_at}
+                        />
+                        <DeleteButton kind="discord_server" id={s.id} />
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -374,7 +496,69 @@ function ServerList() {
           </table>
         </div>
       ) : null}
+      {approving && (
+        <ApproveServer
+          server={approving}
+          initial={[...(serverDomains.data?.get(approving.id) ?? [])]}
+          onClose={() => setApproving(null)}
+        />
+      )}
       <ErrorText error={err} />
     </div>
+  );
+}
+
+/** Approve a server for the domains that may use it (decision 288). Logged in Activity history. */
+function ApproveServer({
+  server,
+  initial,
+  onClose,
+}: {
+  server: { id: string; name: string };
+  initial: string[];
+  onClose: () => void;
+}) {
+  const domains = useDomains();
+  const { run, err } = useRun();
+  const [chosen, setChosen] = useState<string[]>(initial);
+  return (
+    <Modal
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`Approve ${server.name}`}
+      description="Choose the domains that may use this server. The bot then reads its channels, and posts only for these domains."
+    >
+      <div className="space-y-2">
+        {(domains.data ?? []).map((d) => (
+          <Checkbox
+            key={d.id}
+            label={d.name}
+            checked={chosen.includes(d.id)}
+            onChange={(v) => setChosen((c) => (v ? [...c, d.id] : c.filter((x) => x !== d.id)))}
+          />
+        ))}
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          disabled={chosen.length === 0}
+          onClick={() =>
+            void run(async () => {
+              await rpc('set_discord_server_access', {
+                p_server_id: server.id,
+                p_access: 'Approved',
+                p_domain_ids: chosen,
+              });
+              onClose();
+            }, `${server.name} approved`)
+          }
+        >
+          Approve
+        </Button>
+      </div>
+      <ErrorText error={err} />
+    </Modal>
   );
 }

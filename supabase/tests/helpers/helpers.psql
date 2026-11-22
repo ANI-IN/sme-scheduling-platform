@@ -69,6 +69,38 @@ returns void language sql as $$
          environment_set_at = coalesce(environment_set_at, now()) where id = 1;
 $$;
 
+-- Release 3 M4 (decision 288): the bot only posts in channels it has listed, in servers an admin approved for the
+-- domain. The made up channels of the test domains and instructors are listed here in one approved test server
+-- that every test domain may use, as an admin would after approving a real server. Tests about approval create
+-- their own servers, which wait until the test approves them.
+create or replace function tests.approve_test_channels()
+returns void language plpgsql as $$
+begin
+  if to_regclass('public.discord_server_domain') is null then return; end if;
+  insert into public.discord_server (id, name, status, access) values ('999000000000000001', 'Test server', 'Ready', 'Approved')
+  on conflict (id) do nothing;
+  insert into public.discord_channel (id, server_id, name)
+  select distinct x.id, '999000000000000001', 'test-' || right(x.id, 6) from (
+    select alert_discord_channel_id id from public.domain union select test_discord_channel_id from public.domain
+    union select discord_channel_id from public.instructor union select channel_id from public.instructor_channel
+    union select admin_discord_channel_id from public.app_config) x
+   where x.id ~ '^\d{17,20}$'
+  on conflict (id) do nothing;
+  insert into public.discord_server_domain (server_id, domain_id)
+  select '999000000000000001', d.id from public.domain d on conflict do nothing;
+end $$;
+
+-- Approve a server for every test domain, as an admin would; p_check also queues a check of its channels.
+create or replace function tests.approve_server(p_server text, p_check boolean default false)
+returns void language plpgsql as $$
+begin
+  insert into public.discord_server (id, name, status) values (p_server, 'Server ' || right(p_server, 4), 'NotChecked')
+  on conflict (id) do nothing;
+  update public.discord_server set access = 'Approved', access_changed_at = now() where id = p_server;
+  insert into public.discord_server_domain (server_id, domain_id) select p_server, d.id from public.domain d on conflict do nothing;
+  if p_check then perform private.queue_server_check(p_server); end if;
+end $$;
+
 create or replace function tests.make_team_member(p_name text, p_label text default 'Ops')
 returns uuid language sql as $$
   insert into public.team_member (name, email, discord_user_id, job_title)
@@ -86,16 +118,22 @@ begin
   v_ops := tests.make_team_member(p_name || ' Ops', 'Ops');
   v_lead := tests.make_team_member(p_name || ' Lead', 'Lead');
   insert into public.domain_team (domain_id, team_member_id, role) values (v, v_ops, 'Operations'), (v, v_lead, 'Escalation');
+  perform tests.approve_test_channels();
   return v;
 end $$;
 
+drop function if exists tests.make_instructor(text, boolean, boolean);
 create or replace function tests.make_instructor(p_name text, p_verified boolean default true, p_is_test boolean default false)
-returns uuid language sql as $$
+returns uuid language plpgsql as $$
+declare v uuid;
+begin
   insert into public.instructor (full_name, primary_email, discord_user_id, discord_channel_id, verified_at, is_test)
   values (p_name, lower(replace(p_name, ' ', '.')) || '@example.org', tests.rand_discord(), tests.rand_discord(),
           case when p_verified then now() end, p_is_test)
-  returning id;
-$$;
+  returning id into v;
+  perform tests.approve_test_channels();
+  return v;
+end $$;
 
 -- Module with the standard 2-class pattern (Sun 9:00–13:00 live, Thu 18:00–20:00 review), an owner
 -- and one resource.
@@ -172,6 +210,7 @@ begin
     insert into public.instructor_channel (instructor_id, domain_id, channel_id)
     select v_i, v_dom, discord_channel_id from public.instructor where id = v_i;
   end loop;
+  perform tests.approve_test_channels();
   perform tests.rank(v_mod, variadic v_ids);
   v_mw := tests.make_week(v_mod, p_week);
   v := jsonb_build_object('domain', v_dom, 'module', v_mod, 'mw', v_mw,

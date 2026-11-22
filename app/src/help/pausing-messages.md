@@ -5,6 +5,8 @@ order: 13
 
 Use this when something is wrong, for example wrong class times were sent or a message text has a mistake.
 
+Only an admin can pause or turn messages back on. If you are not an admin and something is wrong, tell an admin at once.
+
 ![Pause all messages from your account menu](/help/pause-menu.png)
 
 1. Open your account menu at the bottom of the sidebar (your email address).

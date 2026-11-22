@@ -41,6 +41,7 @@ const ROUTES = [
   '/settings/messages',
   '/settings/testing',
   '/settings/connections',
+  '/settings/admin',
   '/activity',
   '/help',
 ];

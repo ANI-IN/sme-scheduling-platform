@@ -7,7 +7,7 @@ import { useConfirm } from '@/components/Confirm';
 import { DeleteButton } from '@/components/Lifecycle';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
-import { useTeam, type TeamMember } from '@/lib/data';
+import { useMe, useTeam, type TeamMember } from '@/lib/data';
 import { isEmail } from '@/lib/validation';
 import { cleanUsername, usernameProblem } from '@/lib/discord';
 import { DiscordStatus } from '@/components/Discord';
@@ -145,6 +145,7 @@ export default function Team() {
 }
 
 function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose: () => void }) {
+  const isAdmin = !!useMe()?.is_admin;
   const qc = useQueryClient();
   const [f, setF] = useState({
     name: member?.name ?? '',
@@ -225,7 +226,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          {member && (
+          {member && isAdmin && (
             <Button
               variant="ghost"
               className="ml-auto"
@@ -354,6 +355,7 @@ function AccessSection({ member, onDone }: { member: TeamMember; onDone: () => v
   const [err, setErr] = useState<unknown>(null);
   const removed = !!member.access_removed_at;
   const self = account?.member?.id === member.id;
+  const isAdmin = !!useMe()?.is_admin;
   return (
     <div className="space-y-2 rounded-md border border-destructive/40 p-3">
       <div className="text-sm font-semibold text-danger-strong">
@@ -364,9 +366,11 @@ function AccessSection({ member, onDone }: { member: TeamMember; onDone: () => v
           ? 'This person cannot sign in. Their past work stays in Activity history.'
           : self
             ? 'You cannot remove your own access.'
-            : 'Removing access stops this person from signing in and from being tagged or reminded.'}
+            : !isAdmin
+              ? 'Only an admin can remove access.'
+              : 'Removing access stops this person from signing in and from being tagged or reminded.'}
       </p>
-      {!self && (
+      {!self && isAdmin && (
         <Button
           size="sm"
           variant={removed ? 'secondary' : 'destructive'}

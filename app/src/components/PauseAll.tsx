@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { poke, rpc } from '@/lib/rpc';
-import { useSystem } from '@/lib/data';
+import { useMe, useSystem } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { useConfirm } from '@/components/Confirm';
 import { Badge, Button, ErrorText, Section } from '@/components/ui';
@@ -14,6 +14,8 @@ export function usePauseAll() {
   const confirm = useConfirm();
   const [err, setErr] = useState<unknown>(null);
   const on = data?.state.outreach_enabled ?? true;
+  // Only an admin pauses or resumes every message (decision 276); the database refuses anyone else too.
+  const canChange = !!useMe()?.is_admin;
   const toggle = async () => {
     const ok = await confirm({
       title: on ? 'Pause all messages to instructors?' : 'Turn messages back on?',
@@ -35,7 +37,14 @@ export function usePauseAll() {
       toast.error('Could not change it. Please try again.');
     }
   };
-  return { on, loaded: !!data, toggle, err, pausedSince: data?.state.kill_switch_changed_at };
+  return {
+    on,
+    loaded: !!data,
+    canChange,
+    toggle,
+    err,
+    pausedSince: data?.state.kill_switch_changed_at,
+  };
 }
 
 export function PauseAllSection() {
@@ -58,9 +67,15 @@ export function PauseAllSection() {
           turn messages back on.
         </p>
       )}
-      <Button variant={p.on ? 'destructive' : 'primary'} onClick={() => void p.toggle()}>
-        {p.on ? 'Pause all messages' : 'Turn messages back on'}
-      </Button>
+      {p.canChange ? (
+        <Button variant={p.on ? 'destructive' : 'primary'} onClick={() => void p.toggle()}>
+          {p.on ? 'Pause all messages' : 'Turn messages back on'}
+        </Button>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Only an admin can pause or resume all messages.
+        </p>
+      )}
       <ErrorText error={p.err} />
     </Section>
   );

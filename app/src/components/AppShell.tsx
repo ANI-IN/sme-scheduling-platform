@@ -25,6 +25,7 @@ import {
   LifeBuoy,
   MessageSquareText,
   OctagonPause,
+  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -32,12 +33,13 @@ import { DiscordPrompt } from './DiscordPrompt';
 import { usePauseAll } from './PauseAll';
 import { confirmLeave } from '@/lib/unsaved';
 import { useDomain } from '@/lib/domain';
-import { LIVE_CHECK_MS, type Domain } from '@/lib/data';
+import { LIVE_CHECK_MS, useMe, type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
 import { Badge, Button, cn, type Tone } from './ui';
 import { ThemeMenuChoice } from './ThemeSwitch';
 
-type Item = { to: string; label: string; icon: typeof Home; end?: boolean };
+/** adminOnly: shown to admins only (decision 276). */
+type Item = { to: string; label: string; icon: typeof Home; end?: boolean; adminOnly?: boolean };
 const groups: { label?: string; items: Item[] }[] = [
   { items: [{ to: '/', label: 'Home', icon: Home, end: true }] },
   {
@@ -63,6 +65,7 @@ const groups: { label?: string; items: Item[] }[] = [
       { to: '/settings/messages', label: 'Message templates', icon: MessageSquareText },
       { to: '/settings/testing', label: 'Testing', icon: FlaskConical },
       { to: '/settings/connections', label: 'Connections', icon: PlugZap },
+      { to: '/settings/admin', label: 'Admin', icon: ShieldCheck, adminOnly: true },
     ],
   },
   {
@@ -199,6 +202,7 @@ export function AppShell() {
 
 function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () => void }) {
   const { domain } = useDomain();
+  const isAdmin = !!useMe()?.is_admin;
   const urgent = useQuery({
     queryKey: ['attention_item', 'urgent-count', domain?.id],
     // Checks for new tasks every 30 seconds while open, in case a live update was missed.
@@ -252,41 +256,43 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle?: () =>
             )}
             {g.label && collapsed && <div className="mx-2 mb-1 border-t border-border" />}
             <ul className="space-y-0.5">
-              {g.items.map((it) => (
-                <li key={it.to}>
-                  <NavLink
-                    to={it.to}
-                    end={it.end}
-                    onClick={(e) => {
-                      if (!confirmLeave()) e.preventDefault();
-                    }}
-                    title={collapsed ? it.label : undefined}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium',
-                        collapsed && 'justify-center',
-                        isActive
-                          ? 'bg-sidebar-active text-sidebar-active-foreground'
-                          : 'text-sidebar-foreground hover:bg-muted hover:text-foreground',
-                      )
-                    }
-                  >
-                    <it.icon className="h-4 w-4 shrink-0" aria-hidden />
-                    {!collapsed && <span className="truncate">{it.label}</span>}
-                    {it.to === '/' && (urgent.data ?? 0) > 0 && (
-                      <span
-                        className={cn(
-                          'rounded-full bg-destructive px-1.5 text-xs leading-5 text-destructive-foreground',
-                          collapsed ? 'absolute ml-6 -mt-5' : 'ml-auto',
-                        )}
-                        title={`${urgent.data} urgent`}
-                      >
-                        {urgent.data}
-                      </span>
-                    )}
-                  </NavLink>
-                </li>
-              ))}
+              {g.items
+                .filter((it) => !it.adminOnly || isAdmin)
+                .map((it) => (
+                  <li key={it.to}>
+                    <NavLink
+                      to={it.to}
+                      end={it.end}
+                      onClick={(e) => {
+                        if (!confirmLeave()) e.preventDefault();
+                      }}
+                      title={collapsed ? it.label : undefined}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium',
+                          collapsed && 'justify-center',
+                          isActive
+                            ? 'bg-sidebar-active text-sidebar-active-foreground'
+                            : 'text-sidebar-foreground hover:bg-muted hover:text-foreground',
+                        )
+                      }
+                    >
+                      <it.icon className="h-4 w-4 shrink-0" aria-hidden />
+                      {!collapsed && <span className="truncate">{it.label}</span>}
+                      {it.to === '/' && (urgent.data ?? 0) > 0 && (
+                        <span
+                          className={cn(
+                            'rounded-full bg-destructive px-1.5 text-xs leading-5 text-destructive-foreground',
+                            collapsed ? 'absolute ml-6 -mt-5' : 'ml-auto',
+                          )}
+                          title={`${urgent.data} urgent`}
+                        >
+                          {urgent.data}
+                        </span>
+                      )}
+                    </NavLink>
+                  </li>
+                ))}
             </ul>
           </div>
         ))}
@@ -395,16 +401,18 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
             <DM.Label className="px-1 pb-1 text-xs font-medium">Theme</DM.Label>
             <ThemeMenuChoice />
             <DM.Separator className="my-1 h-px bg-border" />
-            <DM.Item
-              onSelect={() => void pause.toggle()}
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted',
-                pause.on && 'text-danger-strong',
-              )}
-            >
-              <OctagonPause className="h-4 w-4" aria-hidden />
-              {pause.on ? 'Pause all messages' : 'Turn messages back on'}
-            </DM.Item>
+            {pause.canChange && (
+              <DM.Item
+                onSelect={() => void pause.toggle()}
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted',
+                  pause.on && 'text-danger-strong',
+                )}
+              >
+                <OctagonPause className="h-4 w-4" aria-hidden />
+                {pause.on ? 'Pause all messages' : 'Turn messages back on'}
+              </DM.Item>
+            )}
             <DM.Item
               onSelect={() => void signOut()}
               className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted"
@@ -462,9 +470,11 @@ function Banners() {
               <strong className="font-semibold">All messages to instructors are paused</strong> in
               every domain. Team alerts continue.
             </span>
-            <Button size="sm" onClick={() => void pause.toggle()}>
-              Turn messages back on
-            </Button>
+            {pause.canChange && (
+              <Button size="sm" onClick={() => void pause.toggle()}>
+                Turn messages back on
+              </Button>
+            )}
           </span>
         </Bar>
       )}
