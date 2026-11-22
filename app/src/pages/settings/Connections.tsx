@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useMe, useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { PauseAllSection } from '@/components/PauseAll';
+import { UsageSection } from '@/components/UsageSection';
 import { DiscordServers } from './DiscordServers';
 import {
   Badge,
@@ -26,6 +27,7 @@ type Config = NonNullable<ReturnType<typeof useSystem>['data']>['config'];
 
 export default function Connections() {
   const { data, isLoading } = useSystem();
+  const isAdmin = !!useMe()?.is_admin;
   return (
     <div className="space-y-5">
       <PageHeader
@@ -47,6 +49,7 @@ export default function Connections() {
           <DiscordServers />
           <ConfigForm key={data.config.version} config={data.config} />
           <PauseAllSection />
+          {isAdmin && <UsageSection />}
           <AppErrors />
         </>
       )}

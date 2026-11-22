@@ -1852,6 +1852,9 @@ isOneToOne: false
 "update_my_profile":
 { Args: { "p_discord_username"?: string,"p_dismiss_discord_prompt"?: boolean }; Returns: undefined
                            },
+"usage_summary":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "week_eligibility":
 { Args: { "p_module_week_id": string }; Returns: Json
                            }
