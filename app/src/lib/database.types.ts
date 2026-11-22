@@ -1236,6 +1236,9 @@ isOneToOne: false
 "advance_test_clock":
 { Args: { "p_domain_id": string,"p_hours": number }; Returns: Json
                            },
+"apply_standard":
+{ Args: { "p_accept_warnings"?: boolean,"p_cohort_ids"?: (string)[],"p_reason"?: string,"p_save"?: boolean,"p_schedule_id": string }; Returns: Json
+                           },
 "archive_standard_schedule":
 { Args: { "p_archived": boolean,"p_id": string }; Returns: undefined
                            },
@@ -1515,6 +1518,9 @@ isOneToOne: false
 "reset_setting_at":
 { Args: { "p_key": string,"p_scope": string,"p_scope_id": string }; Returns: undefined
                            },
+"reset_to_standard":
+{ Args: { "p_accept_warnings"?: boolean,"p_cohort_id"?: string,"p_module_week_ids"?: (string)[],"p_reason"?: string,"p_save"?: boolean }; Returns: Json
+                           },
 "response_page":
 { Args: { "p_token": string }; Returns: unknown
                            },
@@ -1615,6 +1621,9 @@ isOneToOne: false
 { Args: { "p_include_later"?: boolean,"p_module_week_id": string,"p_weeks": number }; Returns: Json
                            },
 "skip_to_next":
+{ Args: { "p_module_week_id": string }; Returns: Json
+                           },
+"standard_compare":
 { Args: { "p_module_week_id": string }; Returns: Json
                            },
 "start_asking_now":
