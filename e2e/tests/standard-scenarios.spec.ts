@@ -99,7 +99,7 @@ test('a standard schedule with two modules and a break', async ({ page }) => {
     await dlg.getByRole('button', { name: 'Add module' }).click();
   }
   await dlg.getByRole('button', { name: 'Add a break' }).click();
-  await expect(dlg.getByLabel('After module')).toHaveValue('1');
+  await expect(dlg.getByRole('combobox', { name: /^After module/ })).toHaveValue('1');
   await a11y(page, 'add standard schedule dialog');
   await noDashes(page, 'add standard schedule dialog');
   await dlg.getByRole('button', { name: 'Add standard schedule' }).click();
@@ -263,6 +263,8 @@ test('the standard changes: its cohorts are updated, except a customized and a c
       'An instructor is confirmed. Change the time on the class week, so they are asked about the new time.',
     ),
   ).toBeVisible();
+  // The "Class time added" toast fades out first, so its half faded text is not what is checked.
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10_000 });
   await a11y(page, 'update cohorts preview');
   await noDashes(page, 'update cohorts preview');
   await dlg.getByRole('button', { name: 'Update cohorts', exact: true }).click();
@@ -303,7 +305,12 @@ test('a cohort added by hand is fully custom', async ({ page }) => {
   await expect(page.getByText('Cohort E2E Free added')).toBeVisible();
   await expect(drawer.locator('li').filter({ hasText: 'E2E Free' })).toContainText('Fully custom');
   await expect(drawer.locator('li').filter({ hasText: ALPHA })).toContainText('Custom (1 change)');
-  await expect(drawer.locator('li').filter({ hasText: ALPHA })).toContainText('Reset to standard');
+  await expect(
+    drawer
+      .locator('li')
+      .filter({ hasText: ALPHA })
+      .getByRole('button', { name: `Reset ${ALPHA} to standard` }),
+  ).toBeVisible();
   await expect(drawer.locator('li').filter({ hasText: 'Weekend cohort' })).toContainText(
     'Fully custom',
   );

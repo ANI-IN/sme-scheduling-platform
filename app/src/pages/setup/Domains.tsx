@@ -560,7 +560,12 @@ function Cohorts({ domainId }: { domainId: string }) {
   const [adding, setAdding] = useState({ name: '', region: 'US', start: '' });
   const [touched, setTouched] = useState(false);
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
-  const refresh = () => qc.invalidateQueries({ queryKey: ['cohort'] });
+  // The Standard or Custom badges are kept under the class weeks, so a new cohort needs both.
+  const refresh = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ['cohort'] }),
+      qc.invalidateQueries({ queryKey: ['module_week', 'schedule_status'] }),
+    ]);
   const nameErr = !adding.name.trim()
     ? 'Give the cohort a name, for example Weekend cohort.'
     : undefined;
