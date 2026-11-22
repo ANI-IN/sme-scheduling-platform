@@ -1652,7 +1652,7 @@ isOneToOne: false
 { Args: { "p_cohort_id"?: string,"p_instructor_ids": (string)[],"p_module_id": string }; Returns: Json
                            },
 "record_bounce":
-{ Args: { "p_detail"?: string,"p_email": string,"p_external_id"?: string }; Returns: Json
+{ Args: { "p_detail"?: string,"p_email": string,"p_external_id"?: string,"p_report"?: boolean,"p_thread_id"?: string }; Returns: Json
                            },
 "record_discord_result":
 { Args: { "p_action_id": string,"p_result": Json }; Returns: Json

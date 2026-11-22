@@ -87,7 +87,11 @@ select is(tests.open_items(:'dom', 'ScheduleLow'), 1, 'schedule running low (< 6
 select tests.scenario('FL', 'Live', '2027-01-31', 2) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'mw') as mw, (:'j'::jsonb ->> 'i1') as i1 \gset
 select tests.tick(:'dom', '2027-01-01 18:00+00');
-select public.record_bounce('fl.instr1@example.org', 'bounce-1', 'Mailbox not found');
+-- SEC 9 (decision 311): a real bounce is in the Gmail thread of an email the app sent to that address.
+update public.message set status = 'Sent', sent_at = now(), external_id = 'fl-thread-1'
+ where id = (select id from public.message where module_week_id = :'mw' and channel = 'Email' and lower(to_address) = 'fl.instr1@example.org'
+              order by created_at limit 1);
+select public.record_bounce('fl.instr1@example.org', 'bounce-1', 'Mailbox not found', 'fl-thread-1', true);
 select is(tests.open_items(:'dom', 'MessageFailed'), 1, 'email bounce → attention item');
 select ok((select email_bounced_at from public.instructor where id = :'i1') is not null, 'instructor flagged until fixed');
 create temp table d as select id from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Discord';
