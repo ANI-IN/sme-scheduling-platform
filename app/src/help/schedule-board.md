@@ -17,6 +17,8 @@ Use **Earlier**, **This week** and **Later** to move through the weeks, and choo
 
 Each cell has one status, always with its colour, icon and word: **Confirmed**, **Waiting for an answer**, **Needs instructor**, **Proposed time**, **Not asked yet** (with the Primary instructor), **Setup incomplete**, **Paused**, **Cancelled** or **Completed**. A week during a break shows **Break**; a program break is one row across the board. Press **Legend** to see them all.
 
+**Answer due soon** shows on a class week waiting for an answer only when the answer is due within 12 hours. Change the number of hours under Settings, Automation, More options.
+
 ## Needs a decision
 
 The counts at the top add up every problem in the weeks shown: clashes, unavailable instructors, odd hours, holidays, class weeks that need an instructor, proposed times and more. Select one to show only the class weeks with it, or tick **Only problems**. Each problem is fixed from its class week; see [When an instructor cancels or a class moves](/help/cancellations-and-moves).
