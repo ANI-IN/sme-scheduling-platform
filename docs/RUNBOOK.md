@@ -3,6 +3,11 @@
 What to check each day, how to stop messages fast, and what to do when something looks wrong. The app's own Help
 (the **Help** link in the sidebar) explains every page step by step.
 
+There is one hosted environment, **Production** (since 22 November 2026): the Supabase project `abcdefghijklmnopqrst`,
+the n8n instance and <https://your-app.vercel.app>, all of which used to be called Sandbox. The n8n workflows
+are named `[Production] WF1 Hourly engine` and so on; the n8n credentials and webhook paths keep their Sandbox names.
+The script commands below read `.env.production` (the renamed `.env.sandbox`). The database refuses any reset.
+
 ## Stop all messages to instructors (do this first in an emergency)
 
 1. Open your account menu at the bottom of the sidebar (your email address).
@@ -39,8 +44,8 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 | Buttons in the app do not send at once | `VITE_N8N_POKE_URL` or `VITE_N8N_POKE_KEY` is wrong in the hosting settings | Messages still go within 5 minutes (WF4 runs on a schedule). Fix the hosting variables and deploy again. |
 | A task says a Discord message was not delivered | The bot cannot post in the instructor's channel, or the channel was deleted | The task says exactly what to fix. Give the bot's role access to the channel, or choose a new channel for the instructor on **Setup, Instructors**. The email was still sent. |
 | A task says an email bounced | Wrong email address | Fix it on **Setup, Instructors**. Discord is still used meanwhile. |
-| An answer link says "This link isn't valid" | The link was copied only in part, or the answer page link is wrong | **Settings, Connections, Advanced: links** shows the answer page link. It must be the WF2 production address. Change it with `npm run configure:<env> -w scripts` (docs/SETUP_GUIDE.md, 1.4). |
-| An instructor presses the button on the answer page and nothing happens | The answer page link points to the n8n test address (`/webhook-test/`) | Use the production address (`/webhook/respond`) and publish WF2. |
+| An answer link says "This link isn't valid" | The link was copied only in part, or the answer page link is wrong | **Settings, Connections, Advanced: links** shows the answer page link. It must be the WF2 production address. Change it with `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). |
+| An instructor presses the button on the answer page and nothing happens | The answer page link points to the n8n test address (`/webhook-test/`) | Use the n8n production address (`/webhook/sandbox-respond`; the path keeps its name) and publish WF2. |
 | Someone cannot sign in | Not a company Google account, or the Supabase redirect address is missing | Only company Google accounts work. Check Supabase, **Authentication, URL Configuration**. The refusal is in Activity history. |
 | "This changed, reload" | Someone else saved the same record | Reload the page and make your change again. |
 | Requests do not start for a class week | Setup is not finished (no owner, nobody can be asked, and so on) | **Needs your attention** says why. Fix it and asking starts at the next automatic check. |
@@ -52,6 +57,12 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 Nothing needs replaying. When n8n or Supabase comes back, the next automatic check catches up: missed reminders are
 sent once, requests with no answer move on, and every message has its own key, so nothing is sent twice. Activity
 history shows what ran.
+
+## Hosting
+
+The app is hosted on Vercel's free Hobby plan, which is for non commercial use. Cloudflare Pages is the free
+alternative the app already supports: both `vercel.json` and Cloudflare Pages work (docs/SETUP_GUIDE.md, part 7).
+Hosting is not changed for now.
 
 ## Backups
 
@@ -100,6 +111,8 @@ Roll back first, then fix locally:
 - **Last resort, if a rollback file cannot run:** restore the backup taken before the deploy with `pg_restore --clean`
   into the live database. Anything done since the backup is lost, so do it only after pausing all messages and telling
   the testers.
+- **The switch to Production:** `npm run configure:sandbox -w scripts` sets the database back to Sandbox rules. It is
+  kept only as this rollback, and it also reads `.env.production`.
 
 ### Admins (Release 3, M2)
 
@@ -108,14 +121,10 @@ Roll back first, then fix locally:
 - Run `add` with your own address right after the M2 deploy: until then nobody is an admin, so nobody can change
   Pause all, the beta list or the Discord server approvals. After that, admins manage each other on Settings, Admin.
 
-### Clearing the demo data (Release 3, M5, once)
+### Clearing the demo data (Release 3, M5, done)
 
-- Only after a fresh backup that was verified, and only with the owner's OK.
-- `npm run clear-demo -w scripts -- --preview` lists every table with its row count before and after, inside a
-  transaction that is rolled back: nothing changes.
-- `npm run clear-demo -w scripts -- --run --confirm CLEAR-DEMO-DATA` deletes the demo domains with everything in
-  them, the test instructors, every message and task. It keeps team members, Discord servers and channels, app
-  settings and all Activity history. It refuses a Production database.
+The demo data was cleared once on 22 November 2026, and `npm run clear-demo` is removed. The hosted app starts empty
+and each tester sets up their own domain; there is no demo data to load and no reset.
 
 ## Adding a new domain (no code)
 

@@ -17,7 +17,12 @@ serves the pages they render and passes inbound replies to them.
 "Poke" = an empty `POST` to the WF4 webhook with the header `x-poke-key`. It carries no data; it only tells
 WF4 "there is work in the database, process it now". WF4 also runs every 5 minutes, so nothing is lost if a poke fails.
 
-## Sandbox and Production
+## The Production workflows and the two folders
+
+There is one hosted environment, **Production** (since 22 November 2026). It runs in the same n8n instance that used
+to run the Sandbox, and the live workflows are now named `[Production] WF1 Hourly engine`,
+`[Production] WF2 Response handler`, `[Production] WF3 Daily jobs`, `[Production] WF4 Action runner`,
+`[Production] WF5 Error handler` and `[Production] WF6 Discord checks`.
 
 The files in this folder are the **base** workflows. Do not import them directly. Run
 
@@ -25,26 +30,27 @@ The files in this folder are the **base** workflows. Do not import them directly
 npm run n8n-export -w scripts
 ```
 
-to build the two sets you import:
+to build the two exported sets:
 
-| | `n8n/sandbox/` | `n8n/production/` |
+- **`n8n/sandbox/`** holds the exported copies of the live Production workflows. The folder keeps its old name.
+- **`n8n/production/`** holds older templates for a separate Production setup that was not used. Do not import them
+  into the live n8n.
+
+| | `n8n/sandbox/` (live Production) | `n8n/production/` (not used) |
 |---|---|---|
-| Workflow names | `[Sandbox] WF1 Hourly engine` and so on | `[Production] WF1 Hourly engine` and so on |
+| Workflow names | `[Production] WF1 Hourly engine` and so on | `[Production] WF1 Hourly engine` and so on |
 | Tag | `Sandbox` | `Production` |
-| Credential names | `Gmail Sandbox`, `Discord Bot Sandbox`, `Google Drive Backups`, `Supabase Sandbox`, `Poke Secret Sandbox` | The same with `Production` |
-| WF2 webhook | `/webhook/sandbox-respond` | `/webhook/respond` |
-| WF4 webhook | `/webhook/sandbox-sme-poke` | `/webhook/sme-poke` |
-| Config values | Filled in: the Sandbox Supabase and n8n addresses | `https://YOUR-PRODUCTION-PROJECT.supabase.co` to replace |
+| Credential names | `Gmail Sandbox`, `Discord Bot Sandbox`, `Google Drive Backups`, `Supabase Sandbox`, `Poke Secret Sandbox` (kept on purpose) | The same with `Production` |
+| WF2 webhook | `/webhook/sandbox-respond` (kept: links in messages already sent use it) | `/webhook/respond` |
+| WF4 webhook | `/webhook/sandbox-sme-poke` (kept) | `/webhook/sme-poke` |
+| Config values | Filled in: the Production Supabase and n8n addresses | `https://YOUR-PRODUCTION-PROJECT.supabase.co` to replace |
 
-Because names, credentials and webhook paths differ, both sets can run in **one** n8n instance without touching
-each other, or in two separate instances (better when you can afford it). Each set must only ever use its own
-environment's credentials: the Sandbox set talks to the Sandbox Supabase project, the Sandbox Discord bot and the
-Sandbox mailbox; the Production set to the Production ones. Change the base files, then export again; never edit
-the exported files by hand.
+Only the `n8n/sandbox/` set runs. It talks to the Production Supabase project, the bot behind `Discord Bot Sandbox`
+and the B2C mailbox. Change the base files, then export again; never edit the exported files by hand.
 
-### Every credential and variable, per environment
+### Every credential and variable
 
-See docs/CONFIGURATION.md: one table of every value, where it goes, and the Sandbox value where it is known.
+See docs/CONFIGURATION.md: one table of every value, where it goes, and the Production value where it is known.
 
 ## 1. Before you start
 
@@ -53,15 +59,15 @@ You need:
 1. The Supabase project URL, for example `https://abcdefgh.supabase.co`.
 2. Admin access to the company Discord server.
 3. A Google Workspace account for the dedicated scheduling mailbox (for example `scheduling@…`), and access to Google Cloud Console.
-4. A Google Drive folder for the nightly backups (Sandbox: `your-drive-folder-id`).
+4. A Google Drive folder for the nightly backups (Production: `your-drive-folder-id`).
 5. Your n8n address, for example `https://n8n.yourcompany.com` (written as `https://<your-n8n>` below).
 
 ## 2. Create the credentials
 
 In n8n: **Overview → Credentials → Create credential**. The workflows look credentials up by these exact names
-(decision 264). Sandbox already has three of them; you only create the other two.
+(decision 264). Production keeps the Sandbox names and already has three of them; you only create the other two.
 
-| Name (Sandbox) | Name (Production) | Type | State in Sandbox |
+| Name (Production) | Name (separate setup, not used) | Type | State in Production |
 |---|---|---|---|
 | `Gmail Sandbox` | `Gmail Production` | Gmail OAuth2 API, with n8n's own **Sign in with Google** | Done: the B2C mailbox |
 | `Discord Bot Sandbox` | `Discord Bot Production` | Discord Bot API (the bot token) | Done |
@@ -95,13 +101,13 @@ Keep this key private: it bypasses all row level security.
   checks). The bot needs only View Channels, Send Messages, Embed Links and Read Message History, and the
   Server Members Intent and Message Content Intent switched on (both are on).
 - **Gmail Sandbox**: sends every email from the B2C mailbox and reads the replies to it.
-- **Google Drive Backups**: WF3 uploads the nightly backup to the Sandbox folder
+- **Google Drive Backups**: WF3 uploads the nightly backup to the backup folder
   (`your-drive-folder-id`, already filled in) and moves backups older than the newest 30 to the
   Drive bin.
 
 ## 3. Import the workflows
 
-Import from `n8n/sandbox/` for Sandbox and from `n8n/production/` for Production.
+Import from `n8n/sandbox/` (the Production workflows). `n8n/production/` is only for a separate new setup.
 Import **WF5 first** (the others point to it as their error workflow), then the rest:
 
 1. In n8n: **Overview → Create → Workflow** (or **Workflows → Add workflow**), then the **…** menu (top right) → **Import from File…**.
@@ -112,7 +118,7 @@ Import **WF5 first** (the others point to it as their error workflow), then the 
 
 ## 4. Edit the Config node in every workflow
 
-Every workflow starts with a **Config** Code node. In the Sandbox files the Supabase address
+Every workflow starts with a **Config** Code node. In the `n8n/sandbox/` files the Supabase address
 (`https://abcdefghijklmnopqrst.supabase.co`) and the WF4 address
 (`https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke`) are already filled in. Only one value is left:
 
@@ -122,14 +128,15 @@ const pokeKey = 'REPLACE_WITH_POKE_SECRET';   // the value of the "Poke Secret S
 
 Do this in WF2 to WF5 (WF1 no longer pokes WF4).
 
-WF3's backup folder is filled in too, in **Upload to Google Drive** and **List backups**. For Production, replace
+WF3's backup folder is filled in too, in **Upload to Google Drive** and **List backups**. For a separate setup from
+`n8n/production/`, replace
 `REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID` in both with the Production folder ID (the last part of the folder's address
 in Drive: `https://drive.google.com/drive/folders/<this part>`), and the Supabase address in every Config node.
 
 ## 5. Set the error workflow
 
 For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
-**[Sandbox] WF5 Error handler** (or **[Production] WF5 Error handler**) → Save. (WF5 itself has no error workflow.)
+**[Production] WF5 Error handler** → Save. (WF5 itself has no error workflow.)
 
 ## 6. Publish (activate) the workflows
 
@@ -138,18 +145,20 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
 2. Only published workflows run on schedule and answer their **production** webhook URLs
    (`/webhook/...`). The **test** URLs (`/webhook-test/...`) only work while you click "Listen for test event".
 3. Production URLs (open the webhook node → **Production URL** to copy them):
-   - WF4: `https://<your-n8n>/webhook/sandbox-sme-poke` (Sandbox) or `https://<your-n8n>/webhook/sme-poke` (Production)
-   - WF2: `https://<your-n8n>/webhook/sandbox-respond` (Sandbox) or `https://<your-n8n>/webhook/respond` (Production)
+   - WF4: `https://<your-n8n>/webhook/sandbox-sme-poke` (Production; the path keeps its name) or
+     `https://<your-n8n>/webhook/sme-poke` (separate setup)
+   - WF2: `https://<your-n8n>/webhook/sandbox-respond` (Production; the path keeps its name) or
+     `https://<your-n8n>/webhook/respond` (separate setup)
 
 ## 7. Tell the database and the app where n8n is
 
 1. **Answer page link (WF2).** Every instructor button and the form on every answer page is built from it. Put
-   this environment's WF2 production address in `RESPONSE_BASE_URL` in `.env.sandbox` (`/webhook/sandbox-respond`) or
-   `.env.production` (`/webhook/respond`), then run `npm run configure:sandbox -w scripts` or
-   `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). It must start with `https://`. The app shows
+   the WF2 production address in `RESPONSE_BASE_URL` in `.env.production` (`/webhook/sandbox-respond` for
+   Production), then run `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). It must start with `https://`. The app shows
    it read only on **Settings, Connections, Advanced: links**; it cannot be changed from the app (decision 205).
 2. **Poke URL + secret (WF4)** — in the app's environment (Vercel → your project → Settings → Environment Variables, and `app/.env.local` for local use):
-   - `VITE_N8N_POKE_URL` = `https://<your-n8n>/webhook/sme-poke`
+   - `VITE_N8N_POKE_URL` = `https://<your-n8n>/webhook/sandbox-sme-poke` for Production (`/webhook/sme-poke` in a
+     separate setup)
    - `VITE_N8N_POKE_KEY` = the Poke secret value
    - Redeploy the app after changing them.
    - The same URL and secret go in each workflow's **Config** node (step 4).
