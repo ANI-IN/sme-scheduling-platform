@@ -21,6 +21,8 @@ The app never lets you create a clash: assigning a busy instructor or moving a c
 
 A shared class is one class for several cohorts: one instructor and one set of messages, while each cohort keeps its own lists. The class week that keeps the class shows the others under **Cohorts sharing this class**. The others show **Shared class** and are not asked.
 
+![Sharing a class with other cohorts](/help/share-class.png)
+
 1. Open the class week that keeps the class and its instructor, and press **Share with other cohorts** under **Shared class**. Or select the class weeks on the board and press **Make one shared class**: the earliest one keeps the class.
 2. Tick the other cohorts' class weeks. If their times differ, choose whose times the shared class keeps. Each time is checked in every cohort's time zone.
 3. If another class week has its own confirmed instructor, tick **Release instructors confirmed for the other class weeks**, or share from that class week instead to keep that instructor.

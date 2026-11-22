@@ -7,6 +7,8 @@ keywords: schedule board, board, by cohort, by instructor, list, legend, badges,
 
 Open the [Schedule board](/board). Each cell is one class week of a cohort. It shows the module, its status, its instructor and anything unusual about it. Select a cell to open the class week in the side panel, where every action is.
 
+![The Schedule board by cohort, with Needs a decision, the Legend and Select class weeks](/help/board.png)
+
 ## Views
 
 Choose a view at the top:
@@ -35,6 +37,8 @@ A week without classes during a cohort's break shows **Break** and the reason. A
 ## The Legend
 
 Press **Legend** to see every status and every badge the board, the cohort headers and the side panel can show, each with one sentence about what it means.
+
+![The Legend of the Schedule board](/help/board-legend.png)
 
 Badges on a cell say what is unusual, such as **Clash**, **Holiday**, **Answer due soon**, **Help request open**, **Moved**, **Extra class** or **Message failed**. Red badges need a fix now, and amber ones are worth a look. A cell shows up to three, and **+2** means there are two more inside. What each one means and how to fix it is in [Fixing problems on a class week](/help/fixing-problems).
 
@@ -71,6 +75,8 @@ What each action does is in [Changing a class week](/help/cancellations-and-move
 4. Press the button at the bottom to save, or **Go back** to change nothing.
 5. Press **Done selecting** to open cells again.
 
+![Two class weeks selected, with the buttons to change them](/help/board-select.png)
+
 The buttons in the bar:
 
 - **Add a break:** the break dialog opens with the cohorts of the selected class weeks, and the first selected week as its first day.
@@ -78,6 +84,8 @@ The buttons in the bar:
 - **Cancel:** type the **Reason**, then press **Cancel class weeks**. The people confirmed for them are told.
 - **Make one shared class:** the earliest selected class week keeps the class and the others join it. You need at least two. See [Fixing problems on a class week](/help/fixing-problems).
 - **Clear selection:** unticks every class week.
+
+![The preview before moving the selected class weeks](/help/board-move.png)
 
 ## Compare to standard and download
 

@@ -22,6 +22,8 @@ A new domain starts as **Draft**, so nothing is sent until you are ready. In the
 
 The app uses the Discord servers you already have. It never creates servers or channels. The bot is the app's own Discord account: it posts the messages and finds people.
 
+![The Discord server, a server waiting for approval and the alert channel in a domain's panel](/help/domain-discord-server.png)
+
 1. Open the domain's panel. Under **Details**, find **Discord server**.
 2. Choose the server. Only servers an admin approved for this domain are listed.
 3. The app checks the server at once and shows its status under the list. Wait for **Ready**.

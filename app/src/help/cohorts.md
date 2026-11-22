@@ -18,6 +18,8 @@ You can also create a cohort while you plan: choose **New cohort** in **Plan cla
 
 ## The cohort list
 
+![Cohorts and regions in a domain's panel](/help/cohorts.png)
+
 Each cohort under **Cohorts and regions** shows its region, how it follows its standard (**Standard**, **Custom** or **Fully custom**), and **Merged into** after a merge. Next to it you find:
 
 - **Rename**, and the list to change its region. Changing the region does not move classes already planned. Only new classes use the new region.
