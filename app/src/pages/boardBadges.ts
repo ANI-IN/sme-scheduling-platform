@@ -99,7 +99,7 @@ const BADGE_TEXT: Record<BadgeCode, string> = {
     'A class moved and the confirmed instructor has not confirmed the new time yet.',
   shared_class:
     'This class week is taught together with another cohort, and the side panel says which one.',
-  answer_due_soon: 'The instructor being asked has less than two days left to answer.',
+  answer_due_soon: 'The answer is due within 12 hours (a setting on Settings, Automation).',
   message_failed: 'A message about this class week could not be delivered.',
   help_open: 'Someone asked for help with this class week and it is not closed yet.',
   tasks_overdue: 'A task for this class week is past its due date.',

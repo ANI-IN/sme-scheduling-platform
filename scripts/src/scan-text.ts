@@ -84,18 +84,6 @@ function oldStatus(text: string, sql = false): string | undefined {
   for (const label of OLD_STATUS_ANYWHERE) if (new RegExp(`\\b${label}\\b`).test(t)) return label;
   return undefined;
 }
-/**
- * Old status words still in a help guide that another change is rewriting (owner's item 1). They are listed as
- * warnings, not findings, until that change lands; remove an entry once its guide uses the new words.
- */
-const OLD_STATUS_PENDING: Record<string, string[]> = {
-  'app/src/help/common-questions.md': [
-    'Setup not finished',
-    'Not started yet',
-    'Needs an instructor',
-  ],
-};
-const pending: Finding[] = [];
 /** Hyphenated words that are fine (none so far; add with a reason). */
 const HYPHEN_OK = new Set<string>([]);
 
@@ -123,9 +111,7 @@ function check(where: string, text: string, internalOk: boolean) {
   for (const [re, name] of NEVER) if (re.test(t)) findings.push({ where, text: t, problem: name });
   const old = oldStatus(t);
   if (old) {
-    const f = { where, text: t, problem: `old status word "${old}"` };
-    if (OLD_STATUS_PENDING[where.replace(/:\d+$/, '')]?.includes(old)) pending.push(f);
-    else findings.push(f);
+    findings.push({ where, text: t, problem: `old status word "${old}"` });
   }
   if (!internalOk)
     for (const [re, name] of BANNED)
@@ -323,10 +309,6 @@ try {
   console.warn(`(database text not checked: ${(e as Error).message})`);
 }
 
-for (const f of pending)
-  console.warn(
-    `(waiting for the help rewrite) ${f.where}  [${f.problem}]  ${f.text.slice(0, 100)}`,
-  );
 if (findings.length === 0) {
   console.log(
     'No dashes, hyphenated words, "e.g.", internal names, old status words or Sandbox, demo or test environment wording found in user facing text.',
