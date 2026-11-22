@@ -18,7 +18,6 @@ import { asRegion, classTimeLine, REGIONS, TZ } from '@/lib/region';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { WEEK_KINDS, weekState } from '@/lib/status';
 import { downloadCsv, toCsv } from '@/lib/csv';
-import { useConfirm } from '@/components/Confirm';
 import {
   Badge,
   Button,
@@ -38,6 +37,7 @@ import {
   th,
 } from '@/components/ui';
 import { PlanDialog } from './PlanDialog';
+import { BulkChangeDialog } from './boardBulk';
 import { AddClassDialog } from './AddClassDialog';
 import { ClassDrawer, useRun } from './ClassDrawer';
 
@@ -55,7 +55,6 @@ export default function Schedule() {
   const instructors = useInstructors();
   const modules = useModules(domain?.id);
   const cohorts = useCohorts(domain?.id);
-  const confirm = useConfirm();
   const { run, err } = useRun();
   const [planning, setPlanning] = useState(false);
   const [openWeek, setOpenWeek] = useState<string | null>(null);
@@ -68,7 +67,7 @@ export default function Schedule() {
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [queueFor, setQueueFor] = useState<string[] | null>(null);
-  const [shiftN, setShiftN] = useState(1);
+  const [bulk, setBulk] = useState<'move' | 'cancel' | null>(null);
 
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
@@ -531,44 +530,10 @@ export default function Schedule() {
           >
             Resume requests
           </Button>
-          <span className="flex items-center gap-1">
-            <Input
-              type="number"
-              aria-label="Weeks to move"
-              value={shiftN}
-              onChange={(e) => setShiftN(Number(e.target.value))}
-              className="h-8 w-16"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                if (
-                  !(await confirm({
-                    title: `Move ${selected.size} class week${selected.size === 1 ? '' : 's'} by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
-                    body: 'Only the selected weeks move, and each class keeps its local time. Confirmed instructors are asked to confirm the new dates.',
-                  }))
-                )
-                  return;
-                const ordered = [...selectedWeeks].sort((a, b) =>
-                  shiftN > 0
-                    ? b.week_start_date.localeCompare(a.week_start_date)
-                    : a.week_start_date.localeCompare(b.week_start_date),
-                );
-                await run(async () => {
-                  for (const w of ordered)
-                    await rpc('shift_classes', {
-                      p_module_week_id: w.id,
-                      p_weeks: shiftN,
-                      p_include_later: false,
-                    });
-                }, 'Dates moved');
-                setSelected(new Set());
-              }}
-            >
-              Move by weeks
-            </Button>
-          </span>
+          {/* The same preview, checks and reasons as on the Schedule board (bulk_change_weeks). */}
+          <Button size="sm" variant="outline" onClick={() => setBulk('move')}>
+            Move by weeks
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
             Clear selection
           </Button>
@@ -576,27 +541,21 @@ export default function Schedule() {
             size="sm"
             variant="destructive"
             className="ml-auto"
-            onClick={async () => {
-              if (
-                await confirm({
-                  title: `Cancel ${selected.size} class week${selected.size === 1 ? '' : 's'}?`,
-                  body: 'Open requests are withdrawn politely and confirmed instructors are told that the class is cancelled. This cannot be undone.',
-                  danger: true,
-                  confirmLabel: 'Cancel the classes',
-                  cancelLabel: 'Keep the classes',
-                })
-              )
-                await forEachWeek(
-                  (w) => rpc('cancel_module_week', { p_module_week_id: w.id }),
-                  'Classes cancelled',
-                );
-            }}
+            onClick={() => setBulk('cancel')}
           >
             Cancel classes
           </Button>
         </div>
       )}
       <ErrorText error={err} />
+      {bulk && (
+        <BulkChangeDialog
+          action={bulk}
+          weekIds={selectedWeeks.map((w) => w.id)}
+          onSaved={() => setSelected(new Set())}
+          onClose={() => setBulk(null)}
+        />
+      )}
 
       {weeks.isLoading ? (
         <SkeletonRows rows={8} />

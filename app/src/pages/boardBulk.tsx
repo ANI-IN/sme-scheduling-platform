@@ -40,10 +40,13 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 export function BulkChangeDialog({
   action,
   weekIds,
+  onSaved,
   onClose,
 }: {
   action: 'move' | 'cancel';
   weekIds: string[];
+  /** After a save, before the dialog closes. */
+  onSaved?: () => void;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -89,6 +92,7 @@ export function BulkChangeDialog({
           ? `${plural(r.saved ?? 0, 'class week')} moved`
           : `${plural(r.saved ?? 0, 'class week')} cancelled`,
       );
+      onSaved?.();
       onClose();
       qc.removeQueries({ queryKey: ['bulk_preview'] });
       const others = {

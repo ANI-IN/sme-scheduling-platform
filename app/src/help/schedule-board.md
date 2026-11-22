@@ -38,6 +38,8 @@ Each cohort shows its time zone, whether it follows its standard schedule (**Sta
 3. Before anything is saved, one preview lists every selected class week, who is told or asked again, and every new problem the change would create. Something that **blocks** must be fixed first; a **warning** needs a reason, which is saved in Activity history.
 4. Press the button at the bottom to save, or **Go back** to change nothing. Press **Done selecting** to open cells again.
 
+On [Upcoming classes](/classes), **Move by weeks** and **Cancel classes** for the ticked class weeks open the same preview, with the same checks and reasons.
+
 ## Compare to standard and download
 
 Tick **Compare to standard** to outline every class week that differs from its cohort's standard schedule. **Download as spreadsheet** saves what is shown; the download is kept in Activity history.

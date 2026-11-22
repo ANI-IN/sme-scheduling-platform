@@ -1,7 +1,7 @@
 -- Release 3, M12b (decision 314): bulk move and bulk cancel from the Schedule board, with one combined preview.
 begin;
 \ir ../helpers/helpers.psql
-select plan(15);
+select plan(20);
 
 select tests.scenario('BK', 'Live', '2027-01-31', 3) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as m1, (:'j'::jsonb ->> 'i1') as i1,
@@ -61,6 +61,23 @@ select ok((select jsonb_array_length(public.bulk_change_weeks('cancel', array[te
 select throws_ok(format($$ select public.bulk_change_weeks('cancel', array[%L, %L]::uuid[]) $$,
   tests.wk('BK A', 1), (select (tests.scenario('BK2', 'Live', '2027-01-31', 1)) ->> 'mw')), '22023',
   'Select class weeks of one domain at a time.', '14. one domain at a time');
+
+-- =============================================================== going past a warning needs a reason
+-- A week later, BK A's second class week lands on a holiday: a new Warning.
+insert into public.holiday (date, name, domain_id) values ('2027-03-21', 'BK holiday', :'dom');
+select public.bulk_change_weeks('move', array[tests.wk('BK A', 2)], 1) as pv \gset
+select ok((:'pv'::jsonb ->> 'ok')::boolean and exists (select 1 from jsonb_array_elements(:'pv'::jsonb -> 'warnings') x
+                                                        where x ->> 'code' = 'holiday' and x ->> 'level' = 'Warning'),
+  '15. a move onto a holiday is a Warning in the preview');
+select is(public.bulk_change_weeks('move', array[tests.wk('BK A', 2)], 1, null, true) ->> 'needs_confirmation', 'true',
+  '16. saving asks first');
+select throws_ok(format($$ select public.bulk_change_weeks('move', array[%L]::uuid[], 1, '  ', true, true) $$, tests.wk('BK A', 2)), '22023',
+  'Say why you go ahead despite the warnings. The reason is kept in Activity history.', '17. going ahead needs a reason');
+select is(public.bulk_change_weeks('move', array[tests.wk('BK A', 2)], 1, 'The holiday does not apply to this cohort', true, true) ->> 'saved', '1',
+  '18. with a reason it is saved');
+select ok(exists (select 1 from public.history_event where action = 'Warnings accepted'
+                   and note = 'The holiday does not apply to this cohort' and domain_id = :'dom'),
+  '19. the accepted warning and its reason are in Activity history');
 
 select * from finish();
 rollback;
