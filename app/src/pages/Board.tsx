@@ -272,7 +272,15 @@ export default function Board() {
     const differs = prefs.compare && (c.customized || c.standard_position === null);
     const body = (
       <>
-        <div className="font-medium">{c.module}</div>
+        <div className="font-medium">
+          {!c.past && <span className="sr-only">Open </span>}
+          {c.module}
+          {!c.past && (
+            <span className="sr-only">
+              {` for ${c.cohort ?? 'no cohort'}, week of ${DateTime.fromISO(c.week_start_date).toFormat('LLL d')}:`}
+            </span>
+          )}
+        </div>
         <StatusChip status={c.status} />
         {differs && (
           <div className="mt-1">
@@ -308,7 +316,6 @@ export default function Board() {
       <button
         type="button"
         onClick={() => setOpenWeek(c.id)}
-        aria-label={`Open ${c.module} for ${c.cohort ?? 'no cohort'}, week of ${DateTime.fromISO(c.week_start_date).toFormat('LLL d')}: ${STATUS[c.status].word}`}
         className={cn(
           'w-full rounded-md border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
           differs ? 'border-warning-strong' : 'border-border',
