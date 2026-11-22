@@ -302,10 +302,10 @@ async function race() {
   // TST-5: a race that goes wrong fails the run (and CI), not only the printout.
   if (!one1) process.exitCode = 1;
 
-  // The same instructor says Yes to two class weeks at the same time, at the same moment: only one
-  // can be booked (no overlapping confirmed classes), and the other is turned down politely.
+  // Release 3 M7 (decision 296): two class weeks at overlapping times start asking at the same moment on two
+  // connections, and both want the same instructor. Only the sooner week may ask them: exactly one open request.
   line(
-    '\n═════ Race: one instructor says "Yes" to two overlapping class weeks at the same moment ═════',
+    '\n═════ Race: two overlapping class weeks ask the same instructor at the same moment ═════',
   );
   const both: string[] = [];
   for (const name of ['Overlap A', 'Overlap B']) {
@@ -342,23 +342,26 @@ async function race() {
     );
     both.push(w.v.module_week_ids[0]!);
   }
-  await c.query(`select public.engine_tick($1, '2027-01-08T17:00:00Z')`, [s.dom]);
-  const ta = await token(both[0]!, s.i[1]!, 'Yes');
-  const tb = await token(both[1]!, s.i[1]!, 'Yes');
-  const pressToken = (cl: pg.Client, tok: string) =>
-    cl
-      .query(`select set_config('app.test_now', '2027-01-08T18:00:00Z', false); `)
-      .then(() => cl.query('select public.record_response($1) ->> $2 as r', [tok, 'result']));
-  const [xa, xb] = await Promise.all([pressToken(a, ta), pressToken(b, tb)]);
-  const booked = await one<{ n: string }>(
-    `select count(*) as n from public.booking where module_week_id = any($1::uuid[]) and status = 'Active'`,
-    [both],
+  // Both weeks are ready; each connection starts asking for one of them at the same moment.
+  await c.query(`update public.module_week set status = 'Ready' where id = any($1::uuid[])`, [both]);
+  const askOn = (cl: pg.Client, mw: string) =>
+    cl.query(`select private.ask_next($1, '2027-01-08T17:00:00Z') as r`, [mw]);
+  await Promise.all([askOn(a, both[0]!), askOn(b, both[1]!)]);
+  const open = await c.query<{ module_week_id: string }>(
+    `select module_week_id from public.request
+      where instructor_id = $1 and kind = 'Outreach' and status in ('Queued', 'Sent', 'Reminded')
+        and module_week_id = any($2::uuid[])`,
+    [s.i[1], both],
   );
-  const answers = [xa.rows[0].r, xb.rows[0].r].sort();
-  line(`  week A → ${xa.rows[0].r}, week B → ${xb.rows[0].r}; active bookings: ${booked.n}`);
-  const ok2 =
-    Number(booked.n) === 1 && answers.includes('confirmed') && answers.includes('not_booked');
-  line(ok2 ? '  ✓ one booking, the other week turned down' : '  ✗ UNEXPECTED');
+  const sooner = await one<{ w: string }>(
+    `select case when private.week_sooner($1, $2) then $1 else $2 end as w`,
+    [both[0], both[1]],
+  );
+  line(
+    `  open requests to the instructor: ${open.rows.length}, for the sooner week: ${open.rows[0]?.module_week_id === sooner.w}`,
+  );
+  const ok2 = open.rows.length === 1 && open.rows[0]!.module_week_id === sooner.w;
+  line(ok2 ? '  ✓ one request, for the sooner class week' : '  ✗ UNEXPECTED');
   if (!ok2) process.exitCode = 1;
   await Promise.all([a.end(), b.end()]);
 }
