@@ -6,10 +6,16 @@ const ids = {
   shelly: '11111111-1111-1111-1111-111111111111',
   api: '22222222-2222-2222-2222-222222222222',
   sienna: '33333333-3333-3333-3333-333333333333',
+  weekend: '44444444-4444-4444-4444-444444444444',
 };
 const book = {
   name: (id: string | null | undefined) =>
-    ({ [ids.shelly]: 'Shelly Carver', [ids.api]: 'API Design', [ids.sienna]: 'Sienna' })[id ?? ''],
+    ({
+      [ids.shelly]: 'Shelly Carver',
+      [ids.api]: 'API Design',
+      [ids.sienna]: 'Sienna',
+      [ids.weekend]: 'Weekend cohort',
+    })[id ?? ''],
   settingLabel: (k: string) =>
     k === 'outreach_days' ? 'Start asking instructors this many days before the class' : undefined,
 };
@@ -270,5 +276,49 @@ describe('standard schedules in plain sentences (decisions 298 and 299)', () => 
     ).toBe(
       'Sienna updated cohorts from the standard schedule SWEs: 2 class weeks changed, 1 new, 3 not updated',
     );
+  });
+});
+
+describe('breaks and cohort holidays in plain sentences (decision 301)', () => {
+  it('names a break and a cohort holiday', () => {
+    expect(
+      describeHistory(
+        {
+          ...base,
+          action: 'cohort_break added',
+          entity_table: 'cohort_break',
+          after: {
+            cohort_id: ids.weekend,
+            reason: 'Diwali',
+            starts_on: '2027-10-31',
+            weeks: 1,
+            moved: [{ module_week_id: ids.api }],
+            label: 'Weekend cohort: break, Diwali, Sun, Oct 31 to Sat, Nov 6 (1 week)',
+          },
+        },
+        book,
+      ).sentence,
+    ).toBe('Sienna added the break Diwali of Weekend cohort');
+    expect(
+      describeHistory(
+        {
+          ...base,
+          action: 'cohort_holiday added',
+          entity_table: 'cohort_holiday',
+          after: { cohort_id: ids.weekend, name: 'Founders day', date: '2027-03-11' },
+        },
+        book,
+      ).sentence,
+    ).toContain('the holiday Founders day of Weekend cohort on');
+  });
+
+  it('says who added or removed a break', () => {
+    const team = { ...base, category: 'Team actions' };
+    expect(describeHistory({ ...team, action: 'Break added: Diwali' }, book).sentence).toBe(
+      'Sienna added the break Diwali',
+    );
+    expect(
+      describeHistory({ ...team, action: 'Program break removed: Week off' }, book).sentence,
+    ).toBe('Sienna removed the program break Week off');
   });
 });

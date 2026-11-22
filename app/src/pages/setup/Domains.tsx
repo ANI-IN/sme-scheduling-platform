@@ -7,6 +7,7 @@ import { check, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useCohortScheduleStatus, useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
 import { CohortScheduleBadge, PlanFromStandardDialog, ResetToStandard } from './standardParts';
+import { BreaksAndHolidays } from './breakParts';
 import { RegionBadge } from '@/components/ClassTime';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
@@ -440,6 +441,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
           />
         </Section>
         <Cohorts domainId={domain.id} />
+        <BreaksAndHolidays domainId={domain.id} />
         <ClassTypes domainId={domain.id} />
         <Holidays domainId={domain.id} domainName={domain.name} />
         <ErrorText error={err} />

@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"class_session": {
                   Row: {
-                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"id": string,"module_week_id": string,"notes": string | null,"pattern_item_id": string | null,"problem_flag": boolean,"region": string,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"holiday_kept_on": string | null,"holiday_kept_reason": string | null,"id": string,"module_week_id": string,"notes": string | null,"pattern_item_id": string | null,"problem_flag": boolean,"region": string,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"id"?: string,"module_week_id": string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id": string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"id"?: string,"module_week_id"?: string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id"?: string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -358,6 +358,64 @@ isOneToOne: false
       columns: ["standard_schedule_id"]
 isOneToOne: false
       referencedRelation: "standard_schedule"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"cohort_break": {
+                  Row: {
+                    "cohort_id": string,"created_at": string,"domain_id": string,"id": string,"label": string | null,"moved": NonNullable<Json>,"program_break_id": string | null,"reason": string,"removed_at": string | null,"starts_on": string,"status": string,"updated_at": string,"updated_by": string | null,"version": number,"weeks": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cohort_id": string,"created_at"?: string,"domain_id": string,"id"?: string,"label"?: string | null,"moved"?: NonNullable<Json>,"program_break_id"?: string | null,"reason": string,"removed_at"?: string | null,"starts_on": string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"weeks": number
+                  }
+                  Update: {
+                    "cohort_id"?: string,"created_at"?: string,"domain_id"?: string,"id"?: string,"label"?: string | null,"moved"?: NonNullable<Json>,"program_break_id"?: string | null,"reason"?: string,"removed_at"?: string | null,"starts_on"?: string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"weeks"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cohort_break_cohort_id_fkey"
+      columns: ["cohort_id"]
+isOneToOne: false
+      referencedRelation: "cohort"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cohort_break_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cohort_break_program_break_id_fkey"
+      columns: ["program_break_id"]
+isOneToOne: false
+      referencedRelation: "program_break"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"cohort_holiday": {
+                  Row: {
+                    "cohort_id": string,"created_at": string,"date": string,"domain_id": string,"id": string,"label": string | null,"name": string,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cohort_id": string,"created_at"?: string,"date": string,"domain_id": string,"id"?: string,"label"?: string | null,"name": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "cohort_id"?: string,"created_at"?: string,"date"?: string,"domain_id"?: string,"id"?: string,"label"?: string | null,"name"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cohort_holiday_cohort_id_fkey"
+      columns: ["cohort_id"]
+isOneToOne: false
+      referencedRelation: "cohort"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cohort_holiday_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
       referencedColumns: ["id"]
     }
                   ]
@@ -929,6 +987,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"program_break": {
+                  Row: {
+                    "created_at": string,"domain_id": string,"id": string,"label": string | null,"reason": string,"removed_at": string | null,"starts_on": string,"status": string,"updated_at": string,"updated_by": string | null,"version": number,"weeks": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"domain_id": string,"id"?: string,"label"?: string | null,"reason": string,"removed_at"?: string | null,"starts_on": string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"weeks": number
+                  }
+                  Update: {
+                    "created_at"?: string,"domain_id"?: string,"id"?: string,"label"?: string | null,"reason"?: string,"removed_at"?: string | null,"starts_on"?: string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"weeks"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "program_break_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"reminder": {
                   Row: {
                     "attention_item_id": string,"created_at": string,"id": string,"level": string,"message_id": string | null,"recipient": string | null,"sent_at": string,"updated_at": string,"updated_by": string | null,"version": number
@@ -1227,8 +1305,14 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "add_checklist_item":
+            "add_break":
+{ Args: { "p_accept_reason"?: string,"p_accept_warnings"?: boolean,"p_cohort_ids": (string)[],"p_domain_id": string,"p_program"?: boolean,"p_reason": string,"p_release_week_ids"?: (string)[],"p_save"?: boolean,"p_starts_on": string,"p_weeks": number }; Returns: Json
+                           },
+"add_checklist_item":
 { Args: { "p_class_id": string,"p_label": string }; Returns: string
+                           },
+"add_cohort_holiday":
+{ Args: { "p_cohort_id": string,"p_date": string,"p_name": string }; Returns: Json
                            },
 "add_one_class":
 { Args: { "p_accept_warnings"?: boolean,"p_class_type": string,"p_cohort_id": string,"p_date": string,"p_end": string,"p_fold"?: number,"p_module_id": string,"p_module_week_id": string,"p_reason"?: string,"p_region"?: string,"p_start": string,"p_title"?: string }; Returns: Json
@@ -1410,6 +1494,9 @@ isOneToOne: false
 "jump_test_clock":
 { Args: { "p_days_before": number,"p_domain_id": string,"p_module_week_id": string }; Returns: Json
                            },
+"keep_class_on_holiday":
+{ Args: { "p_class_id": string,"p_reason": string }; Returns: undefined
+                           },
 "log_app_error":
 { Args: { "p_browser"?: string,"p_detail"?: string,"p_message": string,"p_page"?: string }; Returns: undefined
                            },
@@ -1494,8 +1581,14 @@ isOneToOne: false
 "release_booking":
 { Args: { "p_module_week_id": string,"p_reason"?: string,"p_restart"?: boolean }; Returns: Json
                            },
+"remove_break":
+{ Args: { "p_accept_reason"?: string,"p_accept_warnings"?: boolean,"p_break_id"?: string,"p_program_break_id"?: string,"p_release_week_ids"?: (string)[],"p_save"?: boolean }; Returns: Json
+                           },
 "remove_checklist_item":
 { Args: { "p_item_id": string }; Returns: undefined
+                           },
+"remove_cohort_holiday":
+{ Args: { "p_id": string }; Returns: undefined
                            },
 "reply_to_instructor":
 { Args: { "p_item_id": string,"p_text": string }; Returns: Json

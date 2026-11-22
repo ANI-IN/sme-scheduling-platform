@@ -19,6 +19,7 @@ import { DeleteButton } from '@/components/Lifecycle';
 import { useDomain } from '@/lib/domain';
 import { AddClassDialog } from './AddClassDialog';
 import { ResetToStandard } from './setup/standardParts';
+import { BreakAndHolidayNotices } from './setup/breakParts';
 import {
   Badge,
   Button,
@@ -193,6 +194,7 @@ export function ClassDrawer({
           title="Classes"
           description="Each class shows the time where it is taught. US classes also show the India time."
         >
+          <BreakAndHolidayNotices weekId={week.id} />
           {classes.map((c) => (
             <ClassEditor key={`${c.id}:${c.version}`} c={c} run={run} />
           ))}

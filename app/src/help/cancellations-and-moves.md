@@ -22,7 +22,7 @@ A class can move to any day, for example from Sunday to Wednesday. The class wee
 
 ## Move whole class weeks
 
-Under **More options**, use **Move dates** to move this class week and every later one by a number of weeks, for example around a holiday. Each class keeps its local time.
+Under **More options**, use **Move dates** to move this class week and every later one by a number of weeks, for example around a holiday. Each class keeps its local time. For a break of the whole cohort, add a break instead: see [Breaks and cohort holidays](/help/breaks-and-holidays).
 
 ## Cancel
 

@@ -68,6 +68,7 @@ const HIDDEN = new Set([
   'domain_id',
   'team_member_id',
   'schedule_id',
+  'moved',
 ]);
 
 /** The parts of a standard schedule (decision 298): their label names the schedule, which the row does not. */
@@ -75,6 +76,10 @@ const STANDARD_PARTS = new Set([
   'standard_schedule_module',
   'standard_schedule_break',
   'standard_schedule_class',
+  // Breaks and cohort holidays (decision 301) carry a label for the same reason.
+  'program_break',
+  'cohort_break',
+  'cohort_holiday',
 ]);
 
 const FIELD: Record<string, string> = {
@@ -219,6 +224,12 @@ function noun(e: HistoryLike, book: NameBook): string {
       return `the ${value(r.weeks, book)} week break after module ${r.after_position} in ${standardOf(r, /^(.+): \d+ week break after module \d+$/)}`;
     case 'standard_schedule_class':
       return `the ${String(r.class_type ?? 'class').toLowerCase()} on ${value(r.day_offset, book, 'day_offset')} at ${value(r.start_time, book)} (local time) for ${n(r.module_id)} in ${standardOf(r, /^(.+?): /)}`;
+    case 'program_break':
+      return `the program break ${r.reason ?? ''}`.trim();
+    case 'cohort_break':
+      return `the break ${r.reason ?? ''} of ${n(r.cohort_id)}`;
+    case 'cohort_holiday':
+      return `the holiday ${r.name} of ${n(r.cohort_id)} on ${value(r.date, book)}`;
     default:
       return e.entity_label ?? 'a setup record';
   }
@@ -344,6 +355,14 @@ const rewrites: [
   [/^Access given back$/, (_m, c) => `${c.actor} gave someone their access back`],
   [/^Downloaded (.+)$/, (m, c) => `${c.actor} downloaded ${m[1]} as a spreadsheet`],
   [/^Warnings accepted$/, (_m, c) => `${c.actor} went ahead despite warnings`],
+  [/^Break added: (.+)$/, (m, c) => `${c.actor} added the break ${m[1]}`],
+  [/^Program break added: (.+)$/, (m, c) => `${c.actor} added the program break ${m[1]}`],
+  [/^Break removed: (.+)$/, (m, c) => `${c.actor} removed the break ${m[1]}`],
+  [/^Program break removed: (.+)$/, (m, c) => `${c.actor} removed the program break ${m[1]}`],
+  [
+    /^Class kept on a cohort holiday$/,
+    (_m, c) => `${c.actor} kept a ${c.module} class on a cohort holiday`,
+  ],
   [/^Class added$/, (_m, c) => `${c.actor} added a class to ${c.module}`],
   [
     /^Planned (\d+) class week\(s\)$/,

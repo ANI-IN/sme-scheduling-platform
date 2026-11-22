@@ -6,10 +6,12 @@ order: 16
 - **Activity history:** the list of everything that happened, which nobody can change.
 - **Automatic check:** the regular run, every hour, that sends messages and moves requests on.
 - **Backup 1, Backup 2:** the next instructors asked after the Primary instructor.
+- **Break:** whole weeks off for a cohort. Every later class week moves back by the break.
 - **Chosen list:** instructors you pick by hand for one class week, asked one at a time.
 - **Class week:** the classes of one module taught by the same instructor. It starts on the day of its first class.
 - **Close to the class:** the days before a class when problems are urgent (10 by default).
 - **Cohort:** one group of students going through the modules, for example a weekend cohort.
+- **Cohort holiday:** a day off for one cohort only. Its classes on that day show as a problem to fix.
 - **Contact check:** a short message that proves an instructor's Discord and email work.
 - **Contact details checked:** the instructor answered a contact check.
 - **Custom:** a cohort planned from a standard schedule, with class weeks changed for it alone. Custom (2 changes) means two class weeks.
@@ -26,6 +28,7 @@ order: 16
 - **Pause all messages:** stop every message to instructors at once.
 - **Practice clock:** a pretend date and time for a domain in testing.
 - **Primary instructor:** the first instructor asked for a module.
+- **Program break:** the same break for every cohort of a domain, shown as one row.
 - **PST, PDT, IST:** US Pacific winter time, US Pacific summer time, and India time.
 - **Region:** US or India. It decides the time zone of a cohort's classes.
 - **Reminder before class:** a message to a confirmed instructor before the class.
