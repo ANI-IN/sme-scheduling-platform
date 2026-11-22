@@ -197,7 +197,7 @@ export const SHOTS: Shot[] = [
     act: click(/^pause all messages$/i),
   },
   { name: 'help', path: '/help' },
-  { name: 'help-guide', path: '/help/planning-classes' },
+  { name: 'help-guide', path: '/help/cohorts' },
   { name: 'activity', path: '/activity' },
   { name: 'activity-details', path: '/activity', act: click(/show details/i) },
 ];

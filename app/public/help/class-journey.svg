@@ -14,7 +14,7 @@
     </g>
     <g>
       <circle cx="372" cy="70" r="22" fill="#2f5bd3"/><text x="372" y="76" fill="#fff" font-size="16" font-weight="700">3</text>
-      <text x="372" y="122" fill="#1f2328" font-size="15" font-weight="600">Asking instructors</text>
+      <text x="372" y="122" fill="#1f2328" font-size="15" font-weight="600">Instructors asked</text>
       <text x="372" y="142" fill="#59636e" font-size="12">about 30 days before</text>
       <text x="372" y="160" fill="#59636e" font-size="12">one at a time</text>
     </g>

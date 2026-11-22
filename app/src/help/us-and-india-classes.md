@@ -1,6 +1,8 @@
 title: US and India classes
 summary: Each cohort is taught in US Pacific time or India time. How times are shown, the clock changes, and clashes.
-order: 6.5
+order: 19
+group: Reference
+keywords: US, India, region, time zone, PST, PDT, IST, Pacific, daylight saving, clock change, holiday, clash, other time zone
 ---
 
 Every cohort has a **region**: **US** or **India**. The region decides the time zone of its classes.
@@ -28,7 +30,7 @@ A **time zone** is the local clock time of a place. The app saves every class at
 
 ## One class in the other time zone
 
-1. Open the class week on [Upcoming classes](/classes).
+1. Open the class week from the [Schedule board](/board) or [Upcoming classes](/classes).
 2. Under the class, open **More options for this class** and choose the time zone.
 3. Check the date and times, then press **Change time**.
 
@@ -42,7 +44,13 @@ When you add one class, the same choice is under **More options** in the dialog.
 
 ## Holidays
 
-Each holiday is for **US** classes, **India** classes, or both. A US holiday only warns about US classes. Add holidays on [Domains](/setup/domains).
+Each holiday is for **US** classes, **India** classes, or both. A US holiday only warns about US classes, and an India holiday only about India classes.
+
+1. Open [Domains](/setup/domains), open the domain and go to **Holidays**.
+2. Choose the **Date**, give it a **Name** and choose the **Region**.
+3. Press **Add holiday**.
+
+A day off for one cohort only is a cohort holiday. See [Breaks, cohort holidays and merges](/help/breaks-and-holidays).
 
 ## Clashes
 
@@ -51,3 +59,5 @@ An instructor can never teach two classes at the same moment, in any cohort, dom
 - When you assign someone who is busy, the app says which class they are teaching, its cohort and both local times.
 - In the instructor order, a busy instructor is skipped and the reason is shown.
 - Moving a class onto another class of the same instructor is blocked.
+
+How to fix a clash is in [Fixing problems on a class week](/help/fixing-problems).
