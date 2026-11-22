@@ -1,8 +1,9 @@
-// Builds the two n8n workflow sets from the base files in n8n/:
-//   n8n/sandbox/*.json     the live workflows: named "[Production] …" since M5, tagged Sandbox, Sandbox credentials
-//                          and webhook paths (both kept so nothing that already works changes)
-//   n8n/production/*.json  named "[Production] …", tagged Production, Production credentials
-// Both sets can live in one n8n instance (different webhook paths and credential names) or in two.
+// Builds the live n8n workflow set from the base files in n8n/:
+//   n8n/sandbox/*.json  the live workflows: named "[Production] …" since M5; the tag "Sandbox", the credential names
+//                       and the webhook paths keep their old names on purpose, so nothing that already works changes.
+// Edit the base files in n8n/, never the generated ones, then run this. A second, separate set ("n8n/production/",
+// with new credential names and paths) was removed on 23 November 2026: nothing used it, since the old Sandbox
+// became Production in place (decision 315).
 //
 //   npm run n8n-export -w scripts
 import { createHash } from 'node:crypto';
@@ -10,8 +11,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const DIR = resolve(import.meta.dirname, '../../n8n');
-// The values already known for each environment (docs/CONFIGURATION.md). Not secrets: the poke key stays a
-// placeholder, and production values are filled in later.
+// The values of the live set (docs/CONFIGURATION.md). Not secrets: the poke key stays a placeholder.
 const ENVS = [
   {
     key: 'sandbox',
@@ -25,16 +25,6 @@ const ENVS = [
     // The Gmail label "SME Scheduling/Processed" in the Sandbox mailbox (WF1 labels the replies it read).
     processedLabelId: 'Label_1',
   },
-  {
-    key: 'production',
-    label: 'Production',
-    title: 'Production',
-    pathPrefix: '',
-    supabaseUrl: 'https://YOUR-PRODUCTION-PROJECT.supabase.co',
-    n8nUrl: 'https://your-instance.app.n8n.cloud',
-    backupFolderId: 'REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID',
-    processedLabelId: 'REPLACE_WITH_PRODUCTION_PROCESSED_LABEL_ID',
-  },
 ] as const;
 
 /**
@@ -42,15 +32,12 @@ const ENVS = [
  * "Gmail Sandbox" (Gmail, Sign in with Google), "Discord Bot Sandbox" (Discord Bot) and "Google Drive Backups"
  * (Google Drive, Sign in with Google).
  */
-const CREDENTIALS: Record<string, Record<'sandbox' | 'production', string>> = {
-  Gmail: { sandbox: 'Gmail Sandbox', production: 'Gmail Production' },
-  'Discord Bot': { sandbox: 'Discord Bot Sandbox', production: 'Discord Bot Production' },
-  'Google Drive Backups': {
-    sandbox: 'Google Drive Backups',
-    production: 'Google Drive Backups Production',
-  },
-  'Supabase secret key': { sandbox: 'Supabase Sandbox', production: 'Supabase Production' },
-  'Poke secret': { sandbox: 'Poke Secret Sandbox', production: 'Poke Secret Production' },
+const CREDENTIALS: Record<string, Record<'sandbox', string>> = {
+  Gmail: { sandbox: 'Gmail Sandbox' },
+  'Discord Bot': { sandbox: 'Discord Bot Sandbox' },
+  'Google Drive Backups': { sandbox: 'Google Drive Backups' },
+  'Supabase secret key': { sandbox: 'Supabase Sandbox' },
+  'Poke secret': { sandbox: 'Poke Secret Sandbox' },
 };
 
 /** A stable id per environment, so re-exporting gives the same files. */
