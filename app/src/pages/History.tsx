@@ -14,7 +14,7 @@ import {
   useTeam,
   type HistoryEvent,
 } from '@/lib/data';
-import { describeHistory } from '@/lib/historyText';
+import { describeHistory, historyDetails, offersUndo } from '@/lib/historyText';
 import { plain } from '@/lib/plain';
 import { fmtLocal, fmtPT } from '@/lib/time';
 import { historyCategories } from '@/lib/labels';
@@ -23,6 +23,7 @@ import { useConfirm } from '@/components/Confirm';
 import {
   Badge,
   Button,
+  DateInput,
   Empty,
   ErrorText,
   Input,
@@ -30,9 +31,13 @@ import {
   Select,
   SkeletonRows,
   Toolbar,
+  cn,
   td,
   th,
 } from '@/components/ui';
+
+/** On a phone each entry is a card (cells stack); from tablet width it is a table row. */
+const cell = cn(td, 'block py-1 md:table-cell md:py-2.5');
 
 /** Activity history loads 100 entries at a time. */
 const PAGE = 100;
@@ -143,9 +148,11 @@ export default function History() {
     );
   };
 
-  // The database decides what can be undone (never creating or deleting a domain, cohort or module).
+  // The database decides what can be undone; the app checks the same rule (offersUndo): only a team member's
+  // own edit, never the system, the clock, the automation, a setup command or test data, and never creating or
+  // removing a domain, cohort or module.
   const canUndo = (e: HistoryEvent & { undoable?: boolean | null }) =>
-    !!e.undoable && !undone.has(e.id);
+    offersUndo(e) && !undone.has(e.id);
 
   return (
     <div>
@@ -232,22 +239,27 @@ export default function History() {
         </Select>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           From
-          <Input
-            type="date"
+          <DateInput
             value={f.from}
-            onChange={(e) => setF({ ...f, from: e.target.value })}
-            className="w-40"
+            onChange={(from) => setF({ ...f, from })}
+            placeholder="Any day"
+            className="w-48"
           />
         </label>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           To
-          <Input
-            type="date"
+          <DateInput
             value={f.to}
-            onChange={(e) => setF({ ...f, to: e.target.value })}
-            className="w-40"
+            onChange={(to) => setF({ ...f, to })}
+            placeholder="Any day"
+            className="w-48"
           />
         </label>
+        {(f.from || f.to) && (
+          <Button variant="ghost" size="sm" onClick={() => setF({ ...f, from: '', to: '' })}>
+            Clear dates
+          </Button>
+        )}
         <Input
           placeholder="Search"
           value={f.q}
@@ -264,9 +276,9 @@ export default function History() {
           Every change, message and decision appears here. History can’t be edited or deleted.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-card">
-          <table className="w-full">
-            <thead className="border-b bg-muted">
+        <div className="rounded-lg border bg-card md:overflow-x-auto">
+          <table className="block w-full md:table">
+            <thead className="hidden border-b bg-muted md:table-header-group">
               <tr>
                 <th className={th}>When (your time)</th>
                 <th className={th}>Who</th>
@@ -274,10 +286,16 @@ export default function History() {
                 <th className={th}></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="block md:table-row-group">
               {rows.map((e) => (
-                <tr key={e.id} className="border-b last:border-0">
-                  <td className={`${td} whitespace-nowrap`} title={`PT: ${fmtPT(e.at)}`}>
+                <tr key={e.id} className="block border-b py-2 last:border-0 md:table-row md:py-0">
+                  <td
+                    className={cn(
+                      cell,
+                      'text-xs text-muted-foreground md:text-sm md:whitespace-nowrap md:text-foreground',
+                    )}
+                    title={`PT: ${fmtPT(e.at)}`}
+                  >
                     {fmtLocal(e.at)}
                     {e.sim_at && (
                       <div className="text-xs text-warning-strong">
@@ -285,13 +303,13 @@ export default function History() {
                       </div>
                     )}
                   </td>
-                  <td className={td}>
+                  <td className={cell}>
                     {e.actor_label}
                     <div className="text-xs text-muted-foreground">
                       {e.actor_kind === 'TeamMember' ? 'Team' : e.actor_kind}
                     </div>
                   </td>
-                  <td className={`${td} max-w-xl`}>
+                  <td className={cn(cell, 'break-words md:max-w-xl')}>
                     {(() => {
                       const d = describeHistory(e, book);
                       return (
@@ -327,26 +345,20 @@ export default function History() {
                             {open.has(e.id) ? 'Hide details' : 'Show details'}
                           </button>
                           {open.has(e.id) && (
-                            <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-[11px] whitespace-pre-wrap text-muted-foreground">
-                              {JSON.stringify(
-                                {
-                                  type: e.category,
-                                  record: e.entity_table,
-                                  action: e.action,
-                                  note: e.note,
-                                  before: e.before,
-                                  after: e.after,
-                                },
-                                null,
-                                2,
-                              )}
-                            </pre>
+                            <ul className="mt-1 space-y-0.5 rounded bg-muted p-2 text-xs break-words whitespace-pre-line text-muted-foreground">
+                              {historyDetails(e, book).map((x, i) => (
+                                <li key={`${x.label}-${i}`}>
+                                  <span className="font-medium">{x.label}:</span>{' '}
+                                  {x.from !== undefined ? `${x.from} → ${x.to}` : x.to}
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </>
                       );
                     })()}
                   </td>
-                  <td className={td}>
+                  <td className={cn(cell, 'empty:hidden md:empty:table-cell')}>
                     {canUndo(e) && (
                       <Button
                         size="sm"

@@ -67,7 +67,10 @@ select is((select count(*)::int from public.module_week where module_id = :'mod'
   'both weeks moved by one week, no duplicates');
 
 -- =============================================================== undo a setting change (HIS-3)
+-- A team member changes the setting in the app (only their changes can be undone).
+select tests.login_member('ap.ops@example.com');
 select public.set_setting(:'dom', 'outreach_days', '25');
+select tests.as_postgres();
 select public.undo_history_event((select id from public.history_event where entity_table = 'setting' and action = 'setting added' order by id desc limit 1));
 select is(private.setting_int(:'dom', 'outreach_days'), 30, 'undo of a setting restores the default');
 

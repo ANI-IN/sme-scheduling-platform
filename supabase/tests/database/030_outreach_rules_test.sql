@@ -122,7 +122,10 @@ select tests.tick(:'dom', '2027-01-01 18:00+00');
 select is((public.ranking_impact(:'mod', array[:'i1', :'i3', :'i2']::uuid[])) ->> 'affected_weeks', '1', 'impact preview counts upcoming unconfirmed weeks');
 select is((public.ranking_impact(:'mod', array[:'i1', :'i3', :'i2']::uuid[])) -> 'weeks' -> 0 ->> 'next_after', 'RK Instr3', 'impact preview shows who would be next');
 select is((select count(*)::int from public.module_ranking where module_id = :'mod' and rank = 2 and instructor_id = :'i2'), 1, 'preview did not save anything');
+-- A team member saves the order in the app (only their changes can be undone).
+select tests.login_member('rk.ops@example.com');
 select public.save_ranking(:'mod', array[:'i1', :'i3', :'i2']::uuid[]);
+select tests.as_postgres();
 select is(tests.asking(:'mw'), 'RK Instr1', 'a ranking change never touches the request already sent');
 select is((public.preview_next(:'mw')) ->> 'next', 'RK Instr3', '"who will be asked next" follows the new order');
 select tests.click(:'mw', :'i1', 'No');

@@ -13,6 +13,17 @@ begin
   execute 'set local role authenticated';
 end $$;
 
+-- A team member's own request from the app: like tests.login_as, but first forgets who an earlier step in the same
+-- test acted as (the engine and instructor clicks set the actor for the rest of the transaction), as each request
+-- from the app starts fresh. Activity history then names the team member, so the change can be undone.
+create or replace function tests.login_member(p_email text)
+returns void language plpgsql as $$
+begin
+  perform set_config('app.actor_kind', '', true), set_config('app.actor_instructor_id', '', true),
+          set_config('app.actor_label', '', true);
+  perform tests.login_as(p_email);
+end $$;
+
 -- Sign in as a company Google Workspace account (what Sandbox and Production require).
 drop function if exists tests.login_google(text);
 create or replace function tests.login_google(p_email text, p_amr text default 'oauth')
