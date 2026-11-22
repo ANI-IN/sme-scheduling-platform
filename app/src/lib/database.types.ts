@@ -1121,7 +1121,7 @@ isOneToOne: false
 { Args: { "p_domain_id": string,"p_hours": number }; Returns: Json
                            },
 "assign_manually":
-{ Args: { "p_instructor_id": string,"p_module_week_id": string,"p_note"?: string }; Returns: Json
+{ Args: { "p_accept_warnings"?: boolean,"p_instructor_id": string,"p_module_week_id": string,"p_note"?: string,"p_reason"?: string }; Returns: Json
                            },
 "attention_ack":
 { Args: { "p_item_id": string }; Returns: undefined
@@ -1355,7 +1355,7 @@ isOneToOne: false
 { Args: { "p_body": string,"p_channel": string,"p_external_id": string,"p_from": string,"p_received_at"?: string,"p_subject": string,"p_summary"?: string }; Returns: Json
                            },
 "record_offline_confirmation":
-{ Args: { "p_instructor_id": string,"p_module_week_id": string,"p_note"?: string }; Returns: Json
+{ Args: { "p_accept_warnings"?: boolean,"p_instructor_id": string,"p_module_week_id": string,"p_note"?: string,"p_reason"?: string }; Returns: Json
                            },
 "record_response":
 { Args: { "p_answer"?: string,"p_token": string }; Returns: Json
@@ -1407,6 +1407,9 @@ isOneToOne: false
                            },
 "save_ranking":
 { Args: { "p_cohort_id"?: string,"p_expected_ids"?: (string)[],"p_instructor_ids": (string)[],"p_module_id": string }; Returns: undefined
+                           },
+"schedule_problems":
+{ Args: { "p_module_week_ids": (string)[] }; Returns: Json
                            },
 "send_template_test":
 { Args: { "p_body": string,"p_domain_id": string,"p_subject": string,"p_template_id": string }; Returns: undefined

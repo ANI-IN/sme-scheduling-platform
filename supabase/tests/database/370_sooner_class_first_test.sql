@@ -12,7 +12,7 @@ insert into public.cohort (domain_id, name, region, start_date) values (:'dom', 
 
 create or replace function tests.week(p_mod uuid, p_coh uuid, p_date date, p_start time, p_end time, p_region text default null)
 returns uuid language sql as $$
-  select (public.add_one_class(null, p_mod, p_coh, p_date, p_start, p_end, 'Live class', null, true, null, p_region, 1) ->> 'module_week_id')::uuid;
+  select (public.add_one_class(null, p_mod, p_coh, p_date, p_start, p_end, 'Live class', null, true, 'Test class: the time is chosen on purpose', p_region, 1) ->> 'module_week_id')::uuid;
 $$;
 create or replace function tests.open_req(p_mw uuid)
 returns uuid language sql as $$

@@ -9,6 +9,7 @@ import { useCohorts, useModules, type Domain } from '@/lib/data';
 import { parseDateList } from '@/lib/time';
 import { asRegion, REGION_NAME, type Region } from '@/lib/region';
 import { RegionBadge, TimeCheck, timeReady } from '@/components/ClassTime';
+import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import {
   Badge,
   Button,
@@ -37,7 +38,7 @@ type ProposedClass = {
   /** 1 or 2 when the time happens twice on that day (the US clocks move back). */
   fold?: number | null;
 };
-type Warning = { code: string; text: string };
+type Warning = CheckWarning;
 type ProposedWeek = {
   week_start_date: string;
   module_id: string;
@@ -76,7 +77,6 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
   const [pending, setPending] = useState<Warning[] | null>(null);
-  const [reason, setReason] = useState('');
 
   // Suggest a name for a new cohort from the first date.
   useEffect(() => {
@@ -201,7 +201,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
     };
   }, [rows, planRegion]);
 
-  async function create(accept: boolean) {
+  async function create(accept: boolean, why?: string) {
     setBusy(true);
     setErr(null);
     try {
@@ -214,7 +214,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           classes: w.classes.map((c) => ({ ...c, region: c.region ?? planRegion })),
         })),
         p_accept_warnings: accept,
-        p_reason: accept ? reason.trim() || undefined : undefined,
+        p_reason: accept ? why || undefined : undefined,
       })) as { created?: number; needs_confirmation?: boolean; warnings?: Warning[] };
       if (res.needs_confirmation) {
         setPending(res.warnings ?? []);
@@ -569,35 +569,17 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           </div>
         </div>
       )}
-      <Modal
-        open={!!pending}
-        onOpenChange={(o) => !o && setPending(null)}
+      <WarningsDialog
+        warnings={pending}
         title="Plan these classes anyway?"
-        description="These are unusual but allowed. Your reason is saved in Activity history."
-      >
-        <ul className="mb-3 list-disc space-y-1 pl-5 text-sm">
-          {(pending ?? []).map((x, i) => (
-            <li key={i}>{plain(x.text)}</li>
-          ))}
-        </ul>
-        <Field label="Reason (optional)">
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} />
-        </Field>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setPending(null)}>
-            Go back
-          </Button>
-          <Button
-            loading={busy}
-            onClick={() => {
-              setPending(null);
-              void create(true);
-            }}
-          >
-            Plan anyway
-          </Button>
-        </div>
-      </Modal>
+        confirmLabel="Plan anyway"
+        busy={busy}
+        onCancel={() => setPending(null)}
+        onConfirm={(why) => {
+          setPending(null);
+          void create(true, why);
+        }}
+      />
     </Modal>
   );
 }

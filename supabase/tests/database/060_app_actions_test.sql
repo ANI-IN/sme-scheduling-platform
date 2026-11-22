@@ -13,7 +13,7 @@ select ok(not has_function_privilege('anon', 'public.record_response(text, text)
 select ok(not has_function_privilege('authenticated', 'public.record_response(text, text)', 'EXECUTE'), 'the app cannot record instructor answers (n8n only)');
 select ok(not has_function_privilege('authenticated', 'public.claim_outbound_messages(int)', 'EXECUTE'), 'the app cannot claim the outbox');
 select ok(not has_function_privilege('authenticated', 'public.response_page(text)', 'EXECUTE'), 'the app cannot render instructor pages');
-select ok(has_function_privilege('authenticated', 'public.assign_manually(uuid, uuid, text)', 'EXECUTE'), 'the app can call action functions');
+select ok(has_function_privilege('authenticated', 'public.assign_manually(uuid, uuid, text, boolean, text)', 'EXECUTE'), 'the app can call action functions');
 select tests.login_as('outsider@gmail.com');
 select throws_ok(format('select public.pause_outreach(%L, true)', :'mw'), '42501', null, 'a non-company account is refused inside the function');
 select tests.as_postgres();

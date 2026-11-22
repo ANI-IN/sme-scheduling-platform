@@ -12,7 +12,7 @@ insert into public.cohort (domain_id, name, region) values (:'dom', 'TZ India', 
 
 create or replace function tests.add(p_mod uuid, p_coh uuid, p_date date, p_start time, p_end time, p_region text default null, p_fold int default null)
 returns jsonb language sql as $$
-  select public.add_one_class(null, p_mod, p_coh, p_date, p_start, p_end, 'Live class', null, true, null, p_region, p_fold);
+  select public.add_one_class(null, p_mod, p_coh, p_date, p_start, p_end, 'Live class', null, true, 'Test class: the time is chosen on purpose', p_region, p_fold);
 $$;
 create or replace function tests.cls(p jsonb) returns public.class_session language sql as $$
   select * from public.class_session where id = (p ->> 'class_id')::uuid;
@@ -82,7 +82,8 @@ select is((tests.cls(tests.add(:'mod', :'us', '2027-02-21', '09:00', '10:00', 'I
 
 -- =============================================================== 13: moving a class across the clock change keeps the local time
 select (tests.add(:'mod', :'us', '2027-03-07', '09:00', '10:00') ->> 'class_id') as mv \gset
-select public.change_class_time(:'mv', '2027-03-14', '09:00', '10:00', p_accept_warnings => true);
+select public.change_class_time(:'mv', '2027-03-14', '09:00', '10:00', p_accept_warnings => true,
+  p_reason => 'Test class: the time is chosen on purpose');
 select is((select starts_at from public.class_session where id = :'mv'), '2027-03-14 16:00+00'::timestamptz, '13. moved to Mar 14 at 9:00 AM: now PDT (16:00 UTC)');
 
 -- =============================================================== 14: quiet hours follow the class's region

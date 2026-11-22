@@ -10,6 +10,27 @@ test.describe.configure({ mode: 'default' });
 test.beforeAll(() => loadDemoData());
 
 /** Click an optional follow up button (a warning or a question) if it shows up. */
+/**
+ * The "go ahead anyway?" dialog (decision 297): a Warning needs a reason before its button works, so type one
+ * when the dialog asks, then click. Does nothing when the dialog does not appear.
+ */
+async function goAhead(page: Page, button: string | RegExp, reason: string, ms = 4_000) {
+  const b = page.getByRole('button', { name: button });
+  if (
+    !(await b.waitFor({ timeout: ms }).then(
+      () => true,
+      () => false,
+    ))
+  )
+    return;
+  const box = page
+    .getByRole('dialog')
+    .filter({ has: b })
+    .getByLabel(/^Reason/);
+  if (await box.count()) await box.fill(reason);
+  await b.click();
+}
+
 async function ifShown(l: Locator, ms = 4_000) {
   if (
     await l.waitFor({ timeout: ms }).then(
@@ -85,7 +106,7 @@ test('weekend and weekday cohorts run at the same time', async ({ page }) => {
   const anyway = page.getByRole('button', { name: 'Plan anyway' });
   const planned = page.getByText('Planned 2 class weeks for E2E Evening');
   await expect(anyway.or(planned).first()).toBeVisible({ timeout: 20_000 });
-  if (await anyway.isVisible()) await anyway.click();
+  if (await anyway.isVisible()) await goAhead(page, 'Plan anyway', 'E2E: these dates on purpose');
   await expect(planned).toBeVisible({ timeout: 20_000 });
   const made = await one<{ n: number }>(
     `select count(*)::int n from public.module_week w join public.cohort c on c.id = w.cohort_id
@@ -116,7 +137,7 @@ test('the same instructor teaches in two cohorts', async ({ page }) => {
   ).toBeTruthy();
   await select.selectOption({ label: label(pick!.full_name)! });
   await dlg.getByRole('button', { name: 'Assign and confirm instructor' }).click();
-  await ifShown(page.getByRole('button', { name: /yes, continue|assign anyway/i }));
+  await goAhead(page, /yes, continue|assign anyway/i, 'E2E: this instructor on purpose');
   await expect(dlg.getByText(new RegExp(`Confirmed: ${pick!.full_name}`))).toBeVisible();
   const cohorts = await one<{ n: number }>(
     `select count(distinct w.cohort_id)::int n from public.booking b
@@ -172,7 +193,7 @@ test('a one off class, and a warning accepted with a reason', async ({ page }) =
   await dlg.getByRole('button', { name: 'Add class' }).click();
   const warn = page.getByRole('dialog', { name: 'Add this class anyway?' });
   await expect(warn).toBeVisible();
-  await warn.getByLabel('Reason (optional)').fill('Extra help before the exam');
+  await warn.getByLabel(/^Reason/).fill('Extra help before the exam');
   await warn.getByRole('button', { name: 'Add anyway' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const c = await one<{ n: number }>(
@@ -427,7 +448,7 @@ test('a US cohort and an India cohort: time zones, badges and the region filter'
   const anyway = page.getByRole('button', { name: 'Plan anyway' });
   const planned = page.getByText('Planned 1 class week for E2E India');
   await expect(anyway.or(planned).first()).toBeVisible({ timeout: 20_000 });
-  if (await anyway.isVisible()) await anyway.click();
+  if (await anyway.isVisible()) await goAhead(page, 'Plan anyway', 'E2E: these dates on purpose');
   await expect(planned).toBeVisible({ timeout: 20_000 });
   const r = await one<{ cohort: string; classes: string; ist: string }>(
     `select co.region cohort, string_agg(distinct s.region, ',') classes,
@@ -478,7 +499,7 @@ test('a time that happens twice asks which one; a time that does not exist is bl
   await expect(dlg.getByText(/happens twice on this day/)).toBeVisible();
   await dlg.getByLabel(/The second time: 1:30 AM PST/).check();
   await dlg.getByRole('button', { name: 'Add class' }).click();
-  await ifShown(page.getByRole('button', { name: 'Add anyway' }), 8_000);
+  await goAhead(page, 'Add anyway', 'E2E: this time on purpose', 8_000);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const c = await one<{ utc: string }>(
     `select to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI') utc
@@ -522,7 +543,7 @@ test('an instructor busy in a US class cannot take an India class at the same mo
   await dlg.getByLabel('End time').fill(b.e);
   await dlg.getByLabel('Title (optional)').fill('E2E same moment');
   await dlg.getByRole('button', { name: 'Add class' }).click();
-  await ifShown(page.getByRole('button', { name: 'Add anyway' }), 8_000);
+  await goAhead(page, 'Add anyway', 'E2E: this time on purpose', 8_000);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: 'E2E India' });

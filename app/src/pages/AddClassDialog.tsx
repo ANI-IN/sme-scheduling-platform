@@ -3,10 +3,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
-import { plain } from '@/lib/plain';
 import { useCohorts, useModules, type Domain, type WeekRow } from '@/lib/data';
 import { asRegion, timeFieldLabel, type Region } from '@/lib/region';
 import { RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
+import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import {
   Button,
   DateInput,
@@ -18,7 +18,7 @@ import {
   formatDateValue,
 } from '@/components/ui';
 
-type Warning = { code: string; text: string };
+type Warning = CheckWarning;
 
 /**
  * Add one class: an extra, makeup or moved class. Either into an existing class week (taught by the
@@ -63,7 +63,6 @@ export function AddClassDialog({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const [pending, setPending] = useState<Warning[] | null>(null);
-  const [reason, setReason] = useState('');
   const [regionOverride, setRegionOverride] = useState<Region | null>(null);
   const [fold, setFold] = useState<number | null>(null);
   const moduleId = f.module || active[0]?.id || '';
@@ -92,7 +91,7 @@ export function AddClassDialog({
   };
   const show = (k: keyof typeof errors) => (touched ? errors[k] : undefined);
 
-  async function save(accept: boolean) {
+  async function save(accept: boolean, why?: string) {
     setTouched(true);
     if (Object.values(errors).some(Boolean)) return;
     setBusy(true);
@@ -108,7 +107,7 @@ export function AddClassDialog({
         p_class_type: classType,
         p_title: f.title.trim() || undefined,
         p_accept_warnings: accept,
-        p_reason: accept ? reason.trim() || undefined : undefined,
+        p_reason: accept ? why || undefined : undefined,
         p_region: region,
         p_fold: fold ?? undefined,
       })) as { ok: boolean; needs_confirmation?: boolean; warnings?: Warning[] };
@@ -244,35 +243,17 @@ export function AddClassDialog({
           Add class
         </Button>
       </div>
-      <Modal
-        open={!!pending}
-        onOpenChange={(o) => !o && setPending(null)}
+      <WarningsDialog
+        warnings={pending}
         title="Add this class anyway?"
-        description="This is unusual but allowed. Your reason is saved in Activity history."
-      >
-        <ul className="mb-3 list-disc space-y-1 pl-5 text-sm">
-          {(pending ?? []).map((x, i) => (
-            <li key={i}>{plain(x.text)}</li>
-          ))}
-        </ul>
-        <Field label="Reason (optional)">
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} />
-        </Field>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setPending(null)}>
-            Go back
-          </Button>
-          <Button
-            loading={busy}
-            onClick={() => {
-              setPending(null);
-              void save(true);
-            }}
-          >
-            Add anyway
-          </Button>
-        </div>
-      </Modal>
+        confirmLabel="Add anyway"
+        busy={busy}
+        onCancel={() => setPending(null)}
+        onConfirm={(why) => {
+          setPending(null);
+          void save(true, why);
+        }}
+      />
     </Modal>
   );
 }

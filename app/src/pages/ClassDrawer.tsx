@@ -14,6 +14,7 @@ import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/co
 import { weekState } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
+import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import { DeleteButton } from '@/components/Lifecycle';
 import { useDomain } from '@/lib/domain';
 import { AddClassDialog } from './AddClassDialog';
@@ -122,6 +123,33 @@ export function ClassDrawer({
 
   const [assignTo, setAssignTo] = useState('');
   const [note, setNote] = useState('');
+  const [assignWarn, setAssignWarn] = useState<{
+    fn: 'assign_manually' | 'record_offline_confirmation';
+    warnings: CheckWarning[];
+  } | null>(null);
+  // Assigning checks the instructor's day and monthly limit first; going ahead needs a reason (decision 297).
+  async function assignOrRecord(
+    fn: 'assign_manually' | 'record_offline_confirmation',
+    why?: string,
+  ) {
+    const args = {
+      p_module_week_id: week.id,
+      p_instructor_id: assignTo,
+      p_note: note || undefined,
+      ...(why === undefined ? {} : { p_accept_warnings: true, p_reason: why || undefined }),
+    };
+    const res = (await run(() =>
+      fn === 'assign_manually'
+        ? rpc('assign_manually', args)
+        : rpc('record_offline_confirmation', args),
+    )) as { needs_confirmation?: boolean; warnings?: CheckWarning[] } | undefined;
+    if (!res) return;
+    if (res.needs_confirmation) {
+      setAssignWarn({ fn, warnings: res.warnings ?? [] });
+      return;
+    }
+    toast.success(fn === 'assign_manually' ? 'Instructor assigned' : 'Confirmation recorded');
+  }
   const [help, setHelp] = useState({ cats: [] as string[], details: '', urgency: 'NoRush' });
   const [shiftN, setShiftN] = useState(1);
   const [addingClass, setAddingClass] = useState(false);
@@ -243,17 +271,7 @@ export function ClassDrawer({
                   size="sm"
                   disabled={!assignTo}
                   loading={busy}
-                  onClick={() =>
-                    run(
-                      () =>
-                        rpc('assign_manually', {
-                          p_module_week_id: week.id,
-                          p_instructor_id: assignTo,
-                          p_note: note || undefined,
-                        }),
-                      'Instructor assigned',
-                    )
-                  }
+                  onClick={() => void assignOrRecord('assign_manually')}
                 >
                   Assign and confirm instructor
                 </Button>
@@ -261,21 +279,31 @@ export function ClassDrawer({
                   size="sm"
                   variant="secondary"
                   disabled={!assignTo}
-                  onClick={() =>
-                    run(
-                      () =>
-                        rpc('record_offline_confirmation', {
-                          p_module_week_id: week.id,
-                          p_instructor_id: assignTo,
-                          p_note: note || undefined,
-                        }),
-                      'Confirmation recorded',
-                    )
-                  }
+                  onClick={() => void assignOrRecord('record_offline_confirmation')}
                 >
                   Record a phone or chat confirmation
                 </Button>
               </div>
+              <WarningsDialog
+                warnings={assignWarn?.warnings ?? null}
+                title={
+                  assignWarn?.fn === 'record_offline_confirmation'
+                    ? 'Record this confirmation anyway?'
+                    : 'Assign anyway?'
+                }
+                confirmLabel={
+                  assignWarn?.fn === 'record_offline_confirmation'
+                    ? 'Record anyway'
+                    : 'Assign anyway'
+                }
+                busy={busy}
+                onCancel={() => setAssignWarn(null)}
+                onConfirm={(why) => {
+                  const fn = assignWarn!.fn;
+                  setAssignWarn(null);
+                  void assignOrRecord(fn, why);
+                }}
+              />
             </div>
           )}
         </DrawerGroup>
@@ -728,14 +756,45 @@ function ClassEditor({
   const e = localParts(c.ends_at, region);
   const [t, setT] = useState({ date: s.date, start: s.time, end: e.time, region });
   const [fold, setFold] = useState<number | null>(null);
+  const [timeWarn, setTimeWarn] = useState<{
+    args: Parameters<typeof changeTime>[0];
+    warnings: CheckWarning[];
+  } | null>(null);
   const [d, setD] = useState({ title: c.title, notes: c.notes ?? '', problem: c.problem_flag });
   const timeChanged =
     t.date !== s.date || t.start !== s.time || t.end !== e.time || t.region !== region;
+  async function changeTime(
+    args: { p_class_id: string; p_date: string; p_start: string; p_end: string } & Record<
+      string,
+      unknown
+    >,
+    why?: string,
+  ) {
+    const res = (await run(() =>
+      rpc('change_class_time', {
+        ...args,
+        ...(why === undefined ? {} : { p_accept_warnings: true, p_reason: why || undefined }),
+      }),
+    )) as { needs_confirmation?: boolean; warnings?: CheckWarning[] } | undefined;
+    if (res && !res.needs_confirmation) toast.success('Class time changed');
+    return res;
+  }
   const ready = timeReady(t.date, [t.start, t.end], t.region, fold);
   const detailsChanged =
     d.title !== c.title || d.notes !== (c.notes ?? '') || d.problem !== c.problem_flag;
   return (
     <div className="rounded-md border border-border p-3">
+      <WarningsDialog
+        warnings={timeWarn?.warnings ?? null}
+        title="Change the time anyway?"
+        confirmLabel="Change anyway"
+        onCancel={() => setTimeWarn(null)}
+        onConfirm={(why) => {
+          const args = timeWarn!.args;
+          setTimeWarn(null);
+          void changeTime(args, why);
+        }}
+      />
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge>{c.class_type}</Badge>
         <RegionBadge region={c.region} />
@@ -802,30 +861,10 @@ function ClassEditor({
                   p_region: t.region,
                   p_fold: fold ?? undefined,
                 };
-                const res = (await run(() => rpc('change_class_time', args))) as
-                  { needs_confirmation?: boolean; warnings?: { text: string }[] } | undefined;
-                if (!res) return;
-                if (!res.needs_confirmation) {
-                  toast.success('Class time changed');
-                  return;
-                }
-                // Holidays, early or late hours, or the cohort's other classes: the same checks as adding a class.
-                if (
-                  await confirm({
-                    title: 'Change the time anyway?',
-                    body: (res.warnings ?? []).map((w) => plain(w.text)).join(' '),
-                    confirmLabel: 'Change anyway',
-                  })
-                )
-                  await run(
-                    () =>
-                      rpc('change_class_time', {
-                        ...args,
-                        p_accept_warnings: true,
-                        p_reason: 'Accepted when changing the time',
-                      }),
-                    'Class time changed',
-                  );
+                const res = await changeTime(args);
+                // Holidays, unusual hours, the cohort's other classes or the instructor's day: the same checks as
+                // adding a class. Going ahead needs a reason (decision 297).
+                if (res?.needs_confirmation) setTimeWarn({ args, warnings: res.warnings ?? [] });
               }}
             >
               Change time
