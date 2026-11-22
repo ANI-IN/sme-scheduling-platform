@@ -7,15 +7,21 @@ Open [Schedule board](/board). Each cell is one class week of a cohort. It shows
 
 ## Views
 
-- **By cohort:** one column per cohort, one row per week. Cohorts of one standard schedule are grouped as a track; select a track's name to fold it away.
-- **By instructor:** one row per instructor, one column per week.
+- **By cohort:** one column per cohort, one row per week. Cohorts of one standard schedule are grouped as a track; select a track's name to fold it away. Cohorts without a standard schedule are grouped under **No standard schedule**.
+- **By instructor:** one row per instructor, one column per week. On a phone, each instructor's name is a heading with their class weeks as cards underneath, in date order.
 - **List:** every class week in date order. On a phone, the board opens in this view.
 
-Use **Earlier**, **This week** and **Later** to move through the weeks, and choose how many weeks to show. The current week is marked. Past weeks are shown for reference and can't be changed here. Your view and filters are remembered on this device.
+The board opens with this week as the first row. Use **Earlier**, **This week** and **Later** to move through the weeks, and choose how many weeks to show. The current week is marked. Past weeks are shown for reference and can't be changed here. Your view and filters are remembered on this device.
 
 ## Statuses
 
-Each cell has one status, always with its colour, icon and word: **Confirmed**, **Waiting for an answer**, **Needs instructor**, **Proposed time**, **Not asked yet** (with the Primary instructor), **Setup incomplete**, **Paused**, **Cancelled** or **Completed**. A week during a break shows **Break**; a program break is one row across the board. Press **Legend** to see them all.
+Each cell has one status, always with its colour, icon and word: **Confirmed**, **Waiting for an answer**, **Needs instructor**, **Proposed time**, **Not asked yet** (with the Primary instructor), **Setup incomplete**, **Paused**, **Cancelled** or **Completed**. A week during a break shows **Break**; a program break is one row across the board.
+
+## Badges and the legend
+
+Badges on a cell say what is unusual about a class week, such as **Clash**, **Holiday**, **Answer due soon**, **Help request open**, **Moved**, **Extra class** or **Message failed**. Red badges need a fix now; amber ones are worth a look. A cell shows up to three, and **+2** means there are more inside.
+
+Press **Legend** to see every status and every badge the board, the cohort headers and the side panel can show, each with one sentence about what it means.
 
 ## Needs a decision
 
