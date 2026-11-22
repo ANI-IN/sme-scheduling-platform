@@ -1,7 +1,7 @@
 -- Release 3, M12b (decision 314): bulk move and bulk cancel from the Schedule board, with one combined preview.
 begin;
 \ir ../helpers/helpers.psql
-select plan(14);
+select plan(15);
 
 select tests.scenario('BK', 'Live', '2027-01-31', 3) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as m1, (:'j'::jsonb ->> 'i1') as i1,
@@ -45,6 +45,9 @@ select ok(exists (select 1 from public.history_event where action = 'Class weeks
 select public.bulk_change_weeks('cancel', array[tests.wk('BK A', 3), tests.wk('BK B', 2)]) as pv \gset
 select is((select x ->> 'told' from jsonb_array_elements(:'pv'::jsonb -> 'weeks') x where x -> 'instructor' ->> 'id' = :'i3'),
   'BK Instr3 is told the class week is cancelled.', '9. the cancel preview says who is told');
+select ok((select bool_and(x ->> 'label' = private.mw_label((x ->> 'module_week_id')::uuid) and x ->> 'label' not like '%no classes%')
+            from jsonb_array_elements(:'pv'::jsonb -> 'weeks') x),
+  '9b. the cancel preview names each week with its times as they are now');
 select throws_ok(format($$ select public.bulk_change_weeks('cancel', array[%L, %L]::uuid[], null, null, true) $$,
   tests.wk('BK A', 3), tests.wk('BK B', 2)), '22023',
   'Say why these class weeks are cancelled. The reason is kept in Activity history.', '10. cancelling needs a reason');

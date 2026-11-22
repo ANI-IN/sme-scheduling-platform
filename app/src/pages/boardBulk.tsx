@@ -159,10 +159,8 @@ export function BulkChangeDialog({
                       key={w.module_week_id}
                       className="rounded-md border border-border p-2 text-sm"
                     >
-                      <div className="font-medium">
-                        {w.cohort ? `${w.cohort}: ` : ''}
-                        {w.label}
-                      </div>
+                      {/* The label already names the module, the cohort and the times. */}
+                      <div className="font-medium">{w.label}</div>
                       {w.told && <div className="text-muted-foreground">{w.told}</div>}
                       {fresh.length === 0 ? (
                         <div className="text-muted-foreground">No new problems.</div>

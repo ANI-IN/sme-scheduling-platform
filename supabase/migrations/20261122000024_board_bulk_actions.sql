@@ -27,6 +27,7 @@ declare
   v_id uuid;
   v_skip uuid[] := '{}';
   v_people jsonb := '{}';
+  v_labels jsonb := '{}';
 begin
   perform private.require_team();
   if p_action not in ('move', 'cancel') then
@@ -62,6 +63,8 @@ begin
       v_skip := v_skip || w.id;
     end if;
     v_before := v_before || jsonb_build_object(w.id::text, private.week_problems(w.id));
+    -- The name and times as they are now: a cancelled week has no classes left to name afterwards.
+    v_labels := v_labels || jsonb_build_object(w.id::text, w.label);
     -- Who is confirmed (or being asked) now, before anything changes.
     select x.id, x.name, x.status into v_person from (
       select b.instructor_id as id, i.full_name as name, 'Confirmed' as status, 1 as o
@@ -104,7 +107,9 @@ begin
       else
         v_prob := '[]';
       end if;
-      v_weeks := v_weeks || jsonb_build_object('module_week_id', w.id, 'label', w.label, 'cohort', w.cohort,
+      v_weeks := v_weeks || jsonb_build_object('module_week_id', w.id,
+        'label', case when p_action = 'cancel' then coalesce(v_labels ->> w.id::text, w.label) else w.label end,
+        'cohort', w.cohort,
         'week_start_date', w.week_start_date,
         'instructor', v_people -> w.id::text,
         'told', case when v_people ? w.id::text then
