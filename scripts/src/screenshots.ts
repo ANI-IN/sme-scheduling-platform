@@ -47,6 +47,10 @@ const menuItem = (text: string | RegExp) => async (p: Page) => {
   await p.getByRole('menuitem', { name: text }).first().click();
   await p.waitForTimeout(700);
 };
+const clickNth = (text: string | RegExp, n: number) => async (p: Page) => {
+  await p.getByRole('button', { name: text }).nth(n).click();
+  await p.waitForTimeout(300);
+};
 const clickRow = (selector: string) => async (p: Page) => {
   await p.locator(selector).first().click();
   await p.waitForTimeout(800);
@@ -65,6 +69,11 @@ const steps =
   async (p: Page) => {
     for (const f of fns) await f(p);
   };
+const selectTwo = steps(
+  click(/^select class weeks$/i),
+  clickNth(/^Select: Open /, 0),
+  clickNth(/^Select: Open /, 1),
+);
 const fill = (label: string | RegExp, value: string) => async (p: Page) => {
   await p.getByLabel(label).first().fill(value);
 };
@@ -91,6 +100,20 @@ export const SHOTS: Shot[] = [
     width: 'desktop',
   },
   { name: 'shell-mobile-menu', path: '/', act: click(/open menu/i), width: 'mobile' },
+  { name: 'board', path: '/board' },
+  { name: 'board-by-instructor', path: '/board', act: click(/^by instructor$/i) },
+  { name: 'board-list', path: '/board', act: click(/^list$/i) },
+  { name: 'board-legend', path: '/board', act: click(/^legend$/i) },
+  { name: 'board-side-panel', path: '/board', act: click(/^Open /) },
+  { name: 'board-select', path: '/board', act: selectTwo },
+  { name: 'board-bulk-move', path: '/board', act: steps(selectTwo, click(/^move$/i)) },
+  { name: 'board-bulk-cancel', path: '/board', act: steps(selectTwo, click(/^cancel$/i)) },
+  { name: 'board-bulk-break', path: '/board', act: steps(selectTwo, click(/^add a break$/i)) },
+  {
+    name: 'board-bulk-share',
+    path: '/board',
+    act: steps(selectTwo, click(/^make one shared class$/i)),
+  },
   { name: 'classes', path: '/classes' },
   { name: 'classes-plan-dialog', path: '/classes', act: click(/plan classes/i) },
   { name: 'classes-add-class', path: '/classes', act: click(/add one class/i) },
@@ -190,7 +213,15 @@ async function main() {
         viewport: { width: vp.width, height: vp.height },
         colorScheme: theme,
       });
-      await ctx.addInitScript((t) => localStorage.setItem('ik-theme', t), theme);
+      await ctx.addInitScript((t) => {
+        localStorage.setItem('ik-theme', t);
+        // The shots show the app as people use it: no Development label of the local copy (decision 313).
+        document.addEventListener('DOMContentLoaded', () => {
+          const st = document.createElement('style');
+          st.textContent = '[data-environment-label]{display:none!important}';
+          document.head.appendChild(st);
+        });
+      }, theme);
       const page = await ctx.newPage();
       await page.goto(await signInLink(api, secret, EMAIL, APP));
       await page
