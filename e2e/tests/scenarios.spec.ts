@@ -125,7 +125,7 @@ test('the same instructor teaches in two cohorts', async ({ page }) => {
       where c.name = 'Weekend cohort' and b.status = 'Active'`,
   );
   expect(confirmed.length).toBeGreaterThan(0);
-  await openWeek(page, 'Weekday cohort', /Needs an instructor|Ready to ask|Asking|Not started/);
+  await openWeek(page, 'Weekday cohort', /Needs instructor|Not asked yet|Waiting for an answer/);
   const dlg = page.getByRole('dialog');
   const select = dlg.getByRole('combobox', { name: 'Instructor', exact: true });
   const options = (await select.locator('option').allTextContents()).map((o) => o.trim());
@@ -207,7 +207,7 @@ test('a one off class, and a warning accepted with a reason', async ({ page }) =
 });
 
 test('"same instructor" off for one class week', async ({ page }) => {
-  await openWeek(page, 'Weekend cohort', /Needs an instructor|Ready to ask|Not started/);
+  await openWeek(page, 'Weekend cohort', /Needs instructor|Not asked yet/);
   const dlg = page.getByRole('dialog');
   await dlg.getByText('More options', { exact: true }).click();
   const sw = dlg.getByLabel('The same instructor teaches every class of this week');

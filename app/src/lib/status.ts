@@ -1,82 +1,104 @@
 import type { WeekRow } from './data';
 
-/** The status of a class week without any names, for filters. */
-export const WEEK_KINDS = [
-  'Not started yet',
-  'Setup not finished',
-  'Ready to ask',
-  'Asking',
-  'Needs an instructor',
-  'At risk',
-  'Confirmed',
-  'Shared class',
-  'Requests paused',
-  'Completed',
-  'Cancelled',
-] as const;
-export type WeekKind = (typeof WEEK_KINDS)[number];
-/** The side panel badge for a confirmed class week that is at risk. */
+type StatusTone = 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
+
+/**
+ * The one set of status words for a class week (docs/GLOSSARY.md), by the code the Schedule board's data uses
+ * (private.board_status). The board, its side panel and Legend, Upcoming classes, Instructor requests, Home, the
+ * filters and the spreadsheet downloads all show these words and no others. The database keeps its own status codes
+ * (module_week.status: Planned, NotReady, Ready, Asking, NeedsInstructor and so on); only what people read is here.
+ */
+export const WEEK_STATUS = {
+  Confirmed: { word: 'Confirmed', tone: 'success' },
+  Waiting: { word: 'Waiting for an answer', tone: 'warning' },
+  'Needs instructor': { word: 'Needs instructor', tone: 'danger' },
+  'Proposed time': { word: 'Proposed time', tone: 'accent' },
+  'Not asked yet': { word: 'Not asked yet', tone: 'neutral' },
+  'Setup incomplete': { word: 'Setup incomplete', tone: 'neutral' },
+  Paused: { word: 'Paused', tone: 'neutral' },
+  Cancelled: { word: 'Cancelled', tone: 'neutral' },
+  Completed: { word: 'Completed', tone: 'neutral' },
+} as const satisfies Record<string, { word: string; tone: StatusTone }>;
+export type WeekStatus = keyof typeof WEEK_STATUS;
+/** The status word of a class week, as people read it. */
+export type WeekKind = (typeof WEEK_STATUS)[WeekStatus]['word'];
+/** The status words in their natural order, for filters. */
+export const WEEK_KINDS: WeekKind[] = Object.values(WEEK_STATUS).map((s) => s.word);
+/** A week with no class week because the cohort has a break. */
+export const BREAK_WORD = 'Break';
+/** Not a status: a flag on a class week that may not have an instructor in time (a filter and a badge). */
+export const AT_RISK = 'At risk';
+/** The status badge of a confirmed class week that is at risk. */
 export const CONFIRMED_AT_RISK = 'Confirmed, at risk';
 
 export type WeekState = {
-  label: string;
-  /** The status without names (filters). */
+  status: WeekStatus;
+  /** The status word without names (filters). */
   kind: WeekKind;
+  /** The status word with the instructor's name, for spreadsheet downloads. */
+  label: string;
   /** The badge text without names, shown next to an Instructor column. */
   short: string;
-  tone: 'gray' | 'blue' | 'green' | 'amber' | 'red' | 'purple';
+  tone: StatusTone;
+  /** Who is being asked now and has not answered yet. */
   asking: string | null;
   confirmed: string | null;
   atRisk: boolean;
+  /** Taught together with another cohort's class week (its host), whose instructor is shown. */
+  shared: boolean;
 };
 
 const OPEN = ['Queued', 'Sent', 'Reminded'];
 
-/** Outreach status shown in the Schedule grid and Outreach tab (PRD 7.4). */
-export function weekState(w: WeekRow, names: Map<string, string>): WeekState {
-  const booking = w.booking.find((b) => b.status === 'Active') ?? null;
-  const asking = w.request.find((r) => r.kind === 'Outreach' && OPEN.includes(r.status)) ?? null;
+/** Every class week by its ID, so a shared class week can show its host's status. */
+export const weeksById = (weeks: WeekRow[] | undefined) =>
+  new Map((weeks ?? []).map((w) => [w.id, w] as const));
+
+/**
+ * The status of a class week, in the same order as the Schedule board (private.board_status). A class week taught
+ * in another cohort's class takes its instructor and requests from that class week (pass every week by ID).
+ */
+export function weekState(
+  w: WeekRow,
+  names: Map<string, string>,
+  byId?: Map<string, WeekRow>,
+): WeekState {
+  const src = (w.shared_with && byId?.get(w.shared_with)) || w;
+  const booking = src.booking.find((b) => b.status === 'Active') ?? null;
+  const request = src.request.find((r) => r.kind === 'Outreach' && OPEN.includes(r.status)) ?? null;
+  const proposal = src.time_proposal.some((p) => p.status === 'Pending');
   const confirmed = booking ? (names.get(booking.instructor_id) ?? '?') : null;
-  const askingName = asking?.instructor_id ? (names.get(asking.instructor_id) ?? '?') : null;
-  const base = { asking: askingName, confirmed, atRisk: w.at_risk };
-  const same = (kind: WeekKind, tone: WeekState['tone']): WeekState => ({
-    ...base,
-    label: kind,
-    kind,
-    short: kind,
-    tone,
-  });
-  if (w.status === 'Cancelled') return same('Cancelled', 'gray');
-  if (w.status === 'Completed') return same('Completed', 'gray');
-  // Taught in another cohort's class (decision 303): its instructor is on that class week.
-  if (w.shared_with) return same('Shared class', 'blue');
-  if (w.paused) return same('Requests paused', 'purple');
-  if (w.at_risk && !booking)
-    return {
-      ...base,
-      label: askingName ? `At risk · asking ${askingName}` : 'At risk',
-      kind: 'At risk',
-      short: 'At risk',
-      tone: 'red',
-    };
-  if (booking)
-    return {
-      ...base,
-      label: `Confirmed (${confirmed})${w.at_risk ? ' · at risk' : ''}`,
-      kind: 'Confirmed',
-      short: w.at_risk ? CONFIRMED_AT_RISK : 'Confirmed',
-      tone: w.at_risk ? 'amber' : 'green',
-    };
-  if (askingName)
-    return {
-      ...base,
-      label: `Asking (${askingName})`,
-      kind: 'Asking',
-      short: 'Asking',
-      tone: 'blue',
-    };
-  if (w.status === 'NeedsInstructor') return same('Needs an instructor', 'red');
-  if (w.status === 'Ready') return same('Ready to ask', 'blue');
-  if (w.status === 'NotReady') return same('Setup not finished', 'amber');
-  return same('Not started yet', 'gray');
+  const asking = request?.instructor_id ? (names.get(request.instructor_id) ?? '?') : null;
+  const status: WeekStatus =
+    w.status === 'Cancelled'
+      ? 'Cancelled'
+      : w.status === 'Completed'
+        ? 'Completed'
+        : booking
+          ? 'Confirmed'
+          : proposal
+            ? 'Proposed time'
+            : asking
+              ? 'Waiting'
+              : w.status === 'NeedsInstructor' || w.at_risk
+                ? 'Needs instructor'
+                : w.paused && !w.shared_with
+                  ? 'Paused'
+                  : w.status === 'NotReady'
+                    ? 'Setup incomplete'
+                    : 'Not asked yet';
+  const { word, tone } = WEEK_STATUS[status];
+  const who = status === 'Confirmed' ? confirmed : status === 'Waiting' ? asking : null;
+  const risky = status === 'Confirmed' && w.at_risk;
+  return {
+    status,
+    kind: word,
+    label: `${word}${who ? ` (${who})` : ''}${w.at_risk && status !== 'Cancelled' ? `, ${AT_RISK.toLowerCase()}` : ''}`,
+    short: risky ? CONFIRMED_AT_RISK : word,
+    tone: risky ? 'warning' : tone,
+    asking,
+    confirmed,
+    atRisk: w.at_risk,
+    shared: !!w.shared_with,
+  };
 }

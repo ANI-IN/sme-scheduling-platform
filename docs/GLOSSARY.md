@@ -22,6 +22,7 @@ npm run scan-text -w scripts
 - **Every empty state says what to do next**, and every dangerous action asks first and says
   what will happen.
 - An empty value is shown as "Not set", "Not yet" or "Nobody yet", never as a dash.
+- **One set of status words** for a class week (see Class week statuses below).
 
 ## Terms
 
@@ -50,6 +51,34 @@ npm run scan-text -w scripts
 | Release instructor | Release booking | Tell a confirmed instructor they are no longer needed and ask others |
 | Download as spreadsheet | Export CSV | Save the list as a file |
 | Not in use | Inactive | A module, instructor or team member that is kept but not used |
+
+## Class week statuses
+
+A class week always shows one of these statuses, in these words, everywhere a person reads it: the Schedule
+board and its Legend, the side panel, Upcoming classes, Instructor requests, Home, filters, spreadsheet downloads
+and messages to the team. The words live in `WEEK_STATUS` in `app/src/lib/status.ts` (the board's icons and Legend
+sentences are in `app/src/pages/boardBadges.ts`), and the database writes them with `private.week_status_text`.
+The database keeps its own status codes (Planned, NotReady, Ready, Asking, NeedsInstructor), which people never see.
+
+| Status | Meaning |
+| --- | --- |
+| Confirmed | An instructor said yes to this class week. |
+| Waiting for an answer | An instructor was asked and has not answered yet. |
+| Needs instructor | Nobody is confirmed or being asked, so you need to choose an instructor. |
+| Proposed time | The instructor proposed another time, which you accept or reject. |
+| Not asked yet | Nobody was asked yet, and the Primary instructor is asked first. |
+| Setup incomplete | Something is missing, such as class times or an instructor order, so nobody can be asked yet. |
+| Paused | Requests for this class week are paused, so nobody is asked. |
+| Cancelled | This class week or class will not take place. |
+| Completed | Every class of this week has finished. |
+| Break | The cohort has a break this week, so it has no class week. |
+
+At risk is not a status: it is a badge (and a filter) on a class week that may not have an instructor in time.
+
+Not used: "Asking", "Asking now", "Being asked" (use Waiting for an answer), "Ready to ask", "Not started yet",
+"Not started" (use Not asked yet), "Setup not finished" (use Setup incomplete), "Needs an instructor" (use Needs
+instructor), "Requests paused" (use Paused) and "Waiting for a reply" (use Waiting for an answer). The wording scan
+flags them as labels; the verb in a sentence ("We are asking the next instructor") is fine.
 
 ## Message names
 

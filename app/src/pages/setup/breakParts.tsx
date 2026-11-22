@@ -8,6 +8,7 @@ import { CalendarOff, Pause, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
+import { WEEK_STATUS } from '@/lib/status';
 import { useCohorts } from '@/lib/data';
 import { useConfirm } from '@/components/Confirm';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
@@ -174,9 +175,17 @@ function BreakView({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{plain(w.label)}</span>
                     {w.instructor && (
-                      <Badge tone={w.instructor.status === 'Confirmed' ? 'success' : 'accent'}>
-                        {w.instructor.status === 'Confirmed' ? 'Confirmed' : 'Being asked'}:{' '}
-                        {w.instructor.name}
+                      <Badge
+                        tone={
+                          w.instructor.status === 'Confirmed'
+                            ? WEEK_STATUS.Confirmed.tone
+                            : WEEK_STATUS.Waiting.tone
+                        }
+                      >
+                        {w.instructor.status === 'Confirmed'
+                          ? WEEK_STATUS.Confirmed.word
+                          : WEEK_STATUS.Waiting.word}
+                        : {w.instructor.name}
                       </Badge>
                     )}
                   </div>

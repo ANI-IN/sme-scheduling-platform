@@ -1,8 +1,10 @@
 // Scans user facing text for the wording rules in docs/GLOSSARY.md:
-// no dashes (— or –), no hyphenated words, no "e.g.", and no internal names
-// (allowed only on the Connections page). Checks app source (JSX text, string
-// literals and template text that read as words) and, if the local database is
-// reachable, the setting labels and help stored in the database.
+// no dashes (— or –), no hyphenated words, no "e.g.", no internal names
+// (allowed only on the Connections page) and no old class week status words.
+// Checks app source (JSX text, string literals and template text that read as
+// words), the help guides, the text in the latest definition of every database
+// function (old status words only) and, if the local database is reachable, the
+// setting labels and help stored in the database.
 //
 //   npm run scan-text -w scripts
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -12,6 +14,7 @@ import pg from 'pg';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const SRC = join(ROOT, 'app/src');
+const MIGRATIONS = join(ROOT, 'supabase/migrations');
 const DB = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
 
 /** Internal names users should not see. */
@@ -37,6 +40,61 @@ const NEVER: [RegExp, string][] = [
   [/\bdemo\b/i, 'demo'],
   [/\btest environment\b/i, 'test environment'],
 ];
+/**
+ * Old words for the status of a class week (owner's item 1, docs/GLOSSARY.md). People only ever read Confirmed,
+ * Waiting for an answer, Needs instructor, Proposed time, Not asked yet, Setup incomplete, Paused, Cancelled,
+ * Completed and Break. An old word is flagged where it is a label: the whole text, the start of "Label: name" or
+ * "Label (name)", a bold or quoted label, and (for the longer ones, which are never ordinary sentence words) anywhere
+ * with its capital letter. The verb in a sentence ("We are asking the next instructor") is fine.
+ */
+const OLD_STATUS = [
+  'Asking',
+  'Asking now',
+  'Being asked',
+  'Ready to ask',
+  'Not started yet',
+  'Not started',
+  'Setup not finished',
+  'Needs an instructor',
+  'Requests paused',
+  'Waiting for a reply',
+];
+/** The old words that are labels wherever they appear with a capital letter. */
+const OLD_STATUS_ANYWHERE = [
+  'Ready to ask',
+  'Not started yet',
+  'Setup not finished',
+  'Needs an instructor',
+  'Requests paused',
+  'Waiting for a reply',
+];
+/**
+ * The old status word a text uses as a label, or nothing (the words are letters and spaces only, so they go into a
+ * pattern as they are). `sql`: a piece of database text, where status codes such as 'Asking' are compared
+ * everywhere, so only a piece joined to more text ('Asking ' || name) is a label.
+ */
+function oldStatus(text: string, sql = false): string | undefined {
+  const t = text.replace(/\s+/g, ' ').trim();
+  for (const label of OLD_STATUS) {
+    if (sql ? t === label && t !== text : new RegExp(`^${label}[.:]?$`).test(t)) return label;
+    if (new RegExp(`^${label}(?:: | \\()`).test(t)) return label;
+    if (!sql && new RegExp(`(?:\\*\\*|["“'‘])${label}(?:\\*\\*|["”'’])`).test(t)) return label;
+  }
+  for (const label of OLD_STATUS_ANYWHERE) if (new RegExp(`\\b${label}\\b`).test(t)) return label;
+  return undefined;
+}
+/**
+ * Old status words still in a help guide that another change is rewriting (owner's item 1). They are listed as
+ * warnings, not findings, until that change lands; remove an entry once its guide uses the new words.
+ */
+const OLD_STATUS_PENDING: Record<string, string[]> = {
+  'app/src/help/common-questions.md': [
+    'Setup not finished',
+    'Not started yet',
+    'Needs an instructor',
+  ],
+};
+const pending: Finding[] = [];
 /** Hyphenated words that are fine (none so far; add with a reason). */
 const HYPHEN_OK = new Set<string>([]);
 
@@ -62,6 +120,12 @@ function check(where: string, text: string, internalOk: boolean) {
       findings.push({ where, text: t, problem: `hyphen "${m[0]}"` });
   }
   for (const [re, name] of NEVER) if (re.test(t)) findings.push({ where, text: t, problem: name });
+  const old = oldStatus(t);
+  if (old) {
+    const f = { where, text: t, problem: `old status word "${old}"` };
+    if (OLD_STATUS_PENDING[where.replace(/:\d+$/, '')]?.includes(old)) pending.push(f);
+    else findings.push(f);
+  }
   if (!internalOk)
     for (const [re, name] of BANNED)
       if (re.test(t)) findings.push({ where, text: t, problem: `internal name "${name}"` });
@@ -141,7 +205,10 @@ function scanFile(file: string) {
       if (/\s/.test(s) && !looksLikeClasses(s) && isUserFacing(n)) check(at(n), s, internalOk);
       else if (
         !/\s/.test(s) &&
-        (/[—–]/.test(s) || /^[A-Z][a-z]+-[a-z]/.test(s) || /^(sandbox|demo)$/i.test(s)) &&
+        (/[—–]/.test(s) ||
+          /^[A-Z][a-z]+-[a-z]/.test(s) ||
+          /^(sandbox|demo)$/i.test(s) ||
+          OLD_STATUS.includes(s)) &&
         isUserFacing(n)
       )
         check(at(n), s, internalOk);
@@ -176,6 +243,53 @@ for (const f of readdirSync(join(SRC, 'help')).filter((x) => x.endsWith('.md')))
   });
 }
 
+// Text the database writes for people (messages to the team, task titles, reasons): the string literals in the
+// latest definition of every function, for the old status words only (plain.ts handles the rest).
+function sqlLiterals(body: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < body.length; i++) {
+    // A comment runs to the end of its line (and may hold an apostrophe that is not a quote).
+    if (body.startsWith('--', i)) {
+      const end = body.indexOf('\n', i);
+      i = end === -1 ? body.length : end;
+    } else if (body[i] === "'") {
+      let lit = '';
+      for (i++; i < body.length; i++) {
+        if (body[i] === "'" && body[i + 1] === "'") {
+          lit += "'";
+          i++;
+        } else if (body[i] === "'") break;
+        else lit += body[i];
+      }
+      out.push(lit);
+    }
+  }
+  return out;
+}
+const functions = new Map<string, { file: string; body: string }>();
+for (const f of readdirSync(MIGRATIONS)
+  .filter((x) => x.endsWith('.sql'))
+  .sort()) {
+  const sql = readFileSync(join(MIGRATIONS, f), 'utf8');
+  for (const m of sql.matchAll(
+    /create\s+(?:or\s+replace\s+)?function\s+([\w.]+)\s*\(([^)]*)\)[\s\S]*?\bas\s+\$(\w*)\$([\s\S]*?)\$\3\$/gi,
+  ))
+    functions.set(`${m[1]!.toLowerCase()}(${m[2]!.replace(/\s+/g, ' ').trim()})`, {
+      file: f,
+      body: m[4]!,
+    });
+}
+for (const [name, { file, body }] of functions)
+  for (const lit of sqlLiterals(body)) {
+    const old = oldStatus(lit, true);
+    if (old)
+      findings.push({
+        where: `supabase/migrations/${file} ${name}`,
+        text: lit,
+        problem: `old status word "${old}"`,
+      });
+  }
+
 // Text stored in the database and shown as is.
 try {
   const db = new pg.Client({ connectionString: DB });
@@ -192,9 +306,13 @@ try {
   console.warn(`(database text not checked: ${(e as Error).message})`);
 }
 
+for (const f of pending)
+  console.warn(
+    `(waiting for the help rewrite) ${f.where}  [${f.problem}]  ${f.text.slice(0, 100)}`,
+  );
 if (findings.length === 0) {
   console.log(
-    'No dashes, hyphenated words, "e.g.", internal names or Sandbox, demo or test environment wording found in user facing text.',
+    'No dashes, hyphenated words, "e.g.", internal names, old status words or Sandbox, demo or test environment wording found in user facing text.',
   );
 } else {
   for (const f of findings) console.log(`${f.where}  [${f.problem}]  ${f.text.slice(0, 140)}`);

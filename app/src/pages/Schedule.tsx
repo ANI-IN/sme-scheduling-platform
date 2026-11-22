@@ -16,7 +16,7 @@ import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '
 import { PT } from '@/lib/time';
 import { asRegion, classTimeLine, REGIONS, TZ } from '@/lib/region';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
-import { WEEK_KINDS, weekState } from '@/lib/status';
+import { AT_RISK, WEEK_KINDS, WEEK_STATUS, weekState, weeksById } from '@/lib/status';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import {
   Badge,
@@ -73,6 +73,7 @@ export default function Schedule() {
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
+  const byId = useMemo(() => weeksById(weeks.data), [weeks.data]);
   const holidays = useQuery({
     queryKey: ['holiday'],
     queryFn: async () => check(await supabase.from('holiday').select('*')),
@@ -130,9 +131,9 @@ export default function Schedule() {
       if (moduleFilter && w.module_id !== moduleFilter) continue;
       if (cohortFilter && w.cohort_id !== cohortFilter) continue;
       if (statusFilter) {
-        const s = weekState(w, names);
+        const s = weekState(w, names, byId);
         // "At risk" shows every week at risk, confirmed or not; the others match the status itself.
-        if (statusFilter === 'At risk' ? !s.atRisk : s.kind !== statusFilter) continue;
+        if (statusFilter === AT_RISK ? !s.atRisk : s.kind !== statusFilter) continue;
       }
       const classes = [...w.class_session]
         .filter((c) => !regionFilter || asRegion(c.region) === regionFilter)
@@ -157,21 +158,24 @@ export default function Schedule() {
     regionFilter,
     statusFilter,
     names,
+    byId,
     holidayMap,
   ]);
   // Only the statuses some class week has, in their natural order, without names.
   const statuses = useMemo(() => {
     const have = new Set<string>();
     for (const w of weeks.data ?? []) {
-      const s = weekState(w, names);
+      const s = weekState(w, names, byId);
       have.add(s.kind);
-      if (s.atRisk) have.add('At risk');
+      if (s.atRisk) have.add(AT_RISK);
     }
-    // Over and cancelled weeks only show with "Show past and cancelled".
-    return WEEK_KINDS.filter(
-      (k) => have.has(k) && (showPast || !['Completed', 'Cancelled'].includes(k)),
+    // Over and cancelled weeks only show with "Show past and cancelled". At risk is a flag, so it comes last.
+    return [...WEEK_KINDS, AT_RISK].filter(
+      (k) =>
+        have.has(k) &&
+        (showPast || (k !== WEEK_STATUS.Completed.word && k !== WEEK_STATUS.Cancelled.word)),
     );
-  }, [weeks.data, names, showPast]);
+  }, [weeks.data, names, byId, showPast]);
 
   const columns = useMemo(
     () => [
@@ -248,19 +252,19 @@ export default function Schedule() {
           ),
         },
       ),
-      col.accessor((r) => weekState(r.week, names).short, {
+      col.accessor((r) => weekState(r.week, names, byId).short, {
         id: 'status',
         header: 'Status',
         cell: ({ row }) => {
           if (!row.original.first) return null;
-          const s = weekState(row.original.week, names);
+          const s = weekState(row.original.week, names, byId);
           return <Badge tone={s.tone}>{s.short}</Badge>;
         },
       }),
       col.accessor(
         (r) => {
-          const s = weekState(r.week, names);
-          return s.confirmed ?? (s.asking ? `Asking: ${s.asking}` : '');
+          const s = weekState(r.week, names, byId);
+          return s.confirmed ?? (s.asking ? `${WEEK_STATUS.Waiting.word}: ${s.asking}` : '');
         },
         {
           id: 'confirmed',
@@ -312,7 +316,7 @@ export default function Schedule() {
           ) : null,
       }),
     ],
-    [selected, names, checklistByWeek],
+    [selected, names, byId, checklistByWeek],
   );
 
   // TanStack Table manages its own memoisation; the React Compiler skips this component.
@@ -352,7 +356,7 @@ export default function Schedule() {
       `schedule-${domain?.name}-${DateTime.now().toFormat('yyyy-LL-dd')}.csv`,
       toCsv(
         table.getFilteredRowModel().rows.map(({ original: r }) => {
-          const s = weekState(r.week, names);
+          const s = weekState(r.week, names, byId);
           return {
             date_time: classTimeLine(r.cls.starts_at, r.cls.ends_at, r.cls.region),
             region: asRegion(r.cls.region),
@@ -512,7 +516,7 @@ export default function Schedule() {
                   w.booking.some((b) => b.status === 'Active')
                     ? undefined
                     : rpc('pause_outreach', { p_module_week_id: w.id, p_paused: true }),
-                'Requests paused for the class weeks still looking for an instructor',
+                'Paused requests for the class weeks still looking for an instructor',
               )
             }
           >

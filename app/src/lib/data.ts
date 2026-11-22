@@ -93,7 +93,7 @@ export const useWeeks = (domainId: string | undefined) =>
         supabase
           .from('module_week')
           .select(
-            '*, module(name), class_session(*), booking(*), request(*), help_request(id, status), manual_queue_item(*)',
+            '*, module(name), class_session(*), booking(*), request(*), help_request(id, status), manual_queue_item(*), time_proposal(id, status)',
           )
           .eq('domain_id', domainId!)
           .order('week_start_date')

@@ -135,7 +135,7 @@ test('start asking now: a class week not started yet asks the first person in it
   const row = page
     .locator('tbody tr')
     .filter({ hasText: x.module })
-    .filter({ hasText: /Not started yet|Ready to ask/ })
+    .filter({ hasText: /Not asked yet/ })
     .first();
   await row.getByRole('button', { name: 'Start asking now' }).click();
   await expect.poll(() => askingNow(x.mw), { timeout: 15_000 }).not.toBe('');

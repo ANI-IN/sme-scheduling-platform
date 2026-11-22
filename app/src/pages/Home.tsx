@@ -9,7 +9,7 @@ import { useDomain, useDomainNow } from '@/lib/domain';
 import { LIVE_CHECK_MS, useCohorts, useInstructors, useWeeks } from '@/lib/data';
 import { PT } from '@/lib/time';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
-import { weekState } from '@/lib/status';
+import { WEEK_STATUS, weekState, weeksById } from '@/lib/status';
 import {
   Badge,
   Empty,
@@ -61,6 +61,7 @@ export default function Home() {
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
+  const byId = useMemo(() => weeksById(allWeeks.data), [allWeeks.data]);
 
   const counts = useQuery({
     queryKey: ['attention_item', 'home-counts', domain?.id],
@@ -197,7 +198,7 @@ export default function Home() {
               label="Still need an instructor"
               value={looking.length}
               tone="warning"
-              hint={`In the next 30 days, ${asking} being asked`}
+              hint={`In the next 30 days, ${asking} ${WEEK_STATUS.Waiting.word.toLowerCase()}`}
               to="/requests"
             />
             <Stat
@@ -247,7 +248,7 @@ export default function Home() {
                   </thead>
                   <tbody>
                     {thisWeek.map(({ w, c }) => {
-                      const st = weekState(w, names);
+                      const st = weekState(w, names, byId);
                       return (
                         <tr key={c.id} className={trow}>
                           <td className={td}>
@@ -264,7 +265,7 @@ export default function Home() {
                           <td className={td}>
                             {st.confirmed ??
                               (st.asking ? (
-                                `Asking: ${st.asking}`
+                                `${WEEK_STATUS.Waiting.word}: ${st.asking}`
                               ) : (
                                 <span className="text-muted-foreground">Not confirmed</span>
                               ))}
