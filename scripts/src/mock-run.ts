@@ -343,7 +343,9 @@ async function race() {
     both.push(w.v.module_week_ids[0]!);
   }
   // Both weeks are ready; each connection starts asking for one of them at the same moment.
-  await c.query(`update public.module_week set status = 'Ready' where id = any($1::uuid[])`, [both]);
+  await c.query(`update public.module_week set status = 'Ready' where id = any($1::uuid[])`, [
+    both,
+  ]);
   const askOn = (cl: pg.Client, mw: string) =>
     cl.query(`select private.ask_next($1, '2027-01-08T17:00:00Z') as r`, [mw]);
   await Promise.all([askOn(a, both[0]!), askOn(b, both[1]!)]);
