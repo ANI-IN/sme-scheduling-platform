@@ -322,7 +322,7 @@ const rewrites: [
   [/^Booked (.+)$/, (m, c) => `${m[1]} is confirmed for ${c.module}`],
   [/^Booking released: (.+)$/, (m, c) => `${m[1]} was released from ${c.module}`],
   [
-    /^No reply from (.+) [—–] moving on$/,
+    /^No reply from (.+?)(?: [—–]|,) moving on$/,
     (m, c) => `${m[1]} did not reply about ${c.module}, so the next instructor was asked`,
   ],
   [/^Request withdrawn: (.+)$/, (m, c) => `The request to ${m[1]} for ${c.module} was withdrawn`],

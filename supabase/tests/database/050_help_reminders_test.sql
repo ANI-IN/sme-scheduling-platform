@@ -20,7 +20,7 @@ select is((select response_target_at from public.help_request where id = :'hid')
   'no rush and class > 7 days away → 24h target');
 select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'M13'), 2, 'instructor gets the acknowledgement (M13)');
 select is((select count(*)::int from public.message where help_request_id = :'hid' and template_id = 'T7' and unique_key not like '%:copy'), 1, 'owner tagged right away (T7)');
-select ok(:'h'::jsonb ->> 'message' = 'Thanks! Concurrency HP Owner will reply by Fri, Jan 22 · 10:00 AM PST.', 'confirmation shows who replies and by when (PT)');
+select ok(:'h'::jsonb ->> 'message' = 'Concurrency HP Owner will reply by Fri, Jan 22 · 10:00 AM PST.', 'confirmation shows who replies and by when (PT)');
 
 -- duplicate within 1 hour merges
 select tests.at('2027-01-21 18:30+00');

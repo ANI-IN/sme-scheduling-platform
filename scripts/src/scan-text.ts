@@ -1,7 +1,8 @@
 // Scans user facing text for the wording rules in docs/GLOSSARY.md:
 // no dashes (— or –), no hyphenated words, no "e.g.", and no internal names
 // (allowed only on the Connections page). Checks app source (JSX text, string
-// literals and template text that read as words) and, if the local database is
+// literals and template text that read as words), dashes in the string literals of
+// the latest SQL functions in supabase/migrations and, if the local database is
 // reachable, the setting labels and help stored in the database.
 //
 //   npm run scan-text -w scripts
@@ -9,6 +10,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import pg from 'pg';
+import { latestSqlFunctions, sqlStringLiterals } from './sql-functions.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const SRC = join(ROOT, 'app/src');
@@ -174,6 +176,23 @@ for (const f of readdirSync(join(SRC, 'help')).filter((x) => x.endsWith('.md')))
     const text = line.replace(/\]\([^)]*\)/g, ']').replace(/^---$/, '');
     if (text.trim()) check(`${rel}:${n + 1}`, text, false);
   });
+}
+
+// Words the database writes (task titles, alerts, Activity history, errors, answer pages): every string literal in
+// the latest definition of each SQL function in supabase/migrations. Only dashes are checked here, as the other rules
+// still have database values that the app rewrites (app/src/lib/plain.ts).
+const SQL_DASH_OK = new Set(['private.plain_message_text']); // the function that removes dashes
+for (const f of latestSqlFunctions(join(ROOT, 'supabase/migrations'))) {
+  const name = f.key.split('(')[0]!;
+  if (SQL_DASH_OK.has(name)) continue;
+  for (const s of sqlStringLiterals(f.body))
+    // a dash, or a hyphen with a space on each side between words ("QA - Databases")
+    if (/[—–]|\w\s+-\s+\w/.test(s.text))
+      findings.push({
+        where: `supabase/migrations/${f.file}:${f.bodyLine + s.offsetLine} (${name})`,
+        text: s.text.replace(/\s+/g, ' ').trim(),
+        problem: 'dash',
+      });
 }
 
 // Text stored in the database and shown as is.
