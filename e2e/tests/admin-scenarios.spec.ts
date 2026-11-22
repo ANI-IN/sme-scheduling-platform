@@ -118,8 +118,43 @@ test('someone who is not an admin sees no admin controls', async ({ page }) => {
   await ready(page);
   await expect(page.getByRole('button', { name: 'Refresh servers' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Send a test' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
   await page.goto('/settings/admin');
   await ready(page);
   await expect(page.getByText('Only an admin can see this page.')).toBeVisible();
+});
+
+test('Connections: set up and nothing sent reads Ready; an admin sends a Discord and an email test, both logged', async ({
+  page,
+}) => {
+  // Release 3, A7 (decision 310): never "Not connected" just because nothing was sent yet.
+  await sql(
+    `update public.message set status = 'Cancelled' where status in ('Sent', 'Failed', 'Pending', 'Scheduled')`,
+  );
+  await sql(
+    `update public.app_config set scheduling_email = coalesce(scheduling_email, 'sender@example.com'),
+            admin_discord_channel_id = coalesce(admin_discord_channel_id, (
+              select ch.id from public.discord_channel ch join public.discord_server s on s.id = ch.server_id
+               where s.access = 'Approved' order by ch.name limit 1)) where id = 1`,
+  );
+  await page.goto('/settings/connections');
+  await ready(page);
+  await expect(page.getByText('Ready, no messages yet')).toHaveCount(2);
+  await expect(page.getByText('Not connected')).toHaveCount(0);
+  await a11y(page, 'connections ready');
+  await noDashes(page, 'connections ready');
+  const tests = page.getByRole('button', { name: 'Send a test' });
+  await expect(tests).toHaveCount(2);
+  await tests.first().click();
+  await expect(page.getByText('Test sent to the admin alert channel.')).toBeVisible();
+  await tests.last().click();
+  await expect(page.getByText('Test email sent to your own address.')).toBeVisible();
+  const [m] = await sql<{ d: number; e: number; h: number }>(
+    `select count(*) filter (where channel = 'Discord')::int d, count(*) filter (where channel = 'Email' and lower(to_address) = $1)::int e,
+            (select count(*)::int from public.history_event where action like 'Connection test sent: %') h
+       from public.message where template_id = 'T21'`,
+    [ME],
+  );
+  expect(m).toEqual({ d: 1, e: 1, h: 2 });
 });

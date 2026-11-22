@@ -3,10 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, CircleAlert, PlugZap } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { check, rpc } from '@/lib/rpc';
+import { check, poke, rpc } from '@/lib/rpc';
 import { supabase } from '@/lib/supabase';
 import { useMe, useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
+import { channelStatus, fixFor, type Status } from '@/lib/connection';
 import { PauseAllSection } from '@/components/PauseAll';
 import { UsageSection } from '@/components/UsageSection';
 import { DiscordServers } from './DiscordServers';
@@ -57,29 +58,68 @@ export default function Connections() {
   );
 }
 
-type Status = 'working' | 'off' | 'problem';
-const STATUS: Record<Status, { label: string; tone: 'success' | 'neutral' | 'danger' }> = {
-  working: { label: 'Working', tone: 'success' },
-  off: { label: 'Not connected', tone: 'neutral' },
-  problem: { label: 'Problem', tone: 'danger' },
-};
+const STATUS: Record<Status, { label: string; tone: 'success' | 'neutral' | 'danger' | 'accent' }> =
+  {
+    working: { label: 'Working', tone: 'success' },
+    ready: { label: 'Ready, no messages yet', tone: 'accent' },
+    off: { label: 'Not set up', tone: 'neutral' },
+    problem: { label: 'Problem', tone: 'danger' },
+  };
+
+function SendTest({ channel }: { channel: 'Discord' | 'Email' }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      loading={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          check(await supabase.rpc('send_connection_test', { p_channel: channel }));
+          toast.success(
+            channel === 'Discord'
+              ? 'Test sent to the admin alert channel. It arrives within a minute.'
+              : 'Test email sent to your own address. It arrives within a minute.',
+          );
+          await poke();
+          await qc.invalidateQueries({ queryKey: ['message', 'connection'] });
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : String(e));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      Send a test
+    </Button>
+  );
+}
 
 function Row({
   status,
   label,
+  action,
   children,
 }: {
   status: Status;
   label: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const Icon = status === 'working' ? CheckCircle2 : status === 'problem' ? CircleAlert : PlugZap;
+  const Icon =
+    status === 'working' || status === 'ready'
+      ? CheckCircle2
+      : status === 'problem'
+        ? CircleAlert
+        : PlugZap;
   return (
     <div className="flex items-start gap-3 border-b border-border py-3 last:border-0">
       <Icon
         className={cn(
           'mt-0.5 h-5 w-5 shrink-0',
-          status === 'working'
+          status === 'working' || status === 'ready'
             ? 'text-success-strong'
             : status === 'problem'
               ? 'text-danger-strong'
@@ -94,6 +134,7 @@ function Row({
         </div>
         <div className="text-sm text-muted-foreground">{children}</div>
       </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
@@ -102,6 +143,7 @@ const when = (iso: string | null | undefined, never = 'not yet') => (iso ? fmtLo
 
 function Health() {
   const { data } = useSystem();
+  const isAdmin = !!useMe()?.is_admin;
   const conn = useQuery({
     queryKey: ['message', 'connection'],
     queryFn: async () =>
@@ -114,6 +156,16 @@ function Health() {
     !s.last_hourly_run_at || loadedAt - new Date(s.last_hourly_run_at).getTime() > 2 * 3600 * 1000;
   const failedDiscord = Number(c.discord_failed_24h ?? 0);
   const failedEmail = Number(c.email_failed_24h ?? 0);
+  const discord = channelStatus(
+    !!c.discord_ready,
+    c.discord_last_sent as string | null,
+    c.discord_last_failed as string | null,
+  );
+  const email = channelStatus(
+    !!c.email_ready,
+    c.email_last_sent as string | null,
+    c.email_last_failed as string | null,
+  );
   return (
     <Section title="Connection health" description="Times are in your time zone.">
       <Row
@@ -130,19 +182,35 @@ function Health() {
           ? `Last run ${fmtLocal(s.last_hourly_run_at)}${s.last_hourly_status && s.last_hourly_status !== 'ok' ? `, ${s.last_hourly_status}` : ''}. It should run every hour.`
           : 'Not run yet. It starts once the automation service is connected.'}
       </Row>
-      <Row
-        status={!c.discord_last_sent ? 'off' : failedDiscord > 0 ? 'problem' : 'working'}
-        label="Discord"
-      >
-        Last message sent: {when(c.discord_last_sent as string)}. Failed in the last 24 hours:{' '}
-        {failedDiscord}.
+      <Row status={discord} label="Discord" action={isAdmin && <SendTest channel="Discord" />}>
+        {discord === 'off'
+          ? c.discord_has_server
+            ? 'Choose the admin alert channel under Discord servers below.'
+            : 'Add the bot to your Discord server with the invite link below, then approve the server.'
+          : discord === 'ready'
+            ? 'Set up. Nothing has been sent yet, so there is nothing to check.'
+            : `Last message sent: ${when(c.discord_last_sent as string)}. Failed in the last 24 hours: ${failedDiscord}.`}
+        {discord === 'problem' && (
+          <span className="mt-1 block text-foreground">
+            The last attempt failed {when(c.discord_last_failed as string)}
+            {c.discord_last_error ? `: ${String(c.discord_last_error)}` : ''}.{' '}
+            {fixFor('Discord', c.discord_last_error as string | null)}
+          </span>
+        )}
       </Row>
-      <Row
-        status={!c.email_last_sent ? 'off' : failedEmail > 0 ? 'problem' : 'working'}
-        label="Email"
-      >
-        Last email sent: {when(c.email_last_sent as string)}. Failed in the last 24 hours:{' '}
-        {failedEmail}.
+      <Row status={email} label="Email" action={isAdmin && <SendTest channel="Email" />}>
+        {email === 'off'
+          ? 'Fill in the sender email under Advanced: links below.'
+          : email === 'ready'
+            ? 'Set up. Nothing has been sent yet, so there is nothing to check.'
+            : `Last email sent: ${when(c.email_last_sent as string)}. Failed in the last 24 hours: ${failedEmail}.`}
+        {email === 'problem' && (
+          <span className="mt-1 block text-foreground">
+            The last attempt failed {when(c.email_last_failed as string)}
+            {c.email_last_error ? `: ${String(c.email_last_error)}` : ''}.{' '}
+            {fixFor('Email', c.email_last_error as string | null)}
+          </span>
+        )}
       </Row>
       <Row status={c.last_action_processed ? 'working' : 'off'} label="Automation service">
         Last request handled: {when(c.last_action_processed as string)}. Messages waiting to send:{' '}

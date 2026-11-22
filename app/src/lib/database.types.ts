@@ -1732,6 +1732,9 @@ isOneToOne: false
 "schedule_problems":
 { Args: { "p_module_week_ids": (string)[] }; Returns: Json
                            },
+"send_connection_test":
+{ Args: { "p_channel": string }; Returns: Json
+                           },
 "send_template_test":
 { Args: { "p_body": string,"p_domain_id": string,"p_subject": string,"p_template_id": string }; Returns: undefined
                            },

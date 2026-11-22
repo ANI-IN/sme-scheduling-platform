@@ -27,9 +27,12 @@ Use your company Google account. If you were removed from the team, ask a collea
 
 Each line shows a status:
 
-- **Working:** used recently with no failures.
-- **Not connected:** not used yet. This is normal before the automation service is set up.
-- **Problem:** something failed recently. Read the line, then check the related setup.
+- **Working:** the last message went out.
+- **Ready, no messages yet:** set up, but nothing has been sent yet. This is normal after setup; nothing is wrong.
+- **Not set up:** a step is missing. The line says which one.
+- **Problem:** the last attempt failed after the last message that went out. The line says what failed and what to fix.
+
+Admins see **Send a test** on Discord and Email. Discord posts a test to the admin alert channel; Email sends one to your own address. Each test is in Activity history. Use it to check both work in one click, for example after a change.
 
 **Errors in the app** lists problems people ran into while using the app. If you see the same error many times, tell whoever looks after the app.
 

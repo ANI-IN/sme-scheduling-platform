@@ -39,6 +39,7 @@ export const messageName: Record<string, string> = {
   T13: 'alert to the leads',
   T14: 'problem alert',
   T15: 'daily system summary',
+  T21: 'connection test',
   R1: 'urgent alert',
   REM: 'reminder',
   IN: 'reply',
