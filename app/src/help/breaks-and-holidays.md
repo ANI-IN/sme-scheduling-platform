@@ -1,5 +1,5 @@
-title: Breaks and cohort holidays
-summary: Give a cohort, or every cohort, a break of whole weeks, and add a day off for one cohort.
+title: Breaks, cohort holidays and merges
+summary: Give a cohort, or every cohort, a break of whole weeks, add a day off for one cohort, and merge cohorts.
 order: 11.5
 ---
 
@@ -46,3 +46,15 @@ A cohort holiday is a day off for one cohort only. Holidays for a whole domain o
 3. Each one shows on its class week. Change its time, cancel it, or press **Keep with a reason**: your reason is saved in Activity history.
 
 Planning a class on a cohort holiday or during a break of its cohort gives a warning.
+
+## Merge cohorts
+
+From a date, two or more cohorts can continue as one combined cohort. Before that date they stay as they are, and each shows **Merged into** with the date.
+
+1. Under **Cohorts and regions**, press **Merge cohorts** and tick the cohorts.
+2. Give the combined cohort a name, choose the **Merge date** (the first day of a class week, after every cohort has started), its time zone, whose **Module sequence** it follows and whose **Instructor order** it uses.
+3. Check the preview. Each class week from the merge date either moves to the combined cohort or is cancelled, because the chosen sequence already has that module.
+4. Under **Merge check**, read what does not line up. When both cohorts have a confirmed instructor for the same module, the chosen cohort's instructor stays and the other gets the release note; tick **Keep this cohort's class week and instructor instead** to choose the other. A class week with no match stays unless you tick **Cancel this class week**.
+5. Press **Merge cohorts** and say why if there are warnings.
+
+**Undo merge** next to a merged cohort is there until the merge date. Class weeks go back to their cohorts and cancelled ones are planned again; an instructor released by the merge is not brought back.

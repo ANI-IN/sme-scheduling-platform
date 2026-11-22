@@ -365,6 +365,8 @@ const rewrites: [
     (m, c) =>
       `${c.actor} shared the ${c.module} class with ${m[1]} other class week${m[1] === '1' ? '' : 's'}`,
   ],
+  [/^Cohorts merged into (.+)$/, (m, c) => `${c.actor} merged cohorts into ${m[1]}`],
+  [/^Cohort merge undone$/, (_m, c) => `${c.actor} undid a cohort merge`],
   [/^Class no longer shared$/, (_m, c) => `${c.actor} gave ${c.module} its own class again`],
   [
     /^Proposed time accepted: (.+)$/,

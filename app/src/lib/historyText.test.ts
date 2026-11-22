@@ -353,3 +353,15 @@ describe('shared classes in plain sentences (decision 303)', () => {
     );
   });
 });
+
+describe('cohort merges in plain sentences (decision 304)', () => {
+  it('says who merged cohorts and who undid it', () => {
+    const team = { ...base, category: 'Team actions' };
+    expect(
+      describeHistory({ ...team, action: 'Cohorts merged into Weekend AB' }, book).sentence,
+    ).toBe('Sienna merged cohorts into Weekend AB');
+    expect(describeHistory({ ...team, action: 'Cohort merge undone' }, book).sentence).toBe(
+      'Sienna undid a cohort merge',
+    );
+  });
+});

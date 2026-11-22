@@ -8,6 +8,7 @@ import { useDomain } from '@/lib/domain';
 import { useCohortScheduleStatus, useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
 import { CohortScheduleBadge, PlanFromStandardDialog, ResetToStandard } from './standardParts';
 import { BreaksAndHolidays } from './breakParts';
+import { MergeCohortsDialog, MergedBadge } from './mergeParts';
 import { RegionBadge } from '@/components/ClassTime';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
@@ -558,6 +559,7 @@ function Cohorts({ domainId }: { domainId: string }) {
   const cohorts = useCohorts(domainId, true);
   const schedule = useCohortScheduleStatus(domainId);
   const [planning, setPlanning] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const [adding, setAdding] = useState({ name: '', region: 'US', start: '' });
   const [touched, setTouched] = useState(false);
@@ -629,6 +631,10 @@ function Cohorts({ domainId }: { domainId: string }) {
                       status={(schedule.data ?? []).find((x) => x.cohort_id === c.id)}
                     />
                     {c.archived_at && <Badge tone="neutral">Archived</Badge>}
+                    <MergedBadge
+                      cohort={c}
+                      intoName={(cohorts.data ?? []).find((x) => x.id === c.merged_into)?.name}
+                    />
                     <Button
                       size="sm"
                       variant="ghost"
@@ -733,11 +739,15 @@ function Cohorts({ domainId }: { domainId: string }) {
         <Button variant="outline" onClick={() => setPlanning(true)}>
           Plan cohorts from a standard
         </Button>
+        <Button variant="outline" onClick={() => setMerging(true)}>
+          Merge cohorts
+        </Button>
       </div>
       <ErrorText error={err} />
       {planning && (
         <PlanFromStandardDialog domainId={domainId} onClose={() => setPlanning(false)} />
       )}
+      {merging && <MergeCohortsDialog domainId={domainId} onClose={() => setMerging(false)} />}
     </Section>
   );
 }

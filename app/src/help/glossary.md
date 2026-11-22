@@ -11,6 +11,7 @@ order: 16
 - **Class week:** the classes of one module taught by the same instructor. It starts on the day of its first class.
 - **Close to the class:** the days before a class when problems are urgent (10 by default).
 - **Cohort:** one group of students going through the modules, for example a weekend cohort.
+- **Combined cohort:** the cohort two or more cohorts continue as after a merge.
 - **Cohort holiday:** a day off for one cohort only. Its classes on that day show as a problem to fix.
 - **Contact check:** a short message that proves an instructor's Discord and email work.
 - **Contact details checked:** the instructor answered a contact check.

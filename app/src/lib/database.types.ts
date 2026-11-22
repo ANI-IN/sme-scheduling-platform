@@ -343,14 +343,14 @@ isOneToOne: false
                   ]
                 },"cohort": {
                   Row: {
-                    "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"name": string,"notes": string | null,"region": string,"standard_schedule_id": string | null,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "archived_at": string | null,"created_at": string,"domain_id": string,"id": string,"merged_from": string | null,"merged_into": string | null,"name": string,"notes": string | null,"region": string,"standard_schedule_id": string | null,"start_date": string | null,"status": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "archived_at"?: string | null,"created_at"?: string,"domain_id": string,"id"?: string,"name": string,"notes"?: string | null,"region"?: string,"standard_schedule_id"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id": string,"id"?: string,"merged_from"?: string | null,"merged_into"?: string | null,"name": string,"notes"?: string | null,"region"?: string,"standard_schedule_id"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "archived_at"?: string | null,"created_at"?: string,"domain_id"?: string,"id"?: string,"name"?: string,"notes"?: string | null,"region"?: string,"standard_schedule_id"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "archived_at"?: string | null,"created_at"?: string,"domain_id"?: string,"id"?: string,"merged_from"?: string | null,"merged_into"?: string | null,"name"?: string,"notes"?: string | null,"region"?: string,"standard_schedule_id"?: string | null,"start_date"?: string | null,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -358,6 +358,12 @@ isOneToOne: false
       columns: ["domain_id"]
 isOneToOne: false
       referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cohort_merged_into_fkey"
+      columns: ["merged_into"]
+isOneToOne: false
+      referencedRelation: "cohort"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "cohort_standard_schedule_id_fkey"
@@ -422,6 +428,32 @@ isOneToOne: false
       columns: ["domain_id"]
 isOneToOne: false
       referencedRelation: "domain"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"cohort_merge": {
+                  Row: {
+                    "created_at": string,"domain_id": string,"effective_date": string,"id": string,"order_from": string,"plan": NonNullable<Json>,"region": string,"sequence_from": string,"source_cohort_ids": (string)[],"status": string,"target_cohort_id": string,"undone_at": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"domain_id": string,"effective_date": string,"id"?: string,"order_from": string,"plan"?: NonNullable<Json>,"region": string,"sequence_from": string,"source_cohort_ids": (string)[],"status"?: string,"target_cohort_id": string,"undone_at"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "created_at"?: string,"domain_id"?: string,"effective_date"?: string,"id"?: string,"order_from"?: string,"plan"?: NonNullable<Json>,"region"?: string,"sequence_from"?: string,"source_cohort_ids"?: (string)[],"status"?: string,"target_cohort_id"?: string,"undone_at"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cohort_merge_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cohort_merge_target_cohort_id_fkey"
+      columns: ["target_cohort_id"]
+isOneToOne: false
+      referencedRelation: "cohort"
       referencedColumns: ["id"]
     }
                   ]
@@ -1562,6 +1594,9 @@ isOneToOne: false
 "mark_verified_manually":
 { Args: { "p_instructor_id": string,"p_note"?: string }; Returns: undefined
                            },
+"merge_cohorts":
+{ Args: { "p_accept_warnings"?: boolean,"p_cancel"?: (string)[],"p_cohort_ids": (string)[],"p_date": string,"p_keep"?: (string)[],"p_name": string,"p_order_from": string,"p_reason"?: string,"p_region": string,"p_save"?: boolean,"p_sequence_from": string }; Returns: Json
+                           },
 "message_templates":
 { Args: { "p_domain_id": string }; Returns: Json
                            },
@@ -1798,6 +1833,9 @@ isOneToOne: false
                            },
 "time_proposal_preview":
 { Args: { "p_id": string }; Returns: Json
+                           },
+"undo_cohort_merge":
+{ Args: { "p_merge_id": string }; Returns: Json
                            },
 "undo_history_event":
 { Args: { "p_event_id": number }; Returns: Json
