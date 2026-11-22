@@ -37,6 +37,7 @@ import { LIVE_CHECK_MS, useMe, type Domain } from '@/lib/data';
 import { fmtPT } from '@/lib/time';
 import { Badge, Button, cn, type Tone } from './ui';
 import { ThemeMenuChoice } from './ThemeSwitch';
+import { PageErrorBoundary } from './PageErrorBoundary';
 
 /** adminOnly: shown to admins only (decision 276). */
 type Item = { to: string; label: string; icon: typeof Home; end?: boolean; adminOnly?: boolean };
@@ -192,7 +193,9 @@ export function AppShell() {
         </div>
         <Banners />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-8">
-          <Outlet />
+          <PageErrorBoundary key={location.pathname}>
+            <Outlet />
+          </PageErrorBoundary>
           <DiscordPrompt />
         </main>
       </div>
