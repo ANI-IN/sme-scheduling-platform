@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import {
   AlertTriangle,
+  Download,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
@@ -19,6 +20,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { rpc } from '@/lib/rpc';
+import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
 import { useInstructors, useWeeks } from '@/lib/data';
@@ -52,6 +54,8 @@ type Cell = {
   problems: Problem[];
   shared_with: string | null;
   guests: number;
+  standard_position: number | null;
+  customized: boolean;
 };
 type CohortCol = {
   id: string;
@@ -150,7 +154,12 @@ function StatusChip({ status }: { status: Status }) {
   );
 }
 
-type Prefs = { view: 'cohort' | 'instructor' | 'list'; weeks: number; onlyProblems: boolean };
+type Prefs = {
+  view: 'cohort' | 'instructor' | 'list';
+  weeks: number;
+  onlyProblems: boolean;
+  compare?: boolean;
+};
 
 /** Filters remembered per person on this device. */
 function usePrefs(key: string) {
@@ -260,10 +269,18 @@ export default function Board() {
 
   const CellButton = ({ c }: { c: Cell }) => {
     const shown = c.badges.filter((x) => BADGE[x]);
+    const differs = prefs.compare && (c.customized || c.standard_position === null);
     const body = (
       <>
         <div className="font-medium">{c.module}</div>
         <StatusChip status={c.status} />
+        {differs && (
+          <div className="mt-1">
+            <Badge tone="warning">
+              {c.standard_position === null ? 'Not in the standard' : 'Differs from the standard'}
+            </Badge>
+          </div>
+        )}
         {c.instructor && (
           <div className="mt-0.5 truncate text-xs text-muted-foreground">
             {c.status === 'Not asked yet' ? `Primary: ${c.instructor}` : c.instructor}
@@ -292,7 +309,10 @@ export default function Board() {
         type="button"
         onClick={() => setOpenWeek(c.id)}
         aria-label={`Open ${c.module} for ${c.cohort ?? 'no cohort'}, week of ${DateTime.fromISO(c.week_start_date).toFormat('LLL d')}: ${STATUS[c.status].word}`}
-        className="w-full rounded-md border border-border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring"
+        className={cn(
+          'w-full rounded-md border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
+          differs ? 'border-warning-strong' : 'border-border',
+        )}
       >
         {body}
       </button>
@@ -300,6 +320,31 @@ export default function Board() {
   };
 
   const decisions = Object.entries(b?.decisions ?? {}).filter(([, n]) => n > 0);
+
+  // What is shown, as a spreadsheet, and the download in Activity history like every other one.
+  const download = () => {
+    void rpc('log_export', {
+      p_what: 'Schedule board',
+      p_rows: cells.length,
+      p_filters: { from, to, only_problems: prefs.onlyProblems, decision },
+      p_domain_id: domain?.id,
+    }).catch(() => {});
+    downloadCsv(
+      `schedule_board_${domain?.name}_${from}.csv`,
+      toCsv(
+        cells.map((c) => ({
+          week_of: c.week_start_date,
+          cohort: c.cohort ?? '',
+          module: c.module,
+          status: STATUS[c.status].word,
+          instructor: c.instructor ?? '',
+          badges: c.badges.map((x) => BADGE[x] ?? x).join('; '),
+          problems: c.problems.map((p) => `${p.level}: ${p.text}`).join(' | '),
+          follows_standard: c.standard_position === null ? 'no' : c.customized ? 'changed' : 'yes',
+        })),
+      ),
+    );
+  };
 
   return (
     <div>
@@ -367,8 +412,16 @@ export default function Board() {
           checked={prefs.onlyProblems}
           onChange={(v) => setPrefs({ onlyProblems: v })}
         />
+        <Checkbox
+          label="Compare to standard"
+          checked={!!prefs.compare}
+          onChange={(v) => setPrefs({ compare: v })}
+        />
         <Button size="sm" variant="ghost" aria-expanded={legend} onClick={() => setLegend(!legend)}>
           Legend
+        </Button>
+        <Button size="sm" variant="secondary" disabled={cells.length === 0} onClick={download}>
+          <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
         </Button>
       </Toolbar>
 
