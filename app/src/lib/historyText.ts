@@ -359,6 +359,13 @@ const rewrites: [
   [/^Program break added: (.+)$/, (m, c) => `${c.actor} added the program break ${m[1]}`],
   [/^Break removed: (.+)$/, (m, c) => `${c.actor} removed the break ${m[1]}`],
   [/^Program break removed: (.+)$/, (m, c) => `${c.actor} removed the program break ${m[1]}`],
+  [/^Class shared$/, (_m, c) => `${c.actor} made ${c.module} part of another cohort's class`],
+  [
+    /^Class shared with (\d+) other class week\(s\)$/,
+    (m, c) =>
+      `${c.actor} shared the ${c.module} class with ${m[1]} other class week${m[1] === '1' ? '' : 's'}`,
+  ],
+  [/^Class no longer shared$/, (_m, c) => `${c.actor} gave ${c.module} its own class again`],
   [
     /^Proposed time accepted: (.+)$/,
     (m, c) => `${c.actor} accepted the time ${m[1]} proposed for ${c.module}`,

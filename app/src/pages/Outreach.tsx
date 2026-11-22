@@ -193,6 +193,7 @@ export default function Outreach() {
     .sort((a, b) => b - a);
 
   const statusOf = (w: WeekRow, p?: Preview) => {
+    if (w.shared_with) return <Badge tone="accent">Shared class</Badge>;
     if (w.paused) return <Badge tone="accent">Requests paused</Badge>;
     if (w.status === 'NeedsInstructor') return <Badge tone="danger">Needs an instructor</Badge>;
     if (w.status === 'NotReady') return <Badge tone="warning">Setup not finished</Badge>;

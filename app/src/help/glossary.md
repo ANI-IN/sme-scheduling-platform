@@ -29,6 +29,7 @@ order: 16
 - **Practice clock:** a pretend date and time for a domain in testing.
 - **Primary instructor:** the first instructor asked for a module.
 - **Program break:** the same break for every cohort of a domain, shown as one row.
+- **Shared class:** one class for several cohorts, with one instructor and one set of messages.
 - **PST, PDT, IST:** US Pacific winter time, US Pacific summer time, and India time.
 - **Region:** US or India. It decides the time zone of a cohort's classes.
 - **Reminder before class:** a message to a confirmed instructor before the class.

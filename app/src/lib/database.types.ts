@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"class_session": {
                   Row: {
-                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"holiday_kept_on": string | null,"holiday_kept_reason": string | null,"id": string,"module_week_id": string,"moved_at": string | null,"notes": string | null,"pattern_item_id": string | null,"previous_ends_at": string | null,"previous_starts_at": string | null,"problem_flag": boolean,"region": string,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"holiday_kept_on": string | null,"holiday_kept_reason": string | null,"id": string,"module_week_id": string,"moved_at": string | null,"notes": string | null,"pattern_item_id": string | null,"previous_ends_at": string | null,"previous_starts_at": string | null,"problem_flag": boolean,"region": string,"shared_class_id": string | null,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id": string,"moved_at"?: string | null,"notes"?: string | null,"pattern_item_id"?: string | null,"previous_ends_at"?: string | null,"previous_starts_at"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id": string,"moved_at"?: string | null,"notes"?: string | null,"pattern_item_id"?: string | null,"previous_ends_at"?: string | null,"previous_starts_at"?: string | null,"problem_flag"?: boolean,"region"?: string,"shared_class_id"?: string | null,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id"?: string,"moved_at"?: string | null,"notes"?: string | null,"pattern_item_id"?: string | null,"previous_ends_at"?: string | null,"previous_starts_at"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id"?: string,"moved_at"?: string | null,"notes"?: string | null,"pattern_item_id"?: string | null,"previous_ends_at"?: string | null,"previous_starts_at"?: string | null,"problem_flag"?: boolean,"region"?: string,"shared_class_id"?: string | null,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -298,6 +298,12 @@ isOneToOne: false
       columns: ["pattern_item_id"]
 isOneToOne: false
       referencedRelation: "class_pattern_item"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "class_session_shared_class_id_fkey"
+      columns: ["shared_class_id"]
+isOneToOne: false
+      referencedRelation: "class_session"
       referencedColumns: ["id"]
     }
                   ]
@@ -943,14 +949,14 @@ isOneToOne: false
                   ]
                 },"module_week": {
                   Row: {
-                    "archive_paused": boolean,"at_risk": boolean,"at_risk_reason": string | null,"cohort": string,"cohort_id": string,"created_at": string,"customized_at": string | null,"domain_id": string,"first_class_at": string | null,"id": string,"last_class_end_at": string | null,"manual_end_behaviour": string,"module_id": string,"outreach_mode": string,"outreach_started_at": string | null,"owner_checkin_sent_at": string | null,"paused": boolean,"readiness_checked_at": string | null,"readiness_escalated_at": string | null,"readiness_problems": Json | null,"same_instructor": boolean,"seq": number,"split_group": string | null,"standard_position": number | null,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number,"week_start_date": string
+                    "archive_paused": boolean,"at_risk": boolean,"at_risk_reason": string | null,"cohort": string,"cohort_id": string,"created_at": string,"customized_at": string | null,"domain_id": string,"first_class_at": string | null,"id": string,"last_class_end_at": string | null,"manual_end_behaviour": string,"module_id": string,"outreach_mode": string,"outreach_started_at": string | null,"owner_checkin_sent_at": string | null,"paused": boolean,"readiness_checked_at": string | null,"readiness_escalated_at": string | null,"readiness_problems": Json | null,"same_instructor": boolean,"seq": number,"shared_with": string | null,"split_group": string | null,"standard_position": number | null,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number,"week_start_date": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id": string,"created_at"?: string,"customized_at"?: string | null,"domain_id": string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id": string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor": boolean,"seq"?: number,"split_group"?: string | null,"standard_position"?: number | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date": string
+                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id": string,"created_at"?: string,"customized_at"?: string | null,"domain_id": string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id": string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor": boolean,"seq"?: number,"shared_with"?: string | null,"split_group"?: string | null,"standard_position"?: number | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date": string
                   }
                   Update: {
-                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id"?: string,"created_at"?: string,"customized_at"?: string | null,"domain_id"?: string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id"?: string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor"?: boolean,"seq"?: number,"split_group"?: string | null,"standard_position"?: number | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date"?: string
+                    "archive_paused"?: boolean,"at_risk"?: boolean,"at_risk_reason"?: string | null,"cohort"?: string,"cohort_id"?: string,"created_at"?: string,"customized_at"?: string | null,"domain_id"?: string,"first_class_at"?: string | null,"id"?: string,"last_class_end_at"?: string | null,"manual_end_behaviour"?: string,"module_id"?: string,"outreach_mode"?: string,"outreach_started_at"?: string | null,"owner_checkin_sent_at"?: string | null,"paused"?: boolean,"readiness_checked_at"?: string | null,"readiness_escalated_at"?: string | null,"readiness_problems"?: Json | null,"same_instructor"?: boolean,"seq"?: number,"shared_with"?: string | null,"split_group"?: string | null,"standard_position"?: number | null,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number,"week_start_date"?: string
                   }
                   Relationships: [
                     {
@@ -970,6 +976,12 @@ isOneToOne: false
       columns: ["module_id"]
 isOneToOne: false
       referencedRelation: "module"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "module_week_shared_with_fkey"
+      columns: ["shared_with"]
+isOneToOne: false
+      referencedRelation: "module_week"
       referencedColumns: ["id"]
     }
                   ]
@@ -1751,6 +1763,9 @@ isOneToOne: false
 "set_week_same_instructor":
 { Args: { "p_module_week_id": string,"p_on": boolean,"p_reason"?: string }; Returns: Json
                            },
+"share_class_weeks":
+{ Args: { "p_accept_warnings"?: boolean,"p_guest_ids": (string)[],"p_host_id": string,"p_reason"?: string,"p_release_instructors"?: boolean,"p_save"?: boolean,"p_times_from"?: string }; Returns: Json
+                           },
 "shift_classes":
 { Args: { "p_include_later"?: boolean,"p_module_week_id": string,"p_weeks": number }; Returns: Json
                            },
@@ -1761,6 +1776,9 @@ isOneToOne: false
 { Args: { "p_module_week_id": string }; Returns: Json
                            },
 "start_asking_now":
+{ Args: { "p_module_week_id": string }; Returns: Json
+                           },
+"stop_sharing":
 { Args: { "p_module_week_id": string }; Returns: Json
                            },
 "submit_help_request":

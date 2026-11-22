@@ -9,6 +9,7 @@ export const WEEK_KINDS = [
   'Needs an instructor',
   'At risk',
   'Confirmed',
+  'Shared class',
   'Requests paused',
   'Completed',
   'Cancelled',
@@ -45,6 +46,8 @@ export function weekState(w: WeekRow, names: Map<string, string>): WeekState {
   });
   if (w.status === 'Cancelled') return same('Cancelled', 'gray');
   if (w.status === 'Completed') return same('Completed', 'gray');
+  // Taught in another cohort's class (decision 303): its instructor is on that class week.
+  if (w.shared_with) return same('Shared class', 'blue');
   if (w.paused) return same('Requests paused', 'purple');
   if (w.at_risk && !booking)
     return {

@@ -21,6 +21,7 @@ import { AddClassDialog } from './AddClassDialog';
 import { ResetToStandard } from './setup/standardParts';
 import { BreakAndHolidayNotices } from './setup/breakParts';
 import { ProposalGroup } from './proposalParts';
+import { SharedClassGroup } from './sharedParts';
 import { DrawerGroup } from '@/components/DrawerGroup';
 import {
   Badge,
@@ -185,7 +186,11 @@ export function ClassDrawer({
           <Badge tone={state.tone}>{state.short}</Badge>
           {week.at_risk && state.kind !== 'At risk' && <Badge tone="danger">At risk</Badge>}
           <Badge>{week.outreach_mode === 'Manual' ? 'Chosen list' : 'Instructor order'}</Badge>
-          {week.paused && <Badge tone="accent">Requests paused</Badge>}
+          {week.shared_with ? (
+            <Badge tone="accent">Shared class</Badge>
+          ) : (
+            week.paused && <Badge tone="accent">Requests paused</Badge>
+          )}
           {openHelp && <Badge tone="warning">Help request open</Badge>}
         </div>
         {week.at_risk && week.at_risk_reason && (
@@ -203,6 +208,8 @@ export function ClassDrawer({
         </DrawerGroup>
 
         <ProposalGroup weekId={week.id} />
+
+        <SharedClassGroup week={week} />
 
         {week.standard_position !== null && <StandardGroup week={week} />}
 

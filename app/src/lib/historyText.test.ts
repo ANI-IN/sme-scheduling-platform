@@ -340,3 +340,16 @@ describe('proposed times in plain sentences (decision 302)', () => {
     ).toBe('Shelly Carver proposed another time for API Design');
   });
 });
+
+describe('shared classes in plain sentences (decision 303)', () => {
+  it('says who shared a class and who gave a cohort its own class back', () => {
+    const team = { ...base, category: 'Team actions', module_id: ids.api };
+    expect(
+      describeHistory({ ...team, action: 'Class shared with 2 other class week(s)' }, book)
+        .sentence,
+    ).toBe('Sienna shared the API Design class with 2 other class weeks');
+    expect(describeHistory({ ...team, action: 'Class no longer shared' }, book).sentence).toBe(
+      'Sienna gave API Design its own class again',
+    );
+  });
+});
