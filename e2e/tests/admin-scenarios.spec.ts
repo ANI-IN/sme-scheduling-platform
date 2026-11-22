@@ -186,7 +186,8 @@ test('Setup, Domains: an admin approves a waiting server for the domain, chooses
     `select count(*)::int n from public.history_event where action = 'Discord server approved'`,
   );
   await waiting
-    .getByRole('button', { name: 'Approve for this domain: New program server' })
+    .getByRole('button', { name: /^Approve for this domain/ })
+    .filter({ hasText: 'New program server' })
     .click();
   await expect(page.getByText('New program server approved for Backend')).toBeVisible();
   const [a] = await sql<{ n: number; h: number }>(
