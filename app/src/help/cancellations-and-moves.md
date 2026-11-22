@@ -1,54 +1,59 @@
-title: When an instructor cancels or a class moves
-summary: Release an instructor, move or change a class, or cancel a class week.
-order: 11
+title: Changing a class week
+summary: Release an instructor, assign one, change the time of a class, move class weeks, add a class, pause requests or cancel.
+order: 10
+group: Daily work
+keywords: release instructor, assign, record a phone or chat confirmation, change time, move dates, cancel class, cancel class week, restore, pause requests, send last message again, different instructors, delete class week
 ---
 
-Open the class week from [Upcoming classes](/classes) or [Instructor requests](/requests). Everything below is in that window.
+Open the class week from the [Schedule board](/board), [Upcoming classes](/classes) or [Instructor requests](/requests). Everything below is in its side panel.
 
 ![A class week](/help/class-drawer.png)
 
 ## The instructor can't teach
 
 - If they press **Can't make it** in a reminder, the app releases them and asks the next instructor by itself.
-- If they tell you another way, press **Release instructor**. They are told politely and the app starts asking others.
+- If they tell you another way, press **Release instructor** under **Instructor** and confirm with **Release and find a replacement**. They are told politely and the app starts asking others.
+
+## Assign an instructor yourself
+
+1. Under **Instructor**, choose someone in the **Instructor** list. Each name says whether they are the Primary instructor, a backup, or not in the instructor order, and why someone can't be chosen.
+2. Add a **Note** if useful. It is saved in Activity history.
+3. Press **Assign and confirm instructor**. If they already said yes by phone or in a chat, press **Record a phone or chat confirmation** instead.
+
+If something is unusual, for example they are over their classes a month, you see a warning and can go ahead with a reason.
 
 ## Change the time of one class
 
-1. Change the date or time next to the class.
-2. Press **Change time**.
+1. Change the date, start time or end time next to the class.
+2. Press **Change time** and confirm.
 3. A confirmed instructor is asked to confirm the new time. If the new time clashes with another class of theirs, the app says which class and nothing changes. Choose another time, or release the instructor first.
 
-A class can move to any day, for example from Sunday to Wednesday. The class week then starts on its new first day.
+A class can move to any day, for example from Sunday to Wednesday. The class week then starts on its new first day. Under **More options for this class**, you can change its title or notes, mark **Something went wrong (do not mark as completed)**, or choose the other time zone. See [US and India classes](/help/us-and-india-classes).
 
 ## Move whole class weeks
 
-Under **More options**, use **Move dates** to move this class week and every later one by a number of weeks, for example around a holiday. Each class keeps its local time. For a break of the whole cohort, add a break instead: see [Breaks, cohort holidays and merges](/help/breaks-and-holidays).
+Open **More options**. Under **Move this and later class weeks by**, choose the number of weeks and press **Move dates**. Each class keeps its local time. Confirmed instructors are asked to confirm the new dates.
 
-## When an instructor proposes another time
+To move several class weeks of different cohorts, select them on the Schedule board and press **Move**. For a break of the whole cohort, add a break instead. See [Breaks, cohort holidays and merges](/help/breaks-and-holidays).
 
-A request to teach and a time change message have a **Propose another time** button. The instructor changes the date or time of any class, in the class's own time zone, and can add a note. Nothing changes until you decide, and their reply time is extended by up to 48 hours.
+## More options
 
-1. A task **Proposed time to check** appears under Needs your attention on [Home](/). Open the class week.
-2. Under **Proposed time**, check the new times and any new problem at those times: a clash with their other classes, the cohort's other classes, holidays, odd hours, or unavailable dates. A clash can't be accepted.
-3. Press **Accept proposed time**. The classes move for the whole cohort. Someone being asked is then confirmed; a confirmed instructor stays confirmed and is not asked again about the time they proposed.
-4. Or press **Reject** and add a note. They are told the time stays, with the buttons of their request again.
+- **Pause requests** stops asking for this class week. **Resume requests** starts again.
+- **Send last message again** resends the last message to the instructor, for example after you fixed a channel.
+- **Start asking now** asks before the usual day.
+- **Add a class to this week** adds a class taught by the same instructor.
+- **The same instructor teaches every class of this week**: turn it off to find a different instructor for each class. This works while nobody is confirmed or being asked.
+- **Add a help request** records help an instructor asked for another way, for example on a phone call.
 
-A class that moved shows **Moved** with its time before. While a confirmed instructor has not answered about a new time, the class week says it is waiting for them.
+## Tasks for the operations team
 
-## Share a class with other cohorts
-
-When two or more cohorts can learn together, one class can be shared: one instructor and one set of messages, while each cohort keeps its own lists.
-
-1. Open the class week that keeps the class and its instructor, and press **Share with other cohorts** under **Shared class**.
-2. Tick the other cohorts' class weeks. If their times differ, choose whose times the shared class keeps. Each time is checked in every cohort's time zone.
-3. If another class week has its own confirmed instructor, tick **Release instructors confirmed for the other class weeks**, or share from that class week instead to keep that instructor.
-4. Check the preview and press **Share class**. Sharing class weeks of different modules needs a reason.
-
-The other class weeks show **Shared class** and are not asked. A shared class is moved on the class week that keeps it, and the others follow. **Stop sharing** gives a cohort its own class week back at the shared time, and its instructor order is asked.
+The usual tasks are added when an instructor confirms. To add one, type it under **Extra task**, choose the class under **For class**, and press **Add task**. Tick a task when it is done.
 
 ## Cancel
 
 - **Cancel class** cancels one class. If it was the last one, the whole class week is cancelled.
-- **Cancel class week** cancels every class. Open requests are withdrawn and a confirmed instructor is told. This cannot be undone.
+- **Cancel class week** cancels every class. Open requests are withdrawn politely and a confirmed instructor is told.
+- **Restore class week** plans its classes still to come again, and the app asks for an instructor as for a new class week. Instructors are not told again.
+- **Delete permanently** removes the class week for good, after doing the same as a cancel.
 
 > Every change is saved in Activity history with who made it.
