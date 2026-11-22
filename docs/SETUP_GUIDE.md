@@ -232,8 +232,8 @@ step; this is the short version.
    `Google Drive Backups` (n8n's own **Sign in with Google**; no Google Cloud Console), `Discord Bot Sandbox` (the bot
    token), `Supabase Sandbox` (Header Auth, name `apikey`, value the secret key) and `Poke Secret Sandbox` (Header
    Auth, name `x-poke-key`, value a long random string from your password manager).
-3. A new setup imports the six files from `n8n/sandbox/`, WF5 first. In the **Config** node of WF2 to WF5 set
-   `pokeKey` (after every import or update too: the files keep a placeholder). The Supabase address, the WF4 address and
+3. A new setup imports the six files from `n8n/sandbox/`, WF5 first. Nothing is set by hand in the **Config** nodes: the poke key
+   comes from the `Poke Secret Sandbox` credential. The Supabase address, the WF4 address and
    the backup folder (`your-drive-folder-id`, newest 30 backups kept) are already filled in.
 4. Set WF5 as the **Error workflow** of WF1 to WF4. Publish WF5 and WF4 first, then the rest. Leave WF6 unpublished
    (WF4 does its Discord checks).
@@ -445,7 +445,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 21 | Server Members Intent and Message Content Intent on | Developer Portal → Bot | | | | ☐ |
 | 22 | Bot invited and can see channels | Invite link on Connections (7.5) | Discord server | | | ☐ |
 | 23 | Admin, alert and testing channels | Chosen from the lists in the app (7.5) | App Connections, Domains, Testing | | | ☐ |
-| 24 | Poke key (low sensitivity: it is visible in the app's files) | Password manager generator | n8n `Poke Secret Sandbox`, Config `pokeKey`, `VITE_N8N_POKE_KEY` | in password manager | in password manager | ☐ |
+| 24 | Poke key (low sensitivity: it is visible in the app's files) | Password manager generator | n8n `Poke Secret Sandbox`, `VITE_N8N_POKE_KEY`, Vault `n8n_poke_key` | in password manager | in password manager | ☐ |
 | 25 | Workflows imported and published | `n8n/sandbox/` (the `[Production]` workflows) | n8n | | | ☐ |
 | 26 | WF2 confirm page address | n8n WF2 webhook | `RESPONSE_BASE_URL` (1.4) | | | ☐ |
 | 27 | WF4 poke address | n8n WF4 webhook | Vercel `VITE_N8N_POKE_URL`; n8n Config `pokeUrl` | | | ☐ |

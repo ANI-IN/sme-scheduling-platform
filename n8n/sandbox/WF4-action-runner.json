@@ -33,7 +33,7 @@
         "responseMode": "onReceived",
         "options": {
           "ignoreBots": false,
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://your-app.vercel.app"
         }
       },
       "webhookId": "c43f4ea3-5cc5-5117-a64c-360741b539ed",
@@ -73,7 +73,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\nconst supabaseUrl = 'https://abcdefghijklmnopqrst.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst pokeKey = 'REPLACE_WITH_POKE_SECRET';                   // same value as the \"Poke secret\" credential\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  pokeKey,\n} }];"
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\n// The poke key is not here: it lives only in the \"Poke secret\" credential (decision 316).\nconst supabaseUrl = 'https://abcdefghijklmnopqrst.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n} }];"
       }
     },
     {
