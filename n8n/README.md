@@ -15,7 +15,7 @@ serves the pages they render and passes inbound replies to them.
 | `WF5-error-handler.json` | WF5 Error handler | n8n error trigger | Records any workflow failure in History (`log_system_error`, which also queues an admin alert) and pokes WF4 so the alert goes out. If the database can't be reached, posts straight to the admin Discord channel. |
 
 "Poke" = an empty `POST` to the WF4 webhook with the header `x-poke-key`. It carries no data; it only tells
-WF4 "there is work in the database, process it now". WF4 also runs every 5 minutes, so nothing is lost if a poke fails.
+WF4 "there is work in the database, process it now". WF4 also runs every 6 minutes, so nothing is lost if a poke fails.
 
 ## The Production workflows and the two folders
 
@@ -169,7 +169,7 @@ For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings
 3. In the app, choose the **Admin alert channel** on **Settings, Connections, Discord servers** (from the list), so
    failure alerts and the daily system summary have somewhere to go.
 4. The app must send the poke as a normal (CORS) `fetch` with the `x-poke-key` header. Browsers silently drop custom
-   headers in `no-cors` mode, and n8n then rejects the poke (403). WF4 still delivers within 5 minutes, but not instantly.
+   headers in `no-cors` mode, and n8n then rejects the poke (403). WF4 still delivers within 6 minutes, but not instantly.
 
 Note: the poke key is visible to anyone who can load the app in a browser. That is acceptable because a poke carries no
 data and can only make n8n process work that is already in the database. To limit who can call it from a browser,
@@ -204,7 +204,7 @@ change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the
   claimed row back. Failures are reported with the error text; 4xx errors (except 429) are marked permanent
   (for example Discord "Missing Access" / "Unknown Channel", invalid email address), everything else is temporary.
   The database re-queues temporary failures (up to 3 attempts) and raises alerts. If more than 25 are waiting,
-  the rest go on the next poke or within 5 minutes. A row stuck in "Sending" (for example n8n restarted mid-send) is
+  the rest go on the next poke or within 6 minutes. A row stuck in "Sending" (for example n8n restarted mid-send) is
   re-queued automatically by the database after 15 minutes.
 - **Discord rate limits.** WF4 waits 1 second after each Discord send; WF1 reads channels 2 per second.
 - **Discord replies.** Only channels returned by `discord_watchlist()` are read, and only messages written by that
