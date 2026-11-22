@@ -1444,6 +1444,9 @@ isOneToOne: false
 "check_discord_server":
 { Args: { "p_server_id": string }; Returns: undefined
                            },
+"check_plan":
+{ Args: { "p_domain_id": string,"p_rows": Json }; Returns: Json
+                           },
 "claim_outbound_messages":
 { Args: { "p_limit"?: number }; Returns: {
               "attempts": number,

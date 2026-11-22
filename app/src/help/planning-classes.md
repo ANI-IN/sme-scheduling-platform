@@ -15,7 +15,7 @@ A **cohort** is one group of students going through the modules, for example a w
 4. Choose the **Date of the first class**. Any day of the week works.
 5. Choose **Every week**, **Every 2 weeks**, or **Paste a list of dates**, and how many class weeks.
 6. Press **Show the plan**. You see every class with its date and time, the totals and any warnings.
-7. Change any date or time if you need to, or use **Move a week later** around a holiday.
+7. Change any date or time if you need to, or use **Move a week later** around a holiday. The warnings are checked again after each change.
 8. Press **Create**. If there are warnings, you can still go ahead and write a short reason.
 
 To give new cohorts the usual modules, class times and breaks in one go, plan them from a standard schedule; see [Standard schedules](/help/standard-schedules).
