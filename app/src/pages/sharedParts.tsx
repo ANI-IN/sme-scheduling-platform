@@ -77,10 +77,19 @@ function useCandidates(week: Week) {
   });
 }
 
-function ShareDialog({ week, onClose }: { week: Week; onClose: () => void }) {
+export function ShareDialog({
+  week,
+  guests,
+  onClose,
+}: {
+  week: Week;
+  /** From the Schedule board's selection (M12b): the other selected class weeks join this one. */
+  guests?: string[];
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const candidates = useCandidates(week);
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(guests ?? []);
   const [timesFrom, setTimesFrom] = useState<string>('');
   const [release, setRelease] = useState(false);
   const [pending, setPending] = useState<CheckWarning[] | null>(null);

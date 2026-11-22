@@ -39,6 +39,8 @@ import {
 import { ClassDrawer } from './ClassDrawer';
 import { AddBreakDialog, AddCohortHolidayDialog } from './setup/breakParts';
 import { MergeCohortsDialog } from './setup/mergeParts';
+import { ShareDialog } from './sharedParts';
+import { BulkChangeDialog } from './boardBulk';
 
 type Problem = { code: string; level: 'Block' | 'Warning' | 'Information'; text: string };
 type Cell = {
@@ -196,6 +198,12 @@ export default function Board() {
     null,
   );
   const [legend, setLegend] = useState(false);
+  // Bulk actions (M12b, decision 314): select several class weeks, then one action with one combined preview.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulk, setBulk] = useState<'move' | 'cancel' | 'break' | 'share' | null>(null);
+  const toggle = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const from = start.toISODate()!;
   const to = start.plus({ weeks: prefs.weeks }).minus({ days: 1 }).toISODate()!;
   const board = useQuery({
@@ -312,15 +320,19 @@ export default function Board() {
           {body}
         </div>
       );
+    const picked = selecting && selected.includes(c.id);
     return (
       <button
         type="button"
-        onClick={() => setOpenWeek(c.id)}
+        onClick={() => (selecting ? toggle(c.id) : setOpenWeek(c.id))}
+        aria-pressed={selecting ? picked : undefined}
         className={cn(
           'w-full rounded-md border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
           differs ? 'border-warning-strong' : 'border-border',
+          picked && 'ring-2 ring-ring',
         )}
       >
+        {selecting && <span className="sr-only">{picked ? 'Selected: ' : 'Select: '}</span>}
         {body}
       </button>
     );
@@ -430,7 +442,68 @@ export default function Board() {
         <Button size="sm" variant="secondary" disabled={cells.length === 0} onClick={download}>
           <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
         </Button>
+        <Button
+          size="sm"
+          variant={selecting ? 'primary' : 'secondary'}
+          aria-pressed={selecting}
+          onClick={() => {
+            setSelecting(!selecting);
+            setSelected([]);
+          }}
+        >
+          {selecting ? 'Done selecting' : 'Select class weeks'}
+        </Button>
       </Toolbar>
+
+      {selecting && (
+        <section
+          aria-label="Selected class weeks"
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm"
+        >
+          <span className="font-medium">
+            {selected.length === 0
+              ? 'Click class weeks to select them.'
+              : `${selected.length} class week${selected.length === 1 ? '' : 's'} selected`}
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={selected.length === 0}
+            onClick={() => setBulk('break')}
+          >
+            Add a break
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={selected.length === 0}
+            onClick={() => setBulk('move')}
+          >
+            Move
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={selected.length === 0}
+            onClick={() => setBulk('cancel')}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={selected.length < 2}
+            onClick={() => setBulk('share')}
+          >
+            Make one shared class
+          </Button>
+          {selected.length > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+              Clear selection
+            </Button>
+          )}
+        </section>
+      )}
 
       {legend && (
         <section
@@ -671,6 +744,59 @@ export default function Board() {
       )}
 
       {open && <ClassDrawer week={open} names={names} onClose={() => setOpenWeek(null)} />}
+      {(bulk === 'move' || bulk === 'cancel') && (
+        <BulkChangeDialog
+          action={bulk}
+          weekIds={selected}
+          onClose={() => {
+            setBulk(null);
+            setSelected([]);
+          }}
+        />
+      )}
+      {bulk === 'break' && domain && (
+        <AddBreakDialog
+          domainId={domain.id}
+          program={false}
+          cohortIds={[
+            ...new Set(
+              (b?.weeks ?? [])
+                .filter((c) => selected.includes(c.id) && c.cohort_id)
+                .map((c) => c.cohort_id!),
+            ),
+          ]}
+          startsOn={
+            (b?.weeks ?? [])
+              .filter((c) => selected.includes(c.id))
+              .map((c) => c.week_start_date)
+              .sort()[0]
+          }
+          onClose={() => {
+            setBulk(null);
+            setSelected([]);
+          }}
+        />
+      )}
+      {bulk === 'share' &&
+        (() => {
+          // The earliest selected class week hosts the shared class; the others join it.
+          const chosen = (weeks.data ?? [])
+            .filter((w) => selected.includes(w.id))
+            .sort((x, y) => x.week_start_date.localeCompare(y.week_start_date));
+          const host = chosen[0];
+          return (
+            host && (
+              <ShareDialog
+                week={host}
+                guests={chosen.slice(1).map((w) => w.id)}
+                onClose={() => {
+                  setBulk(null);
+                  setSelected([]);
+                }}
+              />
+            )
+          );
+        })()}
       {menu?.kind === 'break' && domain && (
         <AddBreakDialog
           domainId={domain.id}

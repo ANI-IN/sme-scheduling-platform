@@ -322,18 +322,24 @@ export function AddBreakDialog({
   domainId,
   program,
   cohortId,
+  cohortIds,
+  startsOn,
   onClose,
 }: {
   domainId: string;
   program: boolean;
   cohortId?: string;
+  /** From the Schedule board's selection (M12b): the cohorts of the selected class weeks. */
+  cohortIds?: string[];
+  /** From the Schedule board's selection: the first selected week. */
+  startsOn?: string;
   onClose: () => void;
 }) {
   const cohorts = useCohorts(domainId);
   const [reason, setReason] = useState('');
-  const [start, setStart] = useState('');
+  const [start, setStart] = useState(startsOn ?? '');
   const [weeks, setWeeks] = useState(1);
-  const [chosen, setChosen] = useState<string[]>(cohortId ? [cohortId] : []);
+  const [chosen, setChosen] = useState<string[]>(cohortIds ?? (cohortId ? [cohortId] : []));
   const ready = !!start && (program || chosen.length > 0);
   return (
     <BreakChangeDialog

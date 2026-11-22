@@ -1426,6 +1426,9 @@ isOneToOne: false
 "beta_list_remove":
 { Args: { "p_email": string }; Returns: Json
                            },
+"bulk_change_weeks":
+{ Args: { "p_accept_warnings"?: boolean,"p_action": string,"p_reason"?: string,"p_save"?: boolean,"p_week_ids": (string)[],"p_weeks"?: number }; Returns: Json
+                           },
 "cancel_class":
 { Args: { "p_class_id": string,"p_reason"?: string }; Returns: Json
                            },
