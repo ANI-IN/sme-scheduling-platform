@@ -38,6 +38,28 @@ const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate
 mkdirSync(DIR, { recursive: true });
 const file = join(DIR, `sme-scheduling-${stamp}-${label}.dump`);
 
+/**
+ * pg_cron lives only in the main `postgres` database, so its schema cannot be restored into the throwaway database.
+ * Its tables are counted in the backup file itself: the rows of each table's COPY section.
+ */
+const CRON_TABLES = ['cron.job', 'cron.job_run_details'];
+/** The run log grows every minute while the clock's jobs are scheduled, so live may have a few more rows. */
+const GROWING_LOGS = new Set(['cron.job_run_details']);
+function countInFile(dump: string, table: string): number | undefined {
+  const [schema, name] = table.split('.') as [string, string];
+  const r = spawnSync(
+    'docker',
+    ['exec', '-i', CONTAINER, 'pg_restore', '--data-only', '-n', schema, '-t', name, '-f', '-'],
+    { input: readFileSync(dump), maxBuffer: 1 << 28 },
+  );
+  if (r.status !== 0) return undefined;
+  const lines = String(r.stdout).split('\n');
+  const start = lines.findIndex((l) => l.startsWith(`COPY ${schema}.${name} `));
+  if (start < 0) return undefined;
+  const end = lines.indexOf('\\.', start + 1);
+  return end < 0 ? undefined : end - start - 1;
+}
+
 /** Row counts of every table outside the system schemas. */
 async function counts(url: string): Promise<Map<string, number>> {
   const c = new pg.Client({ connectionString: url });
@@ -109,13 +131,23 @@ try {
   // matters is that every table and every row came back, which the comparison below checks.
   const restoreErrors = (String(restore.stderr).match(/error:/gi) ?? []).length;
   const backupCounts = await counts(LOCAL_URL.replace(/\/postgres$/, `/${name}`));
+  for (const t of CRON_TABLES) {
+    if (liveCounts.has(t) && !backupCounts.has(t)) {
+      const n = countInFile(file, t);
+      if (n !== undefined) backupCounts.set(t, n);
+    }
+  }
   const names = [...new Set([...liveCounts.keys(), ...backupCounts.keys()])].sort();
   const rows = names.map((t) => {
     const a = liveCounts.get(t);
     const b = backupCounts.get(t);
-    const same = a === b;
+    // A run log written while the backup ran: the backup has the rows up to the dump, live a few more.
+    const log = GROWING_LOGS.has(t) && a !== undefined && b !== undefined && b <= a && a - b <= 60;
+    const same = a === b || log;
     if (!same) differ += 1;
-    return `${same ? 'same ' : 'DIFF '} ${t.padEnd(52)} live ${String(a ?? 'missing').padStart(7)}  backup ${String(b ?? 'missing').padStart(7)}`;
+    const mark = a === b ? 'same ' : log ? 'log  ' : 'DIFF ';
+    const where = CRON_TABLES.includes(t) ? ' (counted in the file)' : '';
+    return `${mark} ${t.padEnd(52)} live ${String(a ?? 'missing').padStart(7)}  backup ${String(b ?? 'missing').padStart(7)}${where}`;
   });
   const liveRows = [...liveCounts.values()].reduce((s, n) => s + Math.max(n, 0), 0);
   report = [
