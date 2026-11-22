@@ -158,3 +158,71 @@ test('Connections: set up and nothing sent reads Ready; an admin sends a Discord
   );
   expect(m).toEqual({ d: 1, e: 1, h: 2 });
 });
+
+// Release 3, B3 (decision 312): a domain's Discord server is chosen in Setup, Domains.
+async function openBackend(page: import('@playwright/test').Page) {
+  await page.goto('/setup/domains');
+  await ready(page);
+  await page.getByRole('button', { name: 'Backend', exact: true }).click();
+  const d = page.getByRole('dialog', { name: 'Backend' });
+  await expect(d).toBeVisible();
+  await ready(page);
+  return d;
+}
+
+test('Setup, Domains: an admin approves a waiting server for the domain, chooses a server, and the alert channel is right there', async ({
+  page,
+}) => {
+  const d = await openBackend(page);
+  const waiting = d.getByRole('list', { name: 'Servers not approved for a domain yet' });
+  await expect(waiting).toContainText('New program server');
+  await a11y(page, 'domain discord server');
+  await noDashes(page, 'domain discord server');
+  await waiting.getByRole('button', { name: 'Approve New program server for this domain' }).click();
+  await expect(page.getByText('New program server approved for Backend')).toBeVisible();
+  const [a] = await sql<{ n: number; h: number }>(
+    `select (select count(*)::int from public.discord_server_domain sd join public.domain dd on dd.id = sd.domain_id
+              where sd.server_id = '900000000000000117' and dd.name = 'Backend') n,
+            (select count(*)::int from public.history_event where action = 'Discord server approved'
+              and after ->> 'server' = 'New program server') h`,
+  );
+  expect(a).toEqual({ n: 1, h: 1 });
+  await d
+    .getByRole('combobox', { name: 'Discord server' })
+    .selectOption({ label: 'Program server 2' });
+  await expect(page.getByText('Server saved. Checking it now.')).toBeVisible();
+  const [s] = await sql<{ id: string }>(
+    `select discord_server_id id from public.domain where name = 'Backend'`,
+  );
+  expect(s!.id).toBe('900000000000000102');
+  await expect(d.getByRole('combobox', { name: 'Alert channel' })).toBeVisible();
+});
+
+test('Setup, Domains: a normal user sees only the servers approved for the domain, and one clear step when there is none', async ({
+  page,
+}) => {
+  await sql(`update public.team_member set is_admin = false, version = version where email = $1`, [
+    ME,
+  ]);
+  let d = await openBackend(page);
+  await expect(d.getByRole('button', { name: /for this domain$/ })).toHaveCount(0);
+  await expect(
+    d
+      .getByRole('combobox', { name: 'Discord server' })
+      .locator('option', { hasText: 'New program server' }),
+  ).toHaveCount(0);
+  await sql(
+    `delete from public.discord_server_domain where domain_id = (select id from public.domain where name = 'Backend')`,
+  );
+  await sql(
+    `update public.domain set discord_server_id = null, version = version where name = 'Backend'`,
+  );
+  d = await openBackend(page);
+  await expect(
+    d.getByText(
+      'No Discord server is approved for Backend yet. Add the bot to your Discord server with the invite link, then wait for an admin to approve the server for this domain.',
+      { exact: false },
+    ),
+  ).toBeVisible();
+  await a11y(page, 'domain without a discord server');
+});

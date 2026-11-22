@@ -13,7 +13,7 @@ The app uses the Discord servers you already have. It never creates servers or c
 2. Press **Open the invite link** and add the bot to the server. It asks for only four permissions: View Channels, Send Messages, Embed Links and Read Message History.
 3. In Discord, open the category where instructors have their own channels (usually **1-1**), choose **Edit Category**, then **Permissions**, and allow the bot's role the same four permissions.
 4. Back in the app, an admin presses **Refresh servers** and then **Approve** next to the new server, choosing the domains that may use it. Until a server is approved the bot does nothing there.
-5. Choose the server of each domain. Only servers approved for that domain are listed.
+5. Open [Domains](/setup/domains), open the domain, and choose its **Discord server**, then its **Alert channel**, in the same panel. Only servers approved for that domain are listed. Admins also see servers the bot is in that are not approved for any domain yet, with **Approve for this domain** right there (it is in Activity history). If no server is listed, the panel says what to do: add the bot with the invite link, then an admin approves the server.
 6. Wait for **Ready**. If it says **Needs a fix**, it says exactly what to change. Press **Check** after you fix it.
 
 ## Instructors

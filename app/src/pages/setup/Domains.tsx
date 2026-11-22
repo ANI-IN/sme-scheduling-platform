@@ -10,7 +10,8 @@ import { CohortScheduleBadge, PlanFromStandardDialog, ResetToStandard } from './
 import { BreaksAndHolidays } from './breakParts';
 import { MergeCohortsDialog, MergedBadge } from './mergeParts';
 import { RegionBadge } from '@/components/ClassTime';
-import { ChannelPicker, ServerStatus } from '@/components/Discord';
+import { ChannelPicker } from '@/components/Discord';
+import { DomainDiscordServer } from './DomainDiscordServer';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { PeoplePicker } from '@/components/PeoplePicker';
@@ -373,14 +374,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
                 onChange={(e) => setName(e.target.value)}
               />
             </Field>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                Discord server <ServerStatus status={domain.discord_status} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Choose or check the server on Settings, Connections.
-              </p>
-            </div>
+            <DomainDiscordServer domain={domain} />
             <Field
               label="Alert channel"
               hint="The Discord channel where the team is tagged about this domain."

@@ -30,7 +30,7 @@ test.afterAll(() => loadDemoData());
 
 const STEPS = [
   ['Add a domain', '/setup/domains'],
-  ['Choose its Discord server', '/settings/connections'],
+  ['Choose its Discord server', '/setup/domains'],
   ['Add team members', '/setup/team'],
   ['Add instructors', '/setup/instructors'],
   ['Add modules', '/setup/modules'],
