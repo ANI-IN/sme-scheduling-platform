@@ -263,8 +263,13 @@ function BreakChangeDialog({
       }
       toast.success(done(r));
       onClose();
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      // The preview is for the change just saved (a removed break would be refused), so it is dropped, not fetched again.
+      const others = {
+        predicate: (q: { queryKey: readonly unknown[] }) => q.queryKey[0] !== 'break_preview',
+      };
+      qc.removeQueries({ queryKey: ['break_preview'] });
+      await qc.invalidateQueries(others);
+      void poke().then(() => qc.invalidateQueries(others));
     } catch (e) {
       setErr(e);
     } finally {
