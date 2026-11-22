@@ -41,6 +41,8 @@ The people come from the module's owners and operations team, and the domain's e
 
 Each team member with **Send a daily summary** ticked on the [Team](/setup/team) page gets one message each morning at 10:00 AM India time with the tasks waiting for them. Choose **Discord**, **Email** or **Discord and email** under **Send it by**. Nothing is sent when there is nothing to do.
 
+![A team member's Discord username and daily summary](/help/team-member.png)
+
 Admins also get the **daily system summary** in the admin alert channel, set on [Connections](/settings/connections).
 
 ## Reminders

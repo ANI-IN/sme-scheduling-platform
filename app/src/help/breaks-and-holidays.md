@@ -14,6 +14,8 @@ You find breaks and cohort holidays in two places:
 
 A break moves every class week of a cohort from its first day on back by whole weeks. Each class keeps its local time, and the cohort's later breaks move with it.
 
+![Adding a break for a cohort](/help/add-break.png)
+
 1. Press **Add a break**.
 2. Fill in **What is the break for?**, for example Diwali. Choose the **First day**, the **Length** and the **Cohorts**.
 3. Check the preview: what moves in each cohort, every class with its old and new time, and who is confirmed or being asked.
@@ -51,6 +53,8 @@ Planning a class on a cohort holiday, or during a break of its cohort, gives a w
 ## Merge cohorts
 
 From a date, two or more cohorts can continue as one combined cohort. Before that date they stay as they are, and each shows **Merged into** with the date.
+
+![Merging cohorts](/help/merge-cohorts.png)
 
 1. On Domains under **Cohorts and regions**, press **Merge cohorts**. Or use **Merge with another cohort** under **Cohort actions** on the board.
 2. Under **Cohorts to merge**, tick the cohorts.

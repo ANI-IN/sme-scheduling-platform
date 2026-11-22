@@ -9,6 +9,8 @@ A **standard schedule** is the usual plan for a cohort of your domain: which mod
 
 ## Create a standard schedule
 
+![Adding a standard schedule: its name, modules in order and breaks](/help/standard-new.png)
+
 1. Open [Standard schedules](/setup/standards) and press **Add standard schedule**.
 2. Give it a **Name**, for example SWEs. **Notes (optional)** can say who the track is for.
 3. Under **Modules in order**, choose a module under **Module to add** and press **Add module**. Add the others the same way. Each module is one class week. Drag a module to change its place.

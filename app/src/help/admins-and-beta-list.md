@@ -7,6 +7,8 @@ keywords: admin, beta list, sign in, access, allowed email domain, who may recei
 
 Admins decide who may use the app and who may get messages. Only admins see [Admin](/settings/admin) in the menu, under Settings. Every change on it is saved in Activity history. If you are not an admin and need a change, ask an admin.
 
+![Who may sign in and the beta list on the Admin page](/help/admin-sign-in.png)
+
 ## Who may sign in
 
 Under **Who may sign in**, choose one of two buttons. The badge on the right shows the current choice.
@@ -27,6 +29,8 @@ Add yourself first, then your colleagues. Each person shows **Signed in before**
 ## Who may receive messages
 
 Under **Who may receive messages**, choose who email and Discord messages may reach. The app checks every person a message goes to or tags, when it is queued and again when it is sent.
+
+![Who may receive messages on the Admin page](/help/admin-messages.png)
 
 1. Fill in **Email only to these domains**: the address endings email may go to, separated by commas. Leave it empty to allow any address.
 2. Fill in **Emails a day at most**. Google allows about 2,000 a day for the whole mailbox. Over the limit, emails wait.

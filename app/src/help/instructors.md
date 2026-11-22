@@ -56,6 +56,8 @@ The app skips them for classes on those days. A confirmed class on those days sh
 
 The instructor order decides who is asked first for a module. The **Primary instructor** is asked first, then **Backup 1**, **Backup 2** and so on, one at a time.
 
+![A module's instructor order](/help/instructor-order.png)
+
 1. Open the module from [Modules](/setup/modules) and go to the **Instructor order** tab.
 2. To give one cohort its own order, choose the cohort under **For**.
 3. Choose someone under **Instructor to add** and press **Add**. Drag people to change the order.
