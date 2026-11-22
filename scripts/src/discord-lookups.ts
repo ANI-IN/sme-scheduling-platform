@@ -3,7 +3,7 @@
 // computer, or to check a real bot before n8n is set up.
 //
 //   DISCORD_BOT_TOKEN=... npm run discord -w scripts            (reads DATABASE_URL, default local)
-//   npm run discord:sandbox -w scripts                           (reads .env.sandbox)
+//   npm run discord:production -w scripts                        (reads .env.production)
 //
 // The token is never stored or printed. The database decides what each answer means
 // (record_discord_result), so this script only makes the calls and passes the raw answers on.

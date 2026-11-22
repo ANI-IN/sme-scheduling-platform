@@ -1,5 +1,6 @@
 // Builds the two n8n workflow sets from the base files in n8n/:
-//   n8n/sandbox/*.json     named "[Sandbox] …", tagged Sandbox, Sandbox credentials and webhook paths
+//   n8n/sandbox/*.json     the live workflows: named "[Production] …" since M5, tagged Sandbox, Sandbox credentials
+//                          and webhook paths (both kept so nothing that already works changes)
 //   n8n/production/*.json  named "[Production] …", tagged Production, Production credentials
 // Both sets can live in one n8n instance (different webhook paths and credential names) or in two.
 //
@@ -15,6 +16,8 @@ const ENVS = [
   {
     key: 'sandbox',
     label: 'Sandbox',
+    // The live workflows since the switch on 22 November (M5): shown as Production, credentials and tags unchanged.
+    title: 'Production',
     pathPrefix: 'sandbox-',
     supabaseUrl: 'https://abcdefghijklmnopqrst.supabase.co',
     n8nUrl: 'https://your-instance.app.n8n.cloud',
@@ -25,6 +28,7 @@ const ENVS = [
   {
     key: 'production',
     label: 'Production',
+    title: 'Production',
     pathPrefix: '',
     supabaseUrl: 'https://YOUR-PRODUCTION-PROJECT.supabase.co',
     n8nUrl: 'https://your-instance.app.n8n.cloud',
@@ -70,7 +74,7 @@ for (const env of ENVS) {
   mkdirSync(out, { recursive: true });
   for (const file of readdirSync(DIR).filter((f) => /^WF\d.*\.json$/.test(f))) {
     const wf = JSON.parse(readFileSync(join(DIR, file), 'utf8')) as Workflow;
-    wf.name = `[${env.label}] ${wf.name}`;
+    wf.name = `[${env.title}] ${wf.name}`;
     wf.tags = [{ name: env.label }];
     for (const n of wf.nodes) {
       for (const c of Object.values(n.credentials ?? {})) {

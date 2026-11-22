@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { poke, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
-import { useAuth } from '@/lib/auth';
 import { useSettingsMap, useWeeks, type Domain } from '@/lib/data';
 import { fmtLocal, fmtPT, PT } from '@/lib/time';
 import { fmtAt, weekRegion } from '@/lib/region';
@@ -334,7 +333,6 @@ function TestingBody({ domain }: { domain: Domain }) {
       <ErrorText error={err} />
 
       {testing && <PracticeClass domain={domain} />}
-      <ResetSandbox />
 
       {testing && (
         <Section
@@ -439,51 +437,6 @@ function PracticeClass({ domain }: { domain: Domain }) {
           </ul>
         </div>
       )}
-    </Section>
-  );
-}
-
-/** Sandbox only: empty the Sandbox (decision 251). Nothing is loaded afterwards. */
-function ResetSandbox() {
-  const { account } = useAuth();
-  const qc = useQueryClient();
-  const [typed, setTyped] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<unknown>(null);
-  if (!account?.environment || account.environment === 'Production') return null;
-  return (
-    <Section
-      tone="danger"
-      title="Reset Sandbox data"
-      description="Removes every domain, cohort, module, instructor, class, holiday and task in this Sandbox, so it is empty again. Nothing is loaded afterwards: you add everything yourself. Team members who sign in and settings for every domain stay, and Activity history is kept. This is not possible in Production."
-    >
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="Type RESET to confirm">
-          <Input value={typed} onChange={(e) => setTyped(e.target.value)} className="w-40" />
-        </Field>
-        <Button
-          variant="destructive"
-          disabled={typed !== 'RESET'}
-          loading={busy}
-          onClick={async () => {
-            setBusy(true);
-            setErr(null);
-            try {
-              await rpc('reset_sandbox_data', { p_confirm: typed });
-              toast.success('The Sandbox is empty again');
-              setTyped('');
-              await qc.invalidateQueries();
-            } catch (e) {
-              setErr(e);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          Reset Sandbox data
-        </Button>
-      </div>
-      <ErrorText error={err} />
     </Section>
   );
 }

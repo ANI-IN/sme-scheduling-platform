@@ -103,17 +103,3 @@ test('a cohort and a team member tick their steps too', async ({ page }) => {
   await ready(page);
   await expect(page.locator('ol').first().getByLabel('Done', { exact: true })).toHaveCount(3);
 });
-
-test('Reset Sandbox data empties the app again, from the Testing page', async ({ page }) => {
-  await loadDemoData();
-  await page.goto('/settings/testing');
-  await ready(page);
-  await page.getByLabel('Type RESET to confirm').fill('RESET');
-  await page.getByRole('button', { name: 'Reset Sandbox data' }).click();
-  await expect(page.getByText('The Sandbox is empty again')).toBeVisible();
-  const n = await sql<{ n: number }>(
-    `select (select count(*) from public.domain) + (select count(*) from public.instructor)
-            + (select count(*) from public.module_week) n`,
-  );
-  expect(Number(n[0]!.n)).toBe(0);
-});
