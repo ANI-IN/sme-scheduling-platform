@@ -393,7 +393,15 @@ const rewrites: [
         ? `${c.actor} let each class of ${c.module} have its own instructor`
         : `${c.actor} set one instructor for the whole class week of ${c.module}`,
   ],
-  [/^Environment set to (\w+)$/, (m) => `The app was set up as ${m[1]}`],
+  [
+    /^Environment set to (\w+)$/,
+    (m) =>
+      m[1] === 'Production'
+        ? 'The app was switched to live use'
+        : m[1] === 'Sandbox'
+          ? 'The app was set to not live (messages only to allowed test channels and mailboxes)'
+          : 'The app was set up for development on a computer',
+  ],
   [/^Kill switch OFF/, (_m, c) => `${c.actor} turned messages to instructors back on`],
   [/^Test clock set to (.+)$/, (m, c) => `${c.actor} set the practice clock to ${m[1]}`],
   [/^Test clock cleared/, (_m, c) => `${c.actor} set the practice clock back to real time`],

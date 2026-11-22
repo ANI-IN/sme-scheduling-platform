@@ -28,6 +28,15 @@ const BANNED: [RegExp, string][] = [
   [/\brankings?\b/i, 'ranking'],
 ];
 const ALLOW_INTERNAL = [/settings[\\/]Connections\.tsx$/];
+/**
+ * Never shown to anyone, on any page (Release 3, B4, decision 313): there is no Sandbox, demo or test environment
+ * any more. Internal names that keep the word (n8n credentials, tags, webhook paths) never reach a screen.
+ */
+const NEVER: [RegExp, string][] = [
+  [/\bsandbox\b/i, 'Sandbox'],
+  [/\bdemo\b/i, 'demo'],
+  [/\btest environment\b/i, 'test environment'],
+];
 /** Hyphenated words that are fine (none so far; add with a reason). */
 const HYPHEN_OK = new Set<string>([]);
 
@@ -52,6 +61,7 @@ function check(where: string, text: string, internalOk: boolean) {
     if (!HYPHEN_OK.has(m[0].toLowerCase()))
       findings.push({ where, text: t, problem: `hyphen "${m[0]}"` });
   }
+  for (const [re, name] of NEVER) if (re.test(t)) findings.push({ where, text: t, problem: name });
   if (!internalOk)
     for (const [re, name] of BANNED)
       if (re.test(t)) findings.push({ where, text: t, problem: `internal name "${name}"` });
@@ -129,7 +139,11 @@ function scanFile(file: string) {
     } else if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) {
       const s = n.text;
       if (/\s/.test(s) && !looksLikeClasses(s) && isUserFacing(n)) check(at(n), s, internalOk);
-      else if (!/\s/.test(s) && (/[—–]/.test(s) || /^[A-Z][a-z]+-[a-z]/.test(s)) && isUserFacing(n))
+      else if (
+        !/\s/.test(s) &&
+        (/[—–]/.test(s) || /^[A-Z][a-z]+-[a-z]/.test(s) || /^(sandbox|demo)$/i.test(s)) &&
+        isUserFacing(n)
+      )
         check(at(n), s, internalOk);
     } else if (ts.isTemplateExpression(n)) {
       const parts = [n.head.text, ...n.templateSpans.map((s) => s.literal.text)].join(' x ');
@@ -179,7 +193,9 @@ try {
 }
 
 if (findings.length === 0) {
-  console.log('No dashes, hyphenated words, "e.g." or internal names found in user facing text.');
+  console.log(
+    'No dashes, hyphenated words, "e.g.", internal names or Sandbox, demo or test environment wording found in user facing text.',
+  );
 } else {
   for (const f of findings) console.log(`${f.where}  [${f.problem}]  ${f.text.slice(0, 140)}`);
   console.log(`\n${findings.length} finding(s).`);

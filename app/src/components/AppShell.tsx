@@ -489,13 +489,18 @@ function Banners() {
   );
 }
 
-/** Always visible outside Production, so nobody mistakes Sandbox for the real thing. */
+/**
+ * Always visible outside Production, so nobody mistakes a copy that is not live for the real thing. The old
+ * practice rules (environment "Sandbox", kept only as the rollback of the switch to Production) read "Not live";
+ * no screen says Sandbox (Release 3, B4, decision 313).
+ */
 function EnvironmentLabel() {
   const { account } = useAuth();
   const env = account?.environment;
   if (!env || env === 'Production') return null;
   return (
     <span
+      data-environment-label
       className={cn(
         'rounded px-1.5 py-0.5 text-[11px] font-bold tracking-wider uppercase',
         env === 'Sandbox'
@@ -504,11 +509,11 @@ function EnvironmentLabel() {
       )}
       title={
         env === 'Sandbox'
-          ? 'This is the Sandbox: practice data, and messages only go to allowed test channels and mailboxes.'
+          ? 'This copy is not live: messages only go to allowed test channels and mailboxes.'
           : 'This copy runs on a computer for development.'
       }
     >
-      {env === 'Sandbox' ? 'Sandbox' : 'Development'}
+      {env === 'Sandbox' ? 'Not live' : 'Development'}
     </span>
   );
 }

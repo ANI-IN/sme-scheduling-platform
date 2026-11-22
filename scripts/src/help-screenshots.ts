@@ -344,7 +344,15 @@ async function main() {
     viewport: { width: 1280, height: 800 },
     colorScheme: 'light',
   });
-  await ctx.addInitScript(() => localStorage.setItem('ik-theme', 'light'));
+  await ctx.addInitScript(() => {
+    localStorage.setItem('ik-theme', 'light');
+    // The pictures show the app as people use it: no Development label of the local copy (decision 313).
+    document.addEventListener('DOMContentLoaded', () => {
+      const st = document.createElement('style');
+      st.textContent = '[data-environment-label]{display:none!important}';
+      document.head.appendChild(st);
+    });
+  });
   const page = await ctx.newPage();
   await page.goto(await signInLink(api, secret, EMAIL, APP));
   await page
