@@ -12,8 +12,9 @@ There is no Sandbox any more.
 only: the n8n credentials `Gmail Sandbox`, `Discord Bot Sandbox`, `Supabase Sandbox`, `Poke Secret Sandbox` and
 `Google Drive Backups`, the n8n tag `Sandbox`, the webhook paths such as `/webhook/sandbox-respond` and
 `/webhook/sandbox-sme-poke` (links in messages already sent use them), the folder `n8n/sandbox/`, the files
-`app/.env.sandbox`, `.env.sandbox.example` and `app/.env.sandbox.example`, and the command `npm run dev:sandbox`. The
-column "Separate setup (not used)" holds the values of a second Production setup that was planned but never used.
+`app/.env.sandbox`, `.env.sandbox.example` and `app/.env.sandbox.example`, and the command `npm run dev:sandbox`.
+There is one n8n workflow set, `n8n/sandbox/`: the second set (`n8n/production/`, with its own credential names and
+webhook paths) and its generator option were removed on 23 November 2026 (decision 315).
 
 **Secrets never go into this file, the repository, chat or tickets.** They go only into the place the table names:
 Supabase, n8n, Vercel, or a `.env.production` file on your own computer (ignored by git). Keep a copy in your password
@@ -34,31 +35,31 @@ Where a value goes:
 
 ## Supabase
 
-| # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
-|---|---|---|---|---|---|---|---|
-| 1 | Project ID (ref) | Links the Supabase command line to the project | No | `npm run db:link -- <ID>` | `abcdefghijklmnopqrst` | | Command 2 |
-| 2 | Project URL | The app and n8n talk to the database through it | No | `app/.env.sandbox` and Vercel `VITE_SUPABASE_URL`; n8n Config `supabaseUrl` (filled in) | `https://abcdefghijklmnopqrst.supabase.co` | | Commands 5, 6 |
-| 3 | Region, organization | Information only | No | | Northeast Asia (Tokyo, `ap-northeast-1`), "NP Automation" | | Done |
-| 4 | Publishable key (`sb_publishable_…`) | The web app's key; the database rules decide what it may do | No (visible in the browser) | `app/.env.sandbox` and Vercel `VITE_SUPABASE_PUBLISHABLE_KEY` | Copy from Project Settings, API Keys | | Command 6 |
-| 5 | Secret key (`sb_secret_…`) | n8n reads and writes the database with it | **Yes** | n8n credential `Supabase Sandbox` (Header Auth, name `apikey`) | You add it | | Command 5 |
-| 6 | Database password | Applying migrations and running configure | **Yes** | Asked by `npm run db:link` and `db:push`; inside `DATABASE_URL` | You add it | | Commands 2, 4 |
-| 7 | `DATABASE_URL` | The connection string the scripts use (Connect, Session pooler, with the password) | **Yes** | `.env.production` | You add it | | Command 4 |
-| 8 | Site URL and Redirect URLs | Where Google sign in returns to | No | Supabase, Authentication, URL Configuration | Site URL `https://your-app.vercel.app`; Redirect URLs `https://your-app.vercel.app/**` and `http://localhost:5173/**` (done) | | Done |
-| 9 | Google sign in client ID | Sign in with a company Google account | No | Supabase, Authentication, Sign In / Providers, Google | `000000000000-yourclientid.apps.googleusercontent.com` (done, internal app) | | Done |
-| 10 | Google sign in client secret | The same | **Yes** | Supabase only | Saved in Supabase (done) | | Done |
-| 11 | Email sign in switched off | Only Google accounts may sign in | No | Supabase, Authentication, Sign In / Providers, **Email: "Enable Email provider" off**. Keep "Allow new users to sign up" **on**: turning it off also blocks a colleague's first Google sign in | | | Done |
-| 12 | Hook "Before User Created" | Refuses accounts outside the company domain and records the attempt | No | Supabase, Authentication, Hooks: Postgres, schema `public`, function `hook_before_user_created` | | | Command 3 |
+| # | Name | What it is for | Secret | Where it goes | Production value | Step |
+|---|---|---|---|---|---|---|
+| 1 | Project ID (ref) | Links the Supabase command line to the project | No | `npm run db:link -- <ID>` | `abcdefghijklmnopqrst` | Command 2 |
+| 2 | Project URL | The app and n8n talk to the database through it | No | `app/.env.sandbox` and Vercel `VITE_SUPABASE_URL`; n8n Config `supabaseUrl` (filled in) | `https://abcdefghijklmnopqrst.supabase.co` | Commands 5, 6 |
+| 3 | Region, organization | Information only | No | | Northeast Asia (Tokyo, `ap-northeast-1`), "NP Automation" | Done |
+| 4 | Publishable key (`sb_publishable_…`) | The web app's key; the database rules decide what it may do | No (visible in the browser) | `app/.env.sandbox` and Vercel `VITE_SUPABASE_PUBLISHABLE_KEY` | Copy from Project Settings, API Keys | Command 6 |
+| 5 | Secret key (`sb_secret_…`) | n8n reads and writes the database with it | **Yes** | n8n credential `Supabase Sandbox` (Header Auth, name `apikey`) | Done (kept only in `Supabase Sandbox`) | Command 5 |
+| 6 | Database password | Applying migrations and running configure | **Yes** | Asked by `npm run db:link` and `db:push`; inside `DATABASE_URL` | You add it | Commands 2, 4 |
+| 7 | `DATABASE_URL` | The connection string the scripts use (Connect, Session pooler, with the password) | **Yes** | `.env.production` | You add it | Command 4 |
+| 8 | Site URL and Redirect URLs | Where Google sign in returns to | No | Supabase, Authentication, URL Configuration | Site URL `https://your-app.vercel.app`; Redirect URLs `https://your-app.vercel.app/**` and `http://localhost:5173/**` (done) | Done |
+| 9 | Google sign in client ID | Sign in with a company Google account | No | Supabase, Authentication, Sign In / Providers, Google | `000000000000-yourclientid.apps.googleusercontent.com` (done, internal app) | Done |
+| 10 | Google sign in client secret | The same | **Yes** | Supabase only | Saved in Supabase (done) | Done |
+| 11 | Email sign in switched off | Only Google accounts may sign in | No | Supabase, Authentication, Sign In / Providers, **Email: "Enable Email provider" off**. Keep "Allow new users to sign up" **on**: turning it off also blocks a colleague's first Google sign in | | Done |
+| 12 | Hook "Before User Created" | Refuses accounts outside the company domain and records the attempt | No | Supabase, Authentication, Hooks: Postgres, schema `public`, function `hook_before_user_created` | | Command 3 |
 
 ## What `npm run configure:production -w scripts` writes into the database
 
-| # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
-|---|---|---|---|---|---|---|---|
-| 13 | `ALLOWED_EMAIL_DOMAIN` | Only accounts of this domain may sign in | No | `.env.production`; also `VITE_ALLOWED_EMAIL_DOMAIN` in `app/.env.sandbox` and Vercel | `yourcompany.com` | `yourcompany.com` | Command 4 |
-| 14 | `APP_ENVIRONMENT` | Which rules the database uses: Production (the old Sandbox rules are kept only for a rollback) | No | Set by `configure:production` (`configure:sandbox` only to roll back the switch) | `Production` | `Production` | Command 4 |
-| 15 | `SANDBOX_ALLOWED_DISCORD_SERVERS` | The only Discord server the old Sandbox could post to (an internal setting name). **Not used in Production** | No | `.env.production` | `1200000000000000010` | not used | Command 4 |
-| 16 | `SANDBOX_ALLOWED_EMAIL_DOMAINS` | The only email domain the old Sandbox could send to (an internal setting name). **Not used in Production** | No | `.env.production` | `yourcompany.com` | not used | Command 4 |
-| 17 | `RESPONSE_BASE_URL` | The address of the answer page (n8n WF2) in instructors' buttons | No | `.env.production` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` (the path keeps its name) | `https://your-instance.app.n8n.cloud/webhook/respond` | Command 4 |
-| 18 | `APP_BASE_URL` | "Open the app" links in messages | No | `.env.production` | `https://your-app.vercel.app` (done) | Its own address | Commands 4, 7 |
+| # | Name | What it is for | Secret | Where it goes | Production value | Step |
+|---|---|---|---|---|---|---|
+| 13 | `ALLOWED_EMAIL_DOMAIN` | Only accounts of this domain may sign in | No | `.env.production`; also `VITE_ALLOWED_EMAIL_DOMAIN` in `app/.env.sandbox` and Vercel | `yourcompany.com` | Command 4 |
+| 14 | `APP_ENVIRONMENT` | Which rules the database uses: Production (the old Sandbox rules are kept only for a rollback) | No | Set by `configure:production` (`configure:sandbox` only to roll back the switch) | `Production` | Command 4 |
+| 15 | `SANDBOX_ALLOWED_DISCORD_SERVERS` | The only Discord server the old Sandbox could post to (an internal setting name). **Not used in Production** | No | `.env.production` | `1200000000000000010` | Command 4 |
+| 16 | `SANDBOX_ALLOWED_EMAIL_DOMAINS` | The only email domain the old Sandbox could send to (an internal setting name). **Not used in Production** | No | `.env.production` | `yourcompany.com` | Command 4 |
+| 17 | `RESPONSE_BASE_URL` | The address of the answer page (n8n WF2) in instructors' buttons | No | `.env.production` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` (the path keeps its name) | Command 4 |
+| 18 | `APP_BASE_URL` | "Open the app" links in messages | No | `.env.production` | `https://your-app.vercel.app` (done) | Commands 4, 7 |
 
 **Beta settings.** In Production an admin sets these on **Settings, Admin** (they are not in `.env.production`):
 **Who may sign in** = People on the beta list; **Who may receive email** = yourcompany.com only; **Who may
@@ -66,63 +67,64 @@ receive Discord messages** = Test instructors and signed in colleagues.
 
 ## n8n
 
-| # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
-|---|---|---|---|---|---|---|---|
-| 19 | n8n address | Where the workflows run | No | | `https://your-instance.app.n8n.cloud` | The same | Done |
-| 20 | `Gmail Sandbox` | Sends every email and reads replies, with n8n's own Sign in with Google | Kept by n8n | n8n credential (Gmail OAuth2 API) | Done: `scheduling-mailbox@yourcompany.com` | `Gmail Production` | Done |
-| 21 | `Discord Bot Sandbox` | Every call to Discord | Kept by n8n | n8n credential (Discord Bot API) | Done | `Discord Bot Production` | Done |
-| 22 | `Google Drive Backups` | Uploads the nightly backup and keeps the newest 30 | Kept by n8n | n8n credential (Google Drive OAuth2 API) | Done (B2C account) | `Google Drive Backups Production` | Done |
-| 23 | Backup folder ID | Where the backups go | No | n8n WF3, "Upload to Google Drive" and "List backups" (filled in) | `your-drive-folder-id` | | Done |
-| 24 | `Supabase Sandbox` | n8n's access to the database | **Yes** (holds the secret key, row 5) | n8n credential (Header Auth: name `apikey`, value the secret key) | You add it | `Supabase Production` | Command 5 |
-| 25 | `Poke Secret Sandbox` | Lets the app ask n8n to send at once instead of within 6 minutes | Low (the browser can see it) | n8n credential (Header Auth: name `x-poke-key`); the same value in every Config node `pokeKey` and in `VITE_N8N_POKE_KEY` | A long random string you make | `Poke Secret Production` | Command 5 |
-| 26 | Config node `supabaseUrl`, `pokeUrl` | Where each workflow finds the database and WF4 | No | n8n, the Config node of each workflow (filled in) | Row 2, and `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | | Done |
-| 27 | `VITE_N8N_POKE_URL` | The WF4 address the app pokes | No | `app/.env.sandbox` and Vercel | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | `…/webhook/sme-poke` | Command 6 |
-| 46 | n8n schedule | How often n8n runs without being asked | No | n8n: WF4 every 6 minutes (delivery, Discord checks, typed replies), WF1 every hour (engine), WF3 daily 09:00 IST, WF6 not published | About 8,900 executions a month without the database clock (decision 270). The n8n Cloud Pro plan gives 10,000 a month, shared with the other workflows in the same n8n account | The same | Done |
-| 49 | Database clock (Release 3, M1) | The hourly check and the calls to WF4 run from the database (pg_cron jobs `sme-engine-hourly` and `sme-clock`), so n8n runs only when there is work (decision 281) | No | `npm run clock -w scripts -- on <WF4 poke address>` (it sets `app_config.clock_enabled` and `n8n_poke_url`) | **On** since 22 November, 17:36 UTC (poke address `.../webhook/sandbox-sme-poke`; the poke key is in Vault as `n8n_poke_key`) | The same | Done |
-| 50 | Poke key in Supabase Vault | The database sends it to WF4 in the `x-poke-key` header | **Yes** | Supabase, SQL editor: `select vault.create_secret('<the poke key>', 'n8n_poke_key');` (you paste the value; it never goes in a file or this chat) | The value of the n8n credential "Poke Secret Sandbox" | The same | You add it |
-| 47 | Gmail label | Marks replies WF4 has read, instead of marking them as read | No | Gmail, label "SME Scheduling/Processed"; its ID in `scripts/src/n8n-export.ts` | `Label_1` | Create it in the Production mailbox and put its ID in the export | Done |
-| 48 | Reply-To address | Replies to system emails go here, so WF4 never reads the rest of the shared inbox | No | WF4 "Send email" (filled in) | `scheduling-mailbox+scheduling@yourcompany.com` | Its own +scheduling address | Done |
-| 28 | Error workflow | WF5 tells the admin channel when a workflow fails | No | n8n, Settings of WF1 to WF4: Error workflow = WF5 (WF6 stays unpublished) | | | Command 5 |
+| # | Name | What it is for | Secret | Where it goes | Production value | Step |
+|---|---|---|---|---|---|---|
+| 19 | n8n address | Where the workflows run | No | | `https://your-instance.app.n8n.cloud` | Done |
+| 20 | `Gmail Sandbox` | Sends every email and reads replies, with n8n's own Sign in with Google (no Google Cloud Console) | Kept by n8n | n8n credential (Gmail OAuth2 API) | Done: `scheduling-mailbox@yourcompany.com` | Done |
+| 21 | `Discord Bot Sandbox` | Every call to Discord | Kept by n8n | n8n credential (Discord Bot API) | Done | Done |
+| 22 | `Google Drive Backups` | Uploads the nightly backup and keeps the newest 30, with n8n's own Sign in with Google (no Google Cloud Console) | Kept by n8n | n8n credential (Google Drive OAuth2 API) | Done (B2C account) | Done |
+| 23 | Backup folder ID | Where the backups go | No | n8n WF3, "Upload to Google Drive" and "List backups" (filled in) | `your-drive-folder-id` | Done |
+| 24 | `Supabase Sandbox` | n8n's access to the database | **Yes** (holds the secret key, row 5) | n8n credential (Header Auth: name `apikey`, value the secret key) | Done (a new key since 22 November 2026) | Command 5 |
+| 25 | `Poke Secret Sandbox` | Lets the app, the database clock, WF2, WF3 and WF5 ask WF4 to work at once (a poke) | Low (the browser can see it) | n8n credential (Header Auth: name `x-poke-key`); the same value in every Config node `pokeKey`, in `VITE_N8N_POKE_KEY` and in Supabase Vault (row 50) | Done: a long random string | Command 5 |
+| 26 | Config node `supabaseUrl`, `pokeUrl` | Where each workflow finds the database and WF4 | No | n8n, the Config node of each workflow (filled in by `npm run n8n-export -w scripts`; `pokeKey` stays a placeholder and is set by hand after every import or update) | Row 2, and `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | Done |
+| 27 | `VITE_N8N_POKE_URL` | The WF4 address the app pokes | No | `app/.env.sandbox` and Vercel | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | Command 6 |
+| 46 | n8n schedule | How often n8n runs without being asked | No | n8n. **Before 23 November 2026, 17:36 UTC:** WF1 every hour (the automatic check) and WF4 every 6 minutes (delivery, Discord checks, typed replies) keep their schedule triggers as a safety net while the database clock runs its first 24 hours. **After that:** the owner's plan is to switch those two schedule triggers off, so WF1 runs only if someone runs it and WF4 runs on pokes. Unchanged: WF2 (webhook), WF3 daily 09:00 IST, WF5 (error workflow), WF6 not published | The n8n Cloud Pro plan gives 10,000 executions a month, shared with the other workflows in the same n8n account. With both schedule triggers on, about 300 runs a day (docs/PROGRESS.md, 22 November) | Done |
+| 49 | Database clock (Release 3, M1) | The automatic check and the calls to WF4 run from the database, so n8n runs only when there is work (decision 281): pg_cron job `sme-engine-hourly` at minute 30 of every hour, and `sme-clock` every 2 minutes, which pokes WF4 when there is work and about every 10 minutes to read replies while a conversation is open (every 20 minutes above 8,000 n8n runs in the month, none above 9,300). If it is switched off (`npm run clock -w scripts -- off`), turn the schedule triggers of WF1 and WF4 back on and publish them again | No | `npm run clock -w scripts -- on <WF4 poke address>` (it sets `app_config.clock_enabled` and `n8n_poke_url`) | **On** since 22 November, 17:36 UTC (poke address `.../webhook/sandbox-sme-poke`; the poke key is in Vault as `n8n_poke_key`) | Done |
+| 50 | Poke key in Supabase Vault | The database sends it to WF4 in the `x-poke-key` header | **Yes** | Supabase, SQL editor: `select vault.create_secret('<the poke key>', 'n8n_poke_key');` (you paste the value; it never goes in a file or this chat) | The value of the n8n credential "Poke Secret Sandbox" | You add it |
+| 47 | Gmail label | Marks replies WF4 has handled, instead of marking them as read | No | Gmail, label "SME Scheduling/Processed"; its ID in `scripts/src/n8n-export.ts` | `Label_1` | Done |
+| 48 | Reply To address | Replies to system emails go here, so WF4 reads only these replies and bounces of emails the app sent, and never the rest of the shared inbox | No | WF4 "Send email", "Get system replies" and "Classify emails" (filled in) | `scheduling-mailbox+scheduling@yourcompany.com` | Done |
+| 28 | Error workflow | WF5 tells the admin channel when a workflow fails | No | n8n, Settings of WF1 to WF4: Error workflow = WF5 (WF6 stays unpublished) | | Command 5 |
 
 **Direct Gmail access:** nothing in the system needs a Gmail client ID, client secret or refresh token any more. n8n
 sends and reads mail with `Gmail Sandbox`. The only thing that used direct access, the automated journey on the hosted
 app (`npm run integration:sandbox`), was switched off (decision 252, docs/DEFERRED.md) and is now removed;
 docs/READY_FOR_TESTING.md has the same journey as manual steps.
 
-The n8n workflows people see are named `[Production] WF1 Hourly engine` to `[Production] WF6 Discord checks`
-(n8n/README.md explains the two folders of exported files).
+The n8n workflows people see are named `[Production] WF1 Hourly engine` to `[Production] WF6 Discord checks`. Their
+exported files are in `n8n/sandbox/`, built from the base files in `n8n/` (n8n/README.md explains how to change a
+workflow).
 
 ## Discord
 
-| # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
-|---|---|---|---|---|---|---|---|
-| 29 | Application ID | Builds the bot invite link on Settings, Connections | No | `app/.env.sandbox` and Vercel `VITE_DISCORD_CLIENT_ID` | `1200000000000000017` | | Command 6 |
-| 30 | Bot token | The bot's password | **Yes** | Only in the n8n credential (row 21) | Done | | Done |
-| 31 | Server Members Intent, Message Content Intent | Finding people by username, reading typed replies | No | Discord Developer Portal, Bot | On (done) | | Done |
-| 32 | Bot permissions | View Channels, Send Messages, Embed Links, Read Message History | No | The invite link; the bot's role on the "Test instructors" category and on private channels | | | Done |
-| 33 | Server ID | The test Discord server the hosted app uses | No | `.env.production` (row 15, not used in Production); in the app: Settings, Connections, Discord servers, choose it for each domain | `1200000000000000010` | | Commands 4, 8 |
-| 34 | Alert channel | The team is tagged here about a domain | No | App: Setup, Domains, the domain, Alert channel (chosen from the list) | `#alerts`, `1200000000000000012` | | Command 8 |
-| 35 | Admin alert channel | Problems with the app and the daily system summary | No | App: Settings, Connections, Admin alert channel | `#admin-alerts`, `1200000000000000013` | | Command 8 |
-| 36 | Test instructor channels | Each test instructor's own channel | No | App: Setup, Instructors, each instructor, channel for the domain | `#test-instructor-a` `1200000000000000014`, `#test-instructor-b` `1200000000000000015`, `#test-instructor-c` `1200000000000000016` (category "Test instructors") | | Command 8 |
-| 37 | Testing channel | Where every message of a domain goes while the domain's status is **Testing** | No | App: Setup, Domains (Testing status) and Settings, Testing | **Create a channel named `testing`** in the test Discord server (row 33). No ID is needed: choose it from the list | | Command 8 |
-| 38 | Your Discord user ID | Tagging you and sending you direct messages | No | Nowhere: type your Discord username on Setup, Team, and the app finds the ID | `1200000000000000008` | | Command 8 |
+| # | Name | What it is for | Secret | Where it goes | Production value | Step |
+|---|---|---|---|---|---|---|
+| 29 | Application ID | Builds the bot invite link on Settings, Connections | No | `app/.env.sandbox` and Vercel `VITE_DISCORD_CLIENT_ID` | `1200000000000000017` | Command 6 |
+| 30 | Bot token | The bot's password | **Yes** | Only in the n8n credential (row 21) | Done | Done |
+| 31 | Server Members Intent, Message Content Intent | Finding people by username, reading typed replies | No | Discord Developer Portal, Bot | On (done) | Done |
+| 32 | Bot permissions | View Channels, Send Messages, Embed Links, Read Message History | No | The invite link; the bot's role on the "Test instructors" category and on private channels | | Done |
+| 33 | Server ID | The test Discord server the hosted app uses | No | `.env.production` (row 15, not used in Production); in the app: Settings, Connections, Discord servers, choose it for each domain | `1200000000000000010` | Commands 4, 8 |
+| 34 | Alert channel | The team is tagged here about a domain | No | App: Setup, Domains, the domain, Alert channel (chosen from the list) | `#alerts`, `1200000000000000012` | Command 8 |
+| 35 | Admin alert channel | Problems with the app and the daily system summary | No | App: Settings, Connections, Admin alert channel | `#admin-alerts`, `1200000000000000013` | Command 8 |
+| 36 | Test instructor channels | Each test instructor's own channel | No | App: Setup, Instructors, each instructor, channel for the domain | `#test-instructor-a` `1200000000000000014`, `#test-instructor-b` `1200000000000000015`, `#test-instructor-c` `1200000000000000016` (category "Test instructors") | Command 8 |
+| 37 | Testing channel | Where every message of a domain goes while the domain's status is **Testing** | No | App: Setup, Domains (Testing status) and Settings, Testing | **Create a channel named `testing`** in the test Discord server (row 33). No ID is needed: choose it from the list | Command 8 |
+| 38 | Your Discord user ID | Tagging you and sending you direct messages | No | Nowhere: type your Discord username on Setup, Team, and the app finds the ID | `1200000000000000008` | Command 8 |
 
 ## Email
 
-| # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
-|---|---|---|---|---|---|---|---|
-| 39 | Sender mailbox | Where emails come from and replies go | No | The `Gmail Sandbox` credential (done); app: Settings, Connections, Advanced: links, Sender email | `scheduling-mailbox@yourcompany.com` | | Command 8 |
-| 40 | Test instructor emails | Test instructors; they all arrive in the B2C inbox | No | App: Setup, Instructors, tick "Test instructor" | `scheduling-mailbox+instructor-a@yourcompany.com`, `+instructor-b`, `+instructor-c` | | Command 8 |
-| 41 | Testing email | Where emails go while a domain is in Testing | No | App: Setup, Domains (Testing status) | Suggested: `scheduling-mailbox+testing@yourcompany.com` | | Command 8 |
+| # | Name | What it is for | Secret | Where it goes | Production value | Step |
+|---|---|---|---|---|---|---|
+| 39 | Sender mailbox | Where emails come from and replies go | No | The `Gmail Sandbox` credential (done); app: Settings, Connections, Advanced: links, Sender email | `scheduling-mailbox@yourcompany.com` | Command 8 |
+| 40 | Test instructor emails | Test instructors; they all arrive in the B2C inbox | No | App: Setup, Instructors, tick "Test instructor" | `scheduling-mailbox+instructor-a@yourcompany.com`, `+instructor-b`, `+instructor-c` | Command 8 |
+| 41 | Testing email | Where emails go while a domain is in Testing | No | App: Setup, Domains (Testing status) | Suggested: `scheduling-mailbox+testing@yourcompany.com` | Command 8 |
 
 ## Hosting
 
-| # | Name | What it is for | Secret | Where it goes | Production value | Separate setup (not used) | Step |
-|---|---|---|---|---|---|---|---|
-| 42 | Hosting project | Serves the web app | No | Vercel, team "your-team's projects" (Hobby), project `sme-scheduling`, deployed with the Vercel command line from this folder (no GitHub link); `.vercelignore` keeps every `.env` file out | `https://your-app.vercel.app` (done) | | Command 7 |
-| 43 | Hosting variables | The same `VITE_` values as `app/.env.sandbox` | No (the browser sees them) | Vercel, Settings, Environment Variables, Production (the one hosted environment) | Rows 2, 4, 13, 25, 27, 29 and 44 (done) | | Command 7 |
-| 44 | `VITE_ENABLE_DEV_LOGIN` | Email link sign in for the local stack only | No | Never set on a hosted app | `false` | `false` | |
-| 45 | OpenAI key (optional) | A one line summary of typed replies | **Yes** | n8n credential `OpenAI Sandbox` | Not needed | | Optional |
+| # | Name | What it is for | Secret | Where it goes | Production value | Step |
+|---|---|---|---|---|---|---|
+| 42 | Hosting project | Serves the web app | No | Vercel, team "your-team's projects" (Hobby), project `sme-scheduling`, deployed with the Vercel command line from this folder (no GitHub link); `.vercelignore` keeps every `.env` file out | `https://your-app.vercel.app` (done) | Command 7 |
+| 43 | Hosting variables | The same `VITE_` values as `app/.env.sandbox` | No (the browser sees them) | Vercel, Settings, Environment Variables, Production (the one hosted environment) | Rows 2, 4, 13, 25, 27, 29 and 44 (done) | Command 7 |
+| 44 | `VITE_ENABLE_DEV_LOGIN` | Email link sign in for the local stack only | No | Never set on a hosted app | `false` | |
+| 45 | OpenAI key (optional) | A one line summary of typed replies | **Yes** | n8n credential `OpenAI Sandbox` | Not needed | Optional |
 
 **Vercel plan.** The app is hosted on Vercel's free Hobby plan, which is for non commercial use. Cloudflare Pages is
 the free alternative the app already supports: both `vercel.json` and Cloudflare Pages work (docs/SETUP_GUIDE.md,
@@ -173,7 +175,8 @@ other script commands read `.env.production` too: `npm run backup -w scripts -- 
 `npm run clock -w scripts -- status|on|off`, `npm run admins -w scripts -- list|add|remove <email>` and
 `npm run discord:production -w scripts`.
 
-**5. n8n.** Make the workflow files, then import them in n8n.
+**5. n8n.** Make the workflow files from the base files in `n8n/` (they go to `n8n/sandbox/`, the one set), then
+import them in n8n, or update the live workflow from them.
 
 ```bash
 npm run n8n-export -w scripts
@@ -181,10 +184,11 @@ npm run n8n-export -w scripts
 
 Then, in n8n Cloud (n8n/README.md has every click):
 
-1. Create the two missing credentials: `Supabase Sandbox` and `Poke Secret Sandbox` (rows 24, 25).
+1. The two credentials `Supabase Sandbox` and `Poke Secret Sandbox` (rows 24, 25) exist in Production. A new setup creates them.
 2. Import the files from `n8n/sandbox/` (the Production workflows, named `[Production] WFn ...`), WF5 first (WF6
    may be imported but stays unpublished).
-3. In the Config node of WF2 to WF5, set `pokeKey` to the Poke Secret Sandbox value.
+3. In the Config node of WF2 to WF5, set `pokeKey` to the Poke Secret Sandbox value (after every import or update:
+   the files keep a placeholder).
 4. Set WF5 as the Error workflow of WF1 to WF4, then publish WF5 and WF4 first, then WF2, WF1 and WF3. Leave WF6 unpublished: WF4 does its Discord checks (decision 270).
 
 **6. Run the app on your computer against the Production database.** Copy `app/.env.sandbox.example` to

@@ -1,228 +1,244 @@
 # n8n workflows
 
-These six workflows connect the database (Supabase) to Discord, Gmail and Google Drive.
-They contain **no business rules and no domain, module or instructor names**. Every decision is made by
-database functions; n8n only calls them, sends the messages they queue, reports the result back,
-serves the pages they render and passes inbound replies to them.
+Six workflows connect the database (Supabase) to Discord, Gmail and Google Drive. They hold **no business rules and
+no domain, module or instructor names**. Every decision is made by database functions: n8n only calls them, sends the
+messages they queue, reports the result back, serves the answer pages they render and passes typed replies to them.
 
-| File | Workflow | Trigger | What it does |
-|---|---|---|---|
-| `WF1-hourly-engine.json` | WF1 Hourly engine | Every hour | Runs `engine_tick_all` (all checks for all domains). WF4 delivers what it queues within 6 minutes. |
-| `WF2-response-handler.json` | WF2 Response handler | Webhook `GET` and `POST` `/webhook/respond` | Shows the confirm page (`response_page`), records the answer when the button on the page is pressed (`submit_response_page`), then pokes WF4. |
-| `WF3-daily-jobs.json` | WF3 Daily jobs | Every day 09:00 IST | Runs `daily_jobs` (heartbeat), pokes WF4, exports a backup (`export_snapshot`) to Google Drive as `sme-backup-YYYY-MM-DD.json`. |
-| `WF4-action-runner.json` | WF4 Action runner (the heartbeat) | Webhook `POST /webhook/sme-poke` and every 6 minutes | Processes app actions (`next_actions` / `complete_action`) and **delivers all queued messages** by Discord and Gmail (`claim_outbound_messages` / `report_message_result`); runs the Discord checks people asked for (`next_discord_lookups` / `record_discord_result`); reads typed replies: Gmail replies to the +scheduling address and bounces, and the instructors' Discord channels. This is the only place messages are sent (decision 270). |
-| `WF6-discord-checks.json` | WF6 Discord checks (**not published**) | None: WF4 does this now (decision 270). Publish only if WF4 cannot. | Takes the Discord checks people asked for in the app (`next_discord_lookups`): lists the servers the bot is in, checks a domain's server and its channels, and finds people by Discord username (member search). Saves the raw answers with `record_discord_result`; the database decides what they mean. Never creates servers or channels. |
-| `WF5-error-handler.json` | WF5 Error handler | n8n error trigger | Records any workflow failure in History (`log_system_error`, which also queues an admin alert) and pokes WF4 so the alert goes out. If the database can't be reached, posts straight to the admin Discord channel. |
+They run on the owner's n8n Cloud Pro plan at `https://your-instance.app.n8n.cloud`: 10,000 executions a month,
+shared with the other workflows in the same n8n account.
 
-"Poke" = an empty `POST` to the WF4 webhook with the header `x-poke-key`. It carries no data; it only tells
-WF4 "there is work in the database, process it now". WF4 also runs every 6 minutes, so nothing is lost if a poke fails.
+Every credential and setting, with its value where it is not a secret, is in docs/CONFIGURATION.md.
 
-## The Production workflows and the two folders
+## The workflows
 
-There is one environment, **Production** (since 22 November 2026). It is the old Sandbox under a new name, in the same
-n8n instance, and there is no Sandbox any more. The live workflows are named `[Production] WF1 Hourly engine`,
-`[Production] WF2 Response handler`, `[Production] WF3 Daily jobs`, `[Production] WF4 Action runner`,
-`[Production] WF5 Error handler` and `[Production] WF6 Discord checks`.
+The live workflows are named `[Production] WF1 Hourly engine` to `[Production] WF6 Discord checks`. The database clock
+was switched on at 17:36 UTC on 22 November 2026 (decision 281). While it runs its first 24 hours, the schedule
+triggers of WF1 and WF4 stay on as a safety net. After 23 November 2026, 17:36 UTC, the owner's plan is to switch
+those two schedule triggers off. Until that is done in n8n, the "before" column is what runs.
 
-Some internal names keep the word Sandbox on purpose, because renaming them could break things. They are internal
-names only, not a second environment: the credential names, the tag `Sandbox`, the webhook paths
-`/webhook/sandbox-respond` and `/webhook/sandbox-sme-poke`, and the folder `n8n/sandbox/`.
+| File | Workflow | Trigger | Before 23 November, 17:36 UTC | After 23 November, 17:36 UTC | What it does |
+|---|---|---|---|---|---|
+| `WF1-hourly-engine.json` | WF1 Hourly engine | Schedule trigger "Every hour" (minute 0) | Every hour at minute 0. The database clock also runs the same check at minute 30 | Schedule trigger off: WF1 runs only when someone runs it by hand. The clock runs the automatic check every hour | Runs `engine_tick_all`, the automatic check for every domain. WF4 sends what it queues. WF1 does not poke WF4 and does not read replies |
+| `WF2-response-handler.json` | WF2 Response handler | Webhook `GET` and `POST` `/webhook/sandbox-respond` | Whenever an instructor opens an answer link or presses the button on the page | Unchanged | Shows the answer page (`response_page`, records nothing), records the answer when the button on the page is pressed (`submit_response_page`), then pokes WF4 so the next messages go out at once |
+| `WF3-daily-jobs.json` | WF3 Daily jobs | Schedule trigger "Every day 09:00" (Asia/Kolkata) | Every day at 09:00 IST | Unchanged | Runs `daily_jobs` (the daily system summary for the admin alert channel), pokes WF4 to send it, and saves the backup `sme-backup-YYYY-MM-DD.json` (`export_snapshot`) to Google Drive, keeping the newest 30 |
+| `WF4-action-runner.json` | WF4 Action runner | Webhook `POST /webhook/sandbox-sme-poke` (a poke) and schedule trigger "Every 6 minutes" | On every poke, and every 6 minutes | Schedule trigger off: WF4 runs only on pokes (from the database clock, the app, WF2, WF3 and WF5) | Runs app actions (`next_actions`, `complete_action`), delivers every queued Discord and Gmail message (`claim_outbound_messages`, `report_message_result`), runs the Discord checks people asked for (`next_discord_lookups`, `record_discord_result`) and reads typed replies by email and Discord. The only place messages are sent (decision 270) |
+| `WF5-error-handler.json` | WF5 Error handler | n8n error trigger | When another workflow fails | Unchanged | The error workflow of WF1 to WF4. See [Error handling](#error-handling-wf5) |
+| `WF6-discord-checks.json` | WF6 Discord checks | Schedule trigger "Every minute" | **Not published** | Unchanged: not published | WF4 does these checks now (decision 270). Kept as a spare: publish it only if WF4 cannot do them. It lists the servers the bot is in, checks a domain's server and its channels, and finds people by Discord username. It never creates servers or channels |
 
-The files in this folder are the **base** workflows. Do not import them directly. Run
+### How WF4 reads typed replies
+
+- **Email.** WF4 reads only mail sent to the +scheduling reply address (every system email carries it as its Reply To
+  address), and bounces of emails the app sent (they quote that address), from the last 3 days. The rest of the shared
+  inbox is never touched. **Classify emails** only parses: a bounce goes to `record_bounce`, anything else to
+  `record_inbound_message`. Since decision 311 a bounce counts only when it is in the Gmail thread of an email the app
+  sent to that address; any other "bounce" is logged as "Bounce ignored" in Activity history and changes nothing. The
+  files in `n8n/sandbox/` have this change; the live WF4 gets it with the batch 2 deploy (docs/PROGRESS.md).
+- **Labels, not read marks.** Each mail the database accepted gets the Gmail label **SME Scheduling/Processed**.
+  Nothing is marked as read, so people can still use the inbox as usual. A mail the database did not accept keeps no
+  label and is tried again at the next run.
+- **Discord.** WF4 reads newer messages in the instructors' channels listed by `discord_watchlist()` (channels in
+  approved servers, for instructors with an open request, an upcoming class or an open help request). Only messages
+  written by that channel's instructor are recorded, oldest first. The first time a channel is read, only messages
+  from the last 3 days are recorded. Reading needs the bot's Message Content Intent.
+- **How fast.** A typed reply shows in the app, in **Needs your attention**, within about 10 minutes while a
+  conversation is open (the app sent that instructor something in the last 3 days). Otherwise it is read at WF4's next
+  run.
+
+## The database clock and pokes
+
+A **poke** is a `POST` to WF4's webhook with the header `x-poke-key`. It carries no data; it only tells WF4 "there is
+work in the database, do it now".
+
+Since 22 November 2026, 17:36 UTC, the database keeps the clock (Release 3, M1, decision 281). `pg_cron` in Supabase
+runs two jobs:
+
+| Job | When | What it does |
+|---|---|---|
+| `sme-engine-hourly` | Every hour at minute 30 | Runs the automatic check (`engine_tick_all`) inside the database, as WF1 does |
+| `sme-clock` | Every 2 minutes | Pokes WF4 through `pg_net` only when there is work: a message waiting to be sent, a queued app action, a queued Discord check, or an open conversation whose replies were last read 10 minutes ago or more. At most one poke a minute |
+
+Reading replies follows the n8n runs the app counted this month (UTC):
+
+| n8n runs this month | Replies read while a conversation is open |
+|---|---|
+| Under 8,000 | About every 10 minutes |
+| 8,000 to 9,299 | About every 20 minutes |
+| 9,300 and more | The clock no longer pokes for replies. Replies are still read whenever WF4 runs for other work, and messages still go out |
+
+When the count reaches 8,000, Activity history records "n8n budget: replies read less often" once that month.
+
+The clock needs the WF4 poke address in the database and the poke key in Supabase Vault (secret `n8n_poke_key`, the
+same value as the `Poke Secret Sandbox` credential). The app's buttons, WF2, WF3 and WF5 also poke WF4, so their
+messages go out within seconds.
 
 ```bash
-npm run n8n-export -w scripts
+npm run clock -w scripts -- status
+npm run clock -w scripts -- on https://<your n8n>/webhook/sandbox-sme-poke
+npm run clock -w scripts -- off
 ```
 
-to build the two exported sets:
+`status` only reads: whether the clock is on, both jobs, whether the poke key is in Vault (yes or no only, never the
+value), the last poke and its result, and the n8n runs this month by workflow.
 
-- **`n8n/sandbox/`** holds the exported copies of the live Production workflows. The folder keeps its old name.
-- **`n8n/production/`** holds older templates for a separate Production setup that was not used. Do not import them
-  into the live n8n.
+**If the clock is switched off** (`npm run clock -w scripts -- off`), n8n no longer gets the clock's pokes and the
+automatic check no longer runs in the database. Turn the schedule triggers of WF1 and WF4 back on and publish both
+workflows again at once, so n8n works on its own schedule.
 
-| | `n8n/sandbox/` (live Production) | `n8n/production/` (not used) |
-|---|---|---|
-| Workflow names | `[Production] WF1 Hourly engine` and so on | `[Production] WF1 Hourly engine` and so on |
-| Tag | `Sandbox` (internal name, kept on purpose) | `Production` |
-| Credential names | `Gmail Sandbox`, `Discord Bot Sandbox`, `Google Drive Backups`, `Supabase Sandbox`, `Poke Secret Sandbox` (kept on purpose) | The same with `Production` |
-| WF2 webhook | `/webhook/sandbox-respond` (kept: links in messages already sent use it) | `/webhook/respond` |
-| WF4 webhook | `/webhook/sandbox-sme-poke` (kept) | `/webhook/sme-poke` |
-| Config values | Filled in: the Production Supabase and n8n addresses | `https://YOUR-PRODUCTION-PROJECT.supabase.co` to replace |
+## Credentials
 
-Only the `n8n/sandbox/` set runs. It talks to the Production Supabase project, the bot behind `Discord Bot Sandbox`
-and the B2C mailbox. Change the base files, then export again; never edit the exported files by hand.
+The workflows look credentials up by these exact names (decision 264). The names keep the word Sandbox on purpose:
+they are internal names of the one live set, not a second environment. All five exist in the live n8n.
 
-### Every credential and variable
-
-See docs/CONFIGURATION.md: one table of every value, where it goes, and the Production value where it is known.
-
-## 1. Before you start
-
-You need:
-
-1. The Supabase project URL, for example `https://abcdefgh.supabase.co`.
-2. Admin access to the company Discord server.
-3. A Google Workspace account for the dedicated scheduling mailbox (for example `scheduling@…`), and access to Google Cloud Console.
-4. A Google Drive folder for the nightly backups (Production: `your-drive-folder-id`).
-5. Your n8n address, for example `https://n8n.yourcompany.com` (written as `https://<your-n8n>` below).
-
-## 2. Create the credentials
-
-In n8n: **Overview → Credentials → Create credential**. The workflows look credentials up by these exact names
-(decision 264). Production keeps the internal Sandbox credential names and already has three of them; you only create the other two.
-
-| Name (Production) | Name (separate setup, not used) | Type | State in Production |
+| Name | Type | Used by | What for |
 |---|---|---|---|
-| `Gmail Sandbox` | `Gmail Production` | Gmail OAuth2 API, with n8n's own **Sign in with Google** | Done: the B2C mailbox |
-| `Discord Bot Sandbox` | `Discord Bot Production` | Discord Bot API (the bot token) | Done |
-| `Google Drive Backups` | `Google Drive Backups Production` | Google Drive OAuth2 API, with n8n's own **Sign in with Google** | Done |
-| `Supabase Sandbox` | `Supabase Production` | Header Auth | To create (2.1) |
-| `Poke Secret Sandbox` | `Poke Secret Production` | Header Auth | To create (2.2) |
+| `Gmail Sandbox` | Gmail OAuth2 API, with n8n's own **Sign in with Google** | WF4 | Sends every email from the scheduling mailbox, reads the replies and bounces, adds the Processed label |
+| `Discord Bot Sandbox` | Discord Bot API (the bot token) | WF4, WF5, WF6 | Posts, direct messages, reading replies, the server and username checks, WF5's fallback alert |
+| `Google Drive Backups` | Google Drive OAuth2 API, with n8n's own **Sign in with Google** | WF3 | Uploads the nightly backup and moves backups older than the newest 30 to the Drive bin |
+| `Supabase Sandbox` | Header Auth: name `apikey`, value the Supabase secret key (`sb_secret_…`) | All six | Every database call. Do not add an `Authorization: Bearer` header. This key bypasses row level security, so keep it private |
+| `Poke Secret Sandbox` | Header Auth: name `x-poke-key`, value a long random string | WF4's poke webhook | Refuses any poke without the right key |
 
-No Google Cloud OAuth client, client secret, refresh token or service account is needed: n8n Cloud signs in to Gmail
-and Google Drive itself.
+No Google Cloud Console is needed: n8n Cloud signs in to Gmail and Google Drive itself, with its own "Sign in with
+Google". There is no Gmail or Drive client ID, client secret, refresh token or service account.
 
-### 2.1 "Supabase Sandbox" (Header Auth)
+The bot needs only View Channels, Send Messages, Embed Links and Read Message History, plus the Server Members Intent
+(username searches) and the Message Content Intent (typed replies). Both are on.
 
-1. In Supabase: **Project Settings → API Keys → Secret keys**. Create one named `n8n`, or copy the existing
-   `sb_secret_…` key.
-2. In n8n create a credential of type **Header Auth**, name `Supabase Sandbox`.
-3. Header **Name**: `apikey`. Header **Value**: the `sb_secret_…` key.
-4. Do **not** add an `Authorization: Bearer` header. The new Supabase keys only go in the `apikey` header.
+An optional `OpenAI Sandbox` credential is not created. The note "Optional AI summary" in WF4 shows where an OpenAI
+node could add a one line `p_summary` to typed email replies. AI never decides anything.
 
-Keep this key private: it bypasses all row level security.
+## The Config node
 
-### 2.2 "Poke Secret Sandbox" (Header Auth)
+Every workflow starts with a **Config** Code node. It is the only node you change by hand.
 
-1. Make a long random string (for example from your password manager).
-2. In n8n create a credential of type **Header Auth**, name `Poke Secret Sandbox`, header **Name** `x-poke-key`,
-   header **Value** the random string.
-3. Keep the string: it also goes in every Config node (`pokeKey`, step 4) and in the app (`VITE_N8N_POKE_KEY`).
+| Setting | Workflows | What it is |
+|---|---|---|
+| `supabaseUrl` | WF1 to WF6 | The Supabase project address |
+| `pokeUrl` | WF1 to WF5 | WF4's poke webhook (production URL) |
+| `pokeKey` | WF1 to WF5 | The same value as the `Poke Secret Sandbox` credential. WF2, WF3 and WF5 send it; WF1 no longer pokes |
 
-### 2.3 What the existing credentials are used for
+The export fills in `supabaseUrl` and `pokeUrl`. `pokeKey` stays a placeholder in every file, so **after each import
+or update, set `pokeKey` again** in WF2, WF3, WF4 and WF5 before you publish. Never write its value in a file, a doc
+or a chat.
 
-- **Discord Bot Sandbox**: every call to Discord (posts, direct messages, reading replies, the server and username
-  checks). The bot needs only View Channels, Send Messages, Embed Links and Read Message History, and the
-  Server Members Intent and Message Content Intent switched on (both are on).
-- **Gmail Sandbox**: sends every email from the B2C mailbox and reads the replies to it.
-- **Google Drive Backups**: WF3 uploads the nightly backup to the backup folder
-  (`your-drive-folder-id`, already filled in) and moves backups older than the newest 30 to the
-  Drive bin.
+The export also fills in two values outside the Config node: the backup folder (WF3, **Upload to Google Drive** and
+**List backups**) and the Gmail label ID of "SME Scheduling/Processed" (WF4, **Label as processed**). The +scheduling
+reply address is written in WF4's base file itself (**Send email**, **Get system replies** and **Classify emails**).
 
-## 3. Import the workflows
+## Changing a workflow
 
-Import from `n8n/sandbox/` (the Production workflows). `n8n/production/` is only for a separate new setup.
-Import **WF5 first** (the others point to it as their error workflow), then the rest:
+There is one workflow set: `n8n/sandbox/` holds the exported copies of the live workflows (the folder keeps its old
+name). The second set, `n8n/production/`, and its generator option were removed on 23 November 2026 (decision 315),
+because nothing used them.
 
-1. In n8n: **Overview → Create → Workflow** (or **Workflows → Add workflow**), then the **…** menu (top right) → **Import from File…**.
-2. Choose `WF5-error-handler.json`. Save.
-3. Repeat for `WF4-action-runner.json`, `WF2-response-handler.json`, `WF1-hourly-engine.json`, `WF3-daily-jobs.json` (one new workflow each). You may import `WF6-discord-checks.json` too, but leave it unpublished.
-4. In each workflow, open every node that shows a red credential warning and pick the matching credential from the list
-   (the imported files only carry the credential *names*; n8n usually matches them automatically).
+The files in this folder (`n8n/WF*.json`) are the **base** files. Never import them, and never edit the exported files
+by hand.
 
-## 4. Edit the Config node in every workflow
+1. Change the base file in `n8n/`.
+2. Build the exported files:
 
-Every workflow starts with a **Config** Code node. In the `n8n/sandbox/` files the Supabase address
-(`https://abcdefghijklmnopqrst.supabase.co`) and the WF4 address
-(`https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke`) are already filled in. Only one value is left:
+   ```bash
+   npm run n8n-export -w scripts
+   ```
 
-```js
-const pokeKey = 'REPLACE_WITH_POKE_SECRET';   // the value of the "Poke Secret Sandbox" credential (step 2.2)
-```
+   It writes `n8n/sandbox/`: it names each workflow `[Production] …`, adds the tag `Sandbox`, sets the credential names
+   above, puts `sandbox-` in front of the webhook paths and fills in the addresses.
+3. Update the live workflow in n8n: open it, select every node and delete them, then the **…** menu (top right),
+   **Import from File…**, and choose the file from `n8n/sandbox/`. This keeps the workflow, its settings and its
+   history. A new setup imports each file as a new workflow instead, **WF5 first** (the others point to it).
+4. Open every node with a red credential warning and choose the credential with the same name (n8n usually matches
+   them by itself).
+5. Set `pokeKey` in the Config node (see above).
+6. If the schedule trigger of WF1 or WF4 is switched off in the live workflow, switch it off again in the imported
+   copy: the base files still have both triggers.
+7. Check the error workflow: the **…** menu, **Settings**, **Error workflow** = **[Production] WF5 Error handler**, for
+   WF1 to WF4. WF5 has none.
+8. **Publish** (the button at the top). Only published workflows run on schedule and answer their production
+   webhooks. Publish WF5 and WF4 first. Leave WF6 unpublished.
+9. Run the workflow once and check its execution (see [Checking runs](#checking-runs-and-the-monthly-count)).
 
-Do this in WF2 to WF5 (WF1 no longer pokes WF4).
+n8n keeps every workflow's earlier versions. To roll back, open the version history, restore the previous version and
+publish it.
 
-WF3's backup folder is filled in too, in **Upload to Google Drive** and **List backups**. For a separate setup from
-`n8n/production/`, replace
-`REPLACE_WITH_PRODUCTION_DRIVE_FOLDER_ID` in both with the Production folder ID (the last part of the folder's address
-in Drive: `https://drive.google.com/drive/folders/<this part>`), and the Supabase address in every Config node.
+## Webhook paths
 
-## 5. Set the error workflow
+The paths keep the word sandbox on purpose: links in messages already sent use them.
 
-For **WF1, WF2, WF3 and WF4**: open the workflow → **…** menu → **Settings** → **Error workflow** → choose
-**[Production] WF5 Error handler** → Save. (WF5 itself has no error workflow.)
+| Workflow | Method | Production URL | Protection | Where it is set |
+|---|---|---|---|---|
+| WF2 | `GET` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond?t=<token>` | None; **Ignore Bots** is on, so link preview bots get no page | `RESPONSE_BASE_URL` in `.env.production`, written into the database by `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). The app shows it read only on Settings, Connections, Advanced: links |
+| WF2 | `POST` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` | None; the form on the answer page posts here | The same |
+| WF4 | `POST` | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | Header `x-poke-key` (`Poke Secret Sandbox`) | The app's `VITE_N8N_POKE_URL` and `VITE_N8N_POKE_KEY` (Vercel), the `pokeUrl` and `pokeKey` Config settings, and the database clock (`npm run clock -w scripts -- on <address>`, the key in Vault) |
 
-## 6. Publish (activate) the workflows
+The test URLs (`/webhook-test/...`) work only while you press "Listen for test event" in n8n. Never put a test URL in
+the app or the database.
 
-1. Publish each workflow (n8n 2.x: the **Publish** button at the top; older versions: the **Active** toggle).
-   Publish WF5 and WF4 first.
-2. Only published workflows run on schedule and answer their **production** webhook URLs
-   (`/webhook/...`). The **test** URLs (`/webhook-test/...`) only work while you click "Listen for test event".
-3. Production URLs (open the webhook node → **Production URL** to copy them):
-   - WF4: `https://<your-n8n>/webhook/sandbox-sme-poke` (Production; the path keeps its name) or
-     `https://<your-n8n>/webhook/sme-poke` (separate setup)
-   - WF2: `https://<your-n8n>/webhook/sandbox-respond` (Production; the path keeps its name) or
-     `https://<your-n8n>/webhook/respond` (separate setup)
+The app sends the poke as a normal (CORS) `fetch` with the `x-poke-key` header; in `no-cors` mode the browser drops
+the header and n8n refuses the poke (403). The poke key can be seen by anyone who loads the app, which is acceptable:
+a poke carries no data and only makes n8n do work that is already in the database. To limit who can poke from a
+browser, change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the app's address.
 
-## 7. Tell the database and the app where n8n is
+## Error handling (WF5)
 
-1. **Answer page link (WF2).** Every instructor button and the form on every answer page is built from it. Put
-   the WF2 production address in `RESPONSE_BASE_URL` in `.env.production` (`/webhook/sandbox-respond` for
-   Production), then run `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). It must start with `https://`. The app shows
-   it read only on **Settings, Connections, Advanced: links**; it cannot be changed from the app (decision 205).
-2. **Poke URL and secret (WF4)**, in the app's environment (Vercel → your project → Settings → Environment Variables, and `app/.env.sandbox` when you run the app on your computer against Production):
-   - `VITE_N8N_POKE_URL` = `https://<your-n8n>/webhook/sandbox-sme-poke` for Production (`/webhook/sme-poke` in a
-     separate setup)
-   - `VITE_N8N_POKE_KEY` = the Poke secret value
-   - Redeploy the app after changing them.
-   - The same URL and secret go in each workflow's **Config** node (step 4).
-3. In the app, choose the **Admin alert channel** on **Settings, Connections, Discord servers** (from the list), so
-   failure alerts and the daily system summary have somewhere to go.
-4. The app must send the poke as a normal (CORS) `fetch` with the `x-poke-key` header. Browsers silently drop custom
-   headers in `no-cors` mode, and n8n then rejects the poke (403). WF4 still delivers within 6 minutes, but not instantly.
+WF5 is the **Error workflow** of WF1 to WF4. When one of them fails:
 
-Note: the poke key is visible to anyone who can load the app in a browser. That is acceptable because a poke carries no
-data and can only make n8n process work that is already in the database. To limit who can call it from a browser,
-change **Allowed Origins (CORS)** in WF4's **Poke webhook** node from `*` to the app's address.
+1. `log_system_error` records the failure in Activity history and queues an alert for the admin alert channel.
+2. WF5 pokes WF4, so the alert goes out at once.
+3. If the database cannot be reached, WF5 posts the error straight to the admin alert channel with the bot.
 
-## 8. Test it
+Inside the workflows:
 
-1. On **Settings, Testing**, choose the testing channel and testing email, then press **Turn on testing** for a domain.
-2. Press **Send test alert** on **Setup, Team** (a team alert), and **Send contact check** for a test instructor on
-   **Setup, Instructors**. Within seconds a message should appear in Discord and the inbox. If not, check WF4's
-   **Executions** list.
-3. Press **Run the automatic check now** on **Settings, Testing**: WF4 runs the engine and sends anything due. While a
-   domain is being tested, every instructor message goes to the testing channel and testing email, and says who it
-   would have gone to.
-4. Click a button in a test message: the confirm page opens (nothing is recorded yet). Press the button on the page:
-   the answer is recorded and follow-up messages arrive within seconds.
-5. Type a reply in a test instructor's Discord channel or reply to a test email; after the next hourly run (or run WF1
-   manually with **Execute workflow**) it shows up in **Needs Attention**.
-6. Run WF3 manually once and check that `sme-backup-YYYY-MM-DD.json` appears in the backup folder. Only the newest 30 backups are kept; older ones go to the Drive bin.
-7. To test WF5, temporarily break the Supabase URL in WF1's Config and run WF1: an admin alert should arrive and a
-   History entry should be recorded (put the URL back afterwards).
+- Most database and Discord calls continue on error and report the problem instead of stopping the run. WF4 reports
+  every claimed message back, failed or not.
+- WF2 shows a friendly error page (HTTP 503) if the database cannot be reached and marks its run failed, so WF5
+  alerts the admin. Nothing is retried; the instructor can press the button again.
+- WF3 runs every step even if one fails, then fails its run at the end if anything went wrong, so WF5 alerts the
+  admin.
+- WF4 logs a problem reading Gmail or Discord with `log_system_error` ("Inbound reading failed at …").
 
-## 9. Good to know
+## Checking runs and the monthly count
 
-- **Confirm pages and n8n's sandbox.** n8n serves HTML returned by a webhook with a sandboxing Content-Security-Policy.
-  That sandbox allows forms, so the confirm page's button (a plain HTML form) works without changing any n8n
-  environment variable. The form posts to the absolute `response_base_url`, which is why step 7.1 matters.
-  The pages are mobile-friendly HTML produced by the database.
-- **Link scanners.** Opening a link (GET) never records anything; only pressing the button on the page (POST) does.
-  The GET webhook also has **Ignore Bots** on, so link-preview bots get no page at all.
-- **Message delivery.** WF4 claims up to 25 messages per run, sends each one on its single channel, and reports every
-  claimed row back. Failures are reported with the error text; 4xx errors (except 429) are marked permanent
-  (for example Discord "Missing Access" / "Unknown Channel", invalid email address), everything else is temporary.
-  The database re-queues temporary failures (up to 3 attempts) and raises alerts. If more than 25 are waiting,
-  the rest go on the next poke or within 6 minutes. A row stuck in "Sending" (for example n8n restarted mid-send) is
-  re-queued automatically by the database after 15 minutes.
-- **Discord rate limits.** WF4 waits 1 second after each Discord send; WF1 reads channels 2 per second.
-- **Discord replies.** Only channels returned by `discord_watchlist()` are read, and only messages written by that
-  channel's instructor are recorded. The first time a channel is read, only messages from the last 3 days are recorded,
-  so old chat history is not imported.
-- **Email replies.** WF1 reads unread inbox mail from the last 3 days and marks it as read once the database has accepted it.
-  Do not read the scheduling mailbox's inbox by hand in a way that marks mails read before the hourly run,
-  or leave them unread.
-- **Branch order.** All workflows use execution order v1: branches run top to bottom, one after another. Some workflows
-  rely on that (for example WF4 marks actions Done only after delivery). Keep the layout if you move nodes.
-- **Optional AI summary.** WF1 has a note showing where an OpenAI node could add a one-line `p_summary` to typed replies.
-  AI never decides anything.
-- **Timezones.** WF3's workflow timezone is set to Asia/Kolkata, so 09:00 means 09:00 IST regardless of the server timezone.
-- **Why `Accept: text/html`.** `response_page` and `submit_response_page` return the Postgres domain type `"text/html"`,
-  so Supabase (PostgREST) answers with raw HTML when asked with `Accept: text/html`. WF2 passes it straight through.
-  These two functions can only be called with the secret key — the app's publishable key gets "permission denied".
+- **One workflow's runs:** in n8n, open the workflow, **Executions**. Each run shows its trigger, its result and every
+  node's data.
+- **The clock:** `npm run clock -w scripts -- status` shows the last poke, its reason (for example "messages to
+  send" or "reading replies") and its result ("sent", or why not).
+- **The monthly count, as the app counts it:** Settings, Connections, **Usage** (admins), or the `status` command
+  above. The app counts each run from the first database call a workflow makes, per workflow and month (UTC), only
+  for calls made by n8n (`n8n_usage`). The jobs the database runs itself are not n8n runs and are not counted.
+- **The monthly count, as n8n counts it:** the n8n Cloud dashboard, **Usage**. It can be higher than the app's count,
+  because the 10,000 are shared with the other workflows in the same n8n account.
 
-## 10. Checking everything without credentials (mock mode)
+## Troubleshooting
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| Messages stay waiting to send | Messages are paused, the clock is off or cannot poke, or WF4 is not published | Check for the red paused bar in the app. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go ("no poke key in Vault", "no poke address", "no pg_net"). Check that WF4 is published and its last executions succeeded. Run WF4 by hand once |
+| WF4 refuses pokes (403) | The `x-poke-key` value differs between the caller and `Poke Secret Sandbox` | Check that the Config nodes (`pokeKey`), the app's `VITE_N8N_POKE_KEY` and the Vault secret `n8n_poke_key` all hold the credential's value. After an update from the files, `pokeKey` is back to its placeholder |
+| The automatic check on Settings, Connections is old | The clock is off, or the Supabase project is paused | Run `npm run clock -w scripts -- status`. If the clock is off and WF1's schedule trigger is off too, nothing runs the check: switch the clock on, or turn WF1's schedule trigger back on and publish |
+| A typed reply does not show in Needs your attention | No conversation is open, reply reading slowed down, or the reply went elsewhere | Replies are read within about 10 minutes only while the app sent that instructor something in the last 3 days, and less often above 8,000 runs a month. Email replies count only when sent to the +scheduling address; Discord replies only in the instructor's own channel in an approved server, written by that instructor. Run WF4 by hand to read at once |
+| A bounce changed nothing | It was not in the Gmail thread of an email the app sent to that address (decision 311) | Activity history says "Bounce ignored". This is on purpose: a fake "Undeliverable" email cannot mark an address as broken |
+| The button on an answer page does nothing | The answer page link is the test URL, or WF2 is not published | Use `/webhook/sandbox-respond` in `RESPONSE_BASE_URL`, run configure again, and publish WF2 |
+| A workflow failed | Any error | The admin alert channel and Activity history have the error from WF5. Open the execution in n8n to see which node failed |
+| A node shows a red credential warning after an import | The credential was not matched by name | Choose the credential with the same name from the list |
+| The monthly count is close to 10,000 | Too many runs, from these or other workflows in the account | Check Usage in the app and on the n8n dashboard. Reply reading slows down by itself above 8,000. Make sure WF6 is unpublished and the schedule triggers of WF1 and WF4 are off while the clock runs |
+
+## Good to know
+
+- **Message delivery.** WF4 claims up to 25 messages per run, sends each on its one channel and reports every claimed
+  row back. 4xx errors (except 429) are permanent (for example Discord "Missing Access" or "Unknown Channel", or an
+  invalid email address); everything else is temporary. The database tries temporary failures again (up to 3 attempts)
+  and raises tasks. More than 25 waiting go at the next run. A message stuck in "Sending" (for example after n8n
+  restarted during a send) is queued again by the database after 15 minutes.
+- **Discord rate limits.** WF4 waits 1 second after each Discord send and reads channels 2 per second.
+- **Branch order.** All workflows use execution order v1: branches run top to bottom, one after another. WF4 relies on
+  it (it marks actions Done only after delivery), so keep the layout if you move nodes.
+- **Time zone.** WF3's workflow time zone is Asia/Kolkata, so 09:00 means 09:00 IST.
+- **Answer pages.** `response_page` and `submit_response_page` return the Postgres domain type `"text/html"`, so
+  Supabase answers with raw HTML when asked with `Accept: text/html`, and WF2 passes it straight through. Only the
+  secret key may call them; the app's publishable key gets "permission denied". n8n serves the page with a sandboxing
+  Content Security Policy that still allows forms, so the button (a plain HTML form) works without changing any n8n
+  setting. Opening a link (`GET`) never records anything; only pressing the button (`POST`) does.
+
+## Checking everything without credentials (mock mode)
 
 From the repository root, with the local database running (`npm run db:start`):
 
@@ -230,7 +246,8 @@ From the repository root, with the local database running (`npm run db:start`):
 npm run mock -- --race
 ```
 
-This runs the real engine through a full module-week timeline (readiness → outreach → reminder → move on → decline →
-Yes → check-ins → Need help → Can't make it), prints every message n8n would send on each channel, simulates the
-confirm-page GET/POST exactly as WF2 does, and finally presses the same "Yes" link from two database connections at
-once to show that only one booking is created. The timeline runs inside a transaction that is rolled back.
+This runs the real engine through a full class week timeline (setup check, request to teach, reminder about the
+request, moving on, a No, a Yes, reminders before class, Need help, Can't make it), prints every message n8n would
+send on each channel, plays the answer page `GET` and `POST` exactly as WF2 does, and finally presses the same "Yes"
+link from two database connections at once to show that only one booking is created. The timeline runs inside a
+transaction that is rolled back.

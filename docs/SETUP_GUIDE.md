@@ -99,7 +99,7 @@ you add every domain, module, instructor and team member in the app, guided by t
    | `ALLOWED_EMAIL_DOMAIN` | `yourcompany.com` | The same |
    | `SANDBOX_ALLOWED_DISCORD_SERVERS` | `1200000000000000010` (not used in Production) | Leave empty |
    | `SANDBOX_ALLOWED_EMAIL_DOMAINS` | `yourcompany.com` (not used in Production) | Leave empty |
-   | `RESPONSE_BASE_URL` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` (the path keeps its name) | `https://your-instance.app.n8n.cloud/webhook/respond` |
+   | `RESPONSE_BASE_URL` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` (the path keeps its name) | `https://<your n8n>/webhook/sandbox-respond` (the export always gives this path) |
    | `APP_BASE_URL` | `https://your-app.vercel.app` | The new app address |
 
 3. Run:
@@ -152,8 +152,9 @@ For a new setup: in <https://console.cloud.google.com>, **Google Auth Platform, 
 application**, with the **Callback URL** from the new Supabase project (`https://<project ref>.supabase.co/auth/v1/callback`)
 as the Authorized redirect URI. Paste its Client ID and secret into the new Supabase project, Google provider.
 
-**No other Google Cloud setup is needed** (decision 264): n8n Cloud signs in to Gmail and Google Drive itself, with
-its own "Sign in with Google". There is no Gmail client ID, client secret, refresh token or service account.
+**n8n needs no Google Cloud Console at all** (decision 264): Gmail and Google Drive use n8n's own "Sign in with
+Google" credentials (`Gmail Sandbox` and `Google Drive Backups`). There is no Gmail or Drive client ID, client secret,
+refresh token or service account. The client above is only for signing in to the app.
 
 ---
 
@@ -162,7 +163,13 @@ its own "Sign in with Google". There is no Gmail client ID, client secret, refre
 Production sends from, and reads replies to, `scheduling-mailbox@yourcompany.com`, through the n8n
 credential `Gmail Sandbox` (done; the credential keeps its name). The test instructors use plus addresses of the same
 mailbox, so every test email arrives in the B2C inbox: `scheduling-mailbox+instructor-a@yourcompany.com`,
-`+instructor-b` and `+instructor-c`. A new setup would need its own mailbox and an n8n credential `Gmail Production`.
+`+instructor-b` and `+instructor-c`.
+
+WF4 reads only replies sent to the +scheduling reply address
+(`scheduling-mailbox+scheduling@yourcompany.com`, the Reply To address of every system email) and bounces
+of emails the app sent. It labels each mail it handled **SME Scheduling/Processed** and never marks mail as read; the
+rest of the shared inbox is never touched. A new setup would need its own mailbox, signed in to a credential with the
+same name, `Gmail Sandbox`, because the workflows look credentials up by name.
 
 ---
 
@@ -185,8 +192,8 @@ The app uses Discord servers you already have. It never creates servers or chann
 
 1. Go to <https://discord.com/developers/applications>, **New Application**, name `SME Scheduling`.
 2. **Bot**, **Reset Token**, copy the token (it is shown once). It goes only into the n8n credential
-   `Discord Bot Sandbox` (Production keeps this name) or, for a new setup, `Discord Bot Production` (type Discord Bot
-   API). Never put it in a file that is committed. **Production: done.**
+   `Discord Bot Sandbox` (type Discord Bot API; the workflows look it up by this name). Never put it in a file that is
+   committed. **Production: done.**
 3. On the same page, under **Privileged Gateway Intents**, switch on **Server Members Intent** (the app finds people
    by their Discord username) and **Message Content Intent** (the app reads typed replies). Save.
 4. **General Information**: copy the **Application ID** (Production: `1200000000000000017`). It goes into
@@ -205,34 +212,64 @@ You add the bot to the servers and choose channels in part 7.5, once the app is 
 
 ## Part 5. n8n (the automation)
 
-n8n only moves messages in and out. Every decision is made by the database.
+n8n only moves messages in and out. Every decision is made by the database. It runs on the owner's n8n Cloud Pro
+plan: 10,000 executions a month, shared with the other workflows in the same n8n account. n8n/README.md has every
+step; this is the short version.
 
-1. In the repository run:
+**Production: done.** The six workflows are live as `[Production] WF1 Hourly engine` to
+`[Production] WF6 Discord checks`, and all five credentials exist.
+
+1. There is one workflow set: `n8n/sandbox/` holds the exported copies of the live workflows (the folder keeps its old
+   name). `n8n/production/` and its generator option were removed on 23 November 2026 (decision 315). To change a
+   workflow, edit its base file in `n8n/`, then run:
 
    ```bash
    npm run n8n-export -w scripts
    ```
 
-   `n8n/sandbox/` holds the exported copies of the live Production workflows, which n8n shows as
-   `[Production] WF1 Hourly engine` to `[Production] WF6 Discord checks` (the folder keeps its old name).
-   `n8n/production/` holds older templates for a separate Production setup that was not used. n8n/README.md explains
-   both.
-2. Follow `n8n/README.md` from section 2. In short:
-   1. The workflows use exactly these credential names, which keep the word Sandbox. Production already has the first
-      three: `Gmail Sandbox`, `Discord Bot Sandbox`, `Google Drive Backups`. Create the other two: `Supabase Sandbox`
-      (Header Auth, name `apikey`, value the secret key) and `Poke Secret Sandbox` (Header Auth, name `x-poke-key`,
-      value a long random string from your password manager).
-   2. Import the six files from `n8n/sandbox/`, WF5 first.
-   3. In the **Config** node of WF1 to WF5 set `pokeKey`. The Production Supabase address, the WF4 address and the
-      backup folder (`your-drive-folder-id`, newest 30 backups kept) are already filled in.
-   4. Set WF5 as the **Error workflow** of WF1 to WF4. Publish WF5 and WF4 first, then the rest. Leave WF6 unpublished (WF4 does its checks).
-3. Copy the two webhook addresses. The Production paths keep the word sandbox, because links in messages already sent
-   use them:
+   Then update the live workflow from `n8n/sandbox/` and publish it (n8n/README.md, "Changing a workflow").
+2. The workflows use exactly these credential names, which keep the word Sandbox on purpose: `Gmail Sandbox` and
+   `Google Drive Backups` (n8n's own **Sign in with Google**; no Google Cloud Console), `Discord Bot Sandbox` (the bot
+   token), `Supabase Sandbox` (Header Auth, name `apikey`, value the secret key) and `Poke Secret Sandbox` (Header
+   Auth, name `x-poke-key`, value a long random string from your password manager).
+3. A new setup imports the six files from `n8n/sandbox/`, WF5 first. In the **Config** node of WF2 to WF5 set
+   `pokeKey` (after every import or update too: the files keep a placeholder). The Supabase address, the WF4 address and
+   the backup folder (`your-drive-folder-id`, newest 30 backups kept) are already filled in.
+4. Set WF5 as the **Error workflow** of WF1 to WF4. Publish WF5 and WF4 first, then the rest. Leave WF6 unpublished
+   (WF4 does its Discord checks).
+5. Copy the two webhook addresses. The paths keep the word sandbox, because links in messages already sent use them:
 
-   | Webhook | Production | Separate setup (not used) | Where it goes |
-   |---|---|---|---|
-   | WF2 confirm pages | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` | `…/webhook/respond` | `RESPONSE_BASE_URL` (already in `.env.sandbox.example`) |
-   | WF4 poke | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | `…/webhook/sme-poke` | `VITE_N8N_POKE_URL` (already in `app/.env.sandbox.example`) |
+   | Webhook | Production | Where it goes |
+   |---|---|---|
+   | WF2 answer pages | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` | `RESPONSE_BASE_URL` (already in `.env.sandbox.example`) |
+   | WF4 poke | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | `VITE_N8N_POKE_URL` (already in `app/.env.sandbox.example`), the Config nodes and the database clock |
+
+### 5.1 Who reads replies, and when n8n runs
+
+- **WF4 Action runner**, not WF1, reads typed replies: email sent to the +scheduling reply address, bounces of emails
+  the app sent (a bounce counts only in the Gmail thread of an email the app sent to that address, decision 311), and
+  the instructors' Discord channels. It also delivers every queued message, runs the Discord checks people asked for
+  (WF6 used to do this; it is now off) and runs on every poke.
+- **The database clock** (Release 3, M1, decision 281) was switched on at 17:36 UTC on 22 November 2026. `pg_cron`
+  runs the automatic check inside the database (job `sme-engine-hourly`, at minute 30 of every hour). The job
+  `sme-clock` runs every 2 minutes and pokes WF4 only when there is work, and about every 10 minutes to read replies
+  while a conversation is open (every 20 minutes above 8,000 n8n runs in the month, and none above 9,300). Typed
+  replies show in the app within about 10 minutes.
+- **Before 23 November 2026, 17:36 UTC:** WF1 (every hour) and WF4 (every 6 minutes) keep their own n8n schedule
+  triggers as a safety net while the clock runs its first 24 hours.
+- **After 23 November 2026, 17:36 UTC:** the owner's plan is to switch those two schedule triggers off. WF1 then runs
+  only if someone runs it, and WF4 runs on pokes.
+- **Unchanged:** WF2 Response handler (the answer pages, a webhook), WF3 Daily jobs (every day at 09:00 IST) and WF5
+  (the error workflow).
+- **If the clock is switched off** (`npm run clock -w scripts -- off`), turn the schedule triggers of WF1 and WF4 back
+  on and publish both workflows again.
+
+Switching the clock on needs the WF4 poke address and the poke key in Supabase Vault (docs/CONFIGURATION.md, rows 49
+and 50):
+
+```bash
+npm run clock -w scripts -- on https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke
+```
 
 ---
 
@@ -245,8 +282,8 @@ The system works fully without AI. If you want a one line summary of typed repli
    under one dollar a month.
 3. In n8n create a credential of type **OpenAI**, name `OpenAI Sandbox` (an internal name that matches the other
    credentials), paste the key.
-4. In WF1, add an **OpenAI** node where the note "Optional AI summary" says, using the smallest suitable model. It only
-   fills the summary; it never decides anything.
+4. In WF4, add an **OpenAI** node where the note "Optional AI summary" says (between **Classify emails** and **Record
+   email**), using the smallest suitable model. It only fills the summary; it never decides anything.
 
 You can skip OpenAI.
 
@@ -396,7 +433,7 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 9 | Old allow lists `SANDBOX_ALLOWED_DISCORD_SERVERS` and `SANDBOX_ALLOWED_EMAIL_DOMAINS` (not used in Production) | Discord server ID; your domain | `.env.production`, then configure | not used | not used | ☐ |
 | 10 | Sign in hook | Authentication → Hooks | Before User Created → `public.hook_before_user_created` | | | ☐ |
 | 11 | Email sign up switched off | Authentication → Sign In / Providers | Supabase | | | ☐ |
-| 12 | Google Cloud project, Internal | console.cloud.google.com | | | | ☐ |
+| 12 | Google Cloud project, Internal (only for the app's Google sign in; n8n needs none) | console.cloud.google.com | | | | ☐ |
 | 13 | Google sign in client ID and secret (secret) | Google Auth Platform → Clients | Supabase → Providers → Google | in password manager | in password manager | ☐ |
 | 14 | Gmail credential | n8n, Gmail OAuth2 API, Sign in with Google | n8n `Gmail Sandbox` | done | | ☐ |
 | 15 | Google Drive credential | n8n, Google Drive OAuth2 API, Sign in with Google | n8n `Google Drive Backups` | done | | ☐ |
@@ -418,6 +455,8 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 31 | Hosting variables, including `VITE_DISCORD_CLIENT_ID` | Table in 7.2 | Vercel or Cloudflare | | | ☐ |
 | 32 | App address | Vercel or Cloudflare Domains | Supabase URL Configuration; `APP_BASE_URL` (1.4) | | | ☐ |
 | 33 | First checks | Part 8 | | | | ☐ |
+| 34 | Database clock on, poke key in Vault | `npm run clock -w scripts -- on <WF4 poke address>` (5.1) | Supabase | on since 22 November 2026, 17:36 UTC | | ☐ |
+| 35 | Schedule triggers of WF1 and WF4 off, after the clock's first 24 hours | n8n, each workflow | n8n | planned after 23 November 2026, 17:36 UTC | | ☐ |
 
 ---
 

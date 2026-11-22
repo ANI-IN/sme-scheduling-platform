@@ -12,7 +12,7 @@ Contents: [What the app does](#what-the-app-does) · [Architecture](#architectur
 [Integrations](#integrations) · [Environment setup](#environment-setup) · [Deployment](#deployment) ·
 [Sign in and admins](#sign-in-and-admins) · [Discord setup](#discord-setup) ·
 [Backups and rollback](#backups-and-rollback) · [Testing](#testing) · [Troubleshooting](#troubleshooting) ·
-[Maintenance](#maintenance) · [For the Ops team](#for-the-ops-team) · [Docs](#docs)
+[Maintenance](#maintenance) · [For the operations team](#for-the-operations-team) · [Docs](#docs)
 
 ## What the app does
 
@@ -38,7 +38,7 @@ database.
 
 ```mermaid
 flowchart LR
-  Team[Ops team in the browser] --> App[Web app on Vercel<br/>React, Vite, TypeScript]
+  Team[Operations team in the browser] --> App[Web app on Vercel<br/>React, Vite, TypeScript]
   App -->|reads and writes, Google sign in| DB[(Supabase Postgres<br/>Tokyo, ap-northeast-1<br/>rules in SQL functions)]
   App -->|poke: there is work| WF4
   DB -->|pg_cron clock pokes when there is work| WF4[n8n WF4 Action runner]
@@ -66,8 +66,8 @@ flowchart LR
   same rules always apply.
 - **Row level security** on every table. Only people allowed to sign in can read or change data, checked on every
   request.
-- **The database clock.** `pg_cron` runs the hourly check inside the database (`sme-engine-hourly`, minute 30) and a
-  job every 2 minutes (`sme-clock`) that calls WF4 through `pg_net` only when there is work. See
+- **The database clock.** `pg_cron` runs the automatic check inside the database (`sme-engine-hourly`, minute 30)
+  and a job every 2 minutes (`sme-clock`) that calls WF4 through `pg_net` only when there is work. See
   [Integrations](#integrations).
 
 ### n8n (Cloud)
@@ -76,17 +76,20 @@ Six workflows, named `[Production] WF1 Hourly engine` to `[Production] WF6 Disco
 of the live workflows are in `n8n/sandbox/` (an internal folder name). They hold no business rules and no domain,
 module or instructor names.
 
-| Workflow             | When                                             | What it does                                                                                                                               |
-| -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| WF1 Hourly engine    | Every hour                                       | Runs `engine_tick_all`, the automatic check for every domain. The database clock now runs the same check itself                            |
-| WF2 Response handler | Webhook, when an instructor opens an answer link | Shows the answer page (`response_page`) and records the answer only when the button on the page is pressed (`submit_response_page`)        |
-| WF3 Daily jobs       | Every day at 09:00 IST                           | Runs `daily_jobs` (the daily system summary) and saves the nightly backup to Google Drive, keeping the newest 30                           |
-| WF4 Action runner    | Webhook (a poke) and on its own schedule         | The only place messages are sent: delivers queued Discord and Gmail messages, runs app actions and Discord checks, and reads typed replies |
-| WF5 Error handler    | When another workflow fails                      | Records the failure in Activity history and alerts the admin channel                                                                       |
-| WF6 Discord checks   | Not published                                    | Kept as a spare. WF4 does the Discord checks                                                                                               |
+| Workflow             | When                                                                                                                                 | What it does                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WF1 Hourly engine    | Every hour; after 23 November 2026, 17:36 UTC its schedule trigger is to be switched off (then only when run by hand)                | Runs `engine_tick_all`, the automatic check for every domain. The database clock runs the same check itself every hour                                                                                        |
+| WF2 Response handler | Webhook, when an instructor opens an answer link                                                                                     | Shows the answer page (`response_page`) and records the answer only when the button on the page is pressed (`submit_response_page`)                                                                           |
+| WF3 Daily jobs       | Every day at 09:00 IST                                                                                                               | Runs `daily_jobs` (the daily system summary) and saves the nightly backup to Google Drive, keeping the newest 30                                                                                              |
+| WF4 Action runner    | Webhook (a poke) and every 6 minutes; after 23 November 2026, 17:36 UTC its schedule trigger is to be switched off (then pokes only) | The only place messages are sent: delivers queued Discord and Gmail messages, runs app actions and the Discord checks people asked for, and reads typed replies (see [Gmail through n8n](#gmail-through-n8n)) |
+| WF5 Error handler    | When another workflow fails                                                                                                          | Records the failure in Activity history and alerts the admin channel                                                                                                                                          |
+| WF6 Discord checks   | Not published                                                                                                                        | Off, kept as a spare. WF4 does the Discord checks                                                                                                                                                             |
 
 n8n runs on the owner's n8n Cloud Pro plan: 10,000 executions a month, shared with the other workflows in the same n8n
-account.
+account. WF1 and WF4 keep their own schedule triggers as a safety net while the database clock runs its first 24 hours
+(it was switched on at 17:36 UTC on 22 November 2026); after 23 November 2026, 17:36 UTC, the owner's plan is to
+switch those two off. WF2, WF3 and WF5 do not change. There is one workflow set: edit the base files in `n8n/`, run
+`npm run n8n-export -w scripts`, then import or update the live workflow from `n8n/sandbox/` (n8n/README.md).
 
 ### Web app
 
@@ -109,7 +112,8 @@ integrations or links already sent. They are internal names only, not a second e
   `Google Drive Backups`)
 - the n8n tag `Sandbox`
 - the webhook paths `/webhook/sandbox-respond` (answer pages) and `/webhook/sandbox-sme-poke` (the WF4 poke)
-- the folder `n8n/sandbox/` (the live workflows); `n8n/production/` holds older templates that are not used
+- the folder `n8n/sandbox/` (the one workflow set, the live workflows; `n8n/production/` and its generator option
+  were removed on 23 November 2026, decision 315)
 - the files `.env.sandbox.example`, `app/.env.sandbox.example` and `app/.env.sandbox`, and the command
   `npm run dev:sandbox`
 - `npm run configure:sandbox -w scripts`, kept only to roll back the switch to Production
@@ -204,20 +208,20 @@ confirmed booking is never taken away.
 ### Cohort merges
 
 - Two or more cohorts continue as one combined cohort from a merge date, which must be the first day of a class week,
-  after every cohort has started and not in the past. Ops chooses the name, time zone, module sequence and instructor
-  order.
+  after every cohort has started and not in the past. The operations team chooses the name, time zone, module
+  sequence and instructor order.
 - Duplicate modules: the week with a confirmed instructor is kept. Two different confirmed instructors are a Warning;
-  the other one gets the release note unless Ops keeps that cohort's week instead. The **Merge check** lists modules
-  that do not line up.
+  the other one gets the release note unless the operations team keeps that cohort's week instead. The **Merge
+  check** lists modules that do not line up.
 - Undo merge is possible until the merge date.
 
 ### Proposed times
 
-- A request to teach and a time change message have **Propose another time**. Nothing confirmed changes until Ops
-  decides, and the reply time is extended by up to 48 hours.
-- Ops sees the proposal checked with every schedule check. A clash or unavailable date blocks it; other problems are
-  Warnings. Accepting moves the classes for the whole cohort and confirms the person being asked (or keeps a confirmed
-  instructor confirmed). Rejecting tells them the time stays.
+- A request to teach and a time change message have **Propose another time**. Nothing confirmed changes until the
+  operations team decides, and the reply time is extended by up to 48 hours.
+- The operations team sees the proposal checked with every schedule check. A clash or unavailable date blocks it;
+  other problems are Warnings. Accepting moves the classes for the whole cohort and confirms the person being asked
+  (or keeps a confirmed instructor confirmed). Rejecting tells them the time stays.
 - A moved class shows **Moved** with its old time, and "Waiting for the instructor to confirm the new time" until a
   confirmed instructor answers.
 
@@ -341,8 +345,9 @@ and read the last file that defines it; docs/DECISIONS.md explains why each rule
 
 - Email is sent and read with the n8n credential `Gmail Sandbox` (n8n's own Sign in with Google), from the team's
   mailbox. No Gmail client secret or refresh token is needed.
-- Every system email carries a Reply To address of its own, and WF4 reads only replies to it and bounces. It labels
-  what it read "SME Scheduling/Processed" instead of marking it as read.
+- Every system email carries a Reply To address of its own (the +scheduling address), and WF4 reads only replies to
+  it and bounces of emails the app sent; the rest of the shared inbox is never touched. It labels what it handled
+  "SME Scheduling/Processed" and does not mark it as read.
 - A bounce counts only when it is in the Gmail thread of an email the app sent to that address; any other "bounce"
   is logged as ignored.
 
@@ -356,10 +361,13 @@ and read the last file that defines it; docs/DECISIONS.md explains why each rule
 - `sme-engine-hourly` runs the automatic check inside the database at minute 30 of every hour.
 - The poke key is kept in Supabase Vault (`n8n_poke_key`), never in a file. App buttons also poke WF4 at once, so
   their messages go out within seconds.
-- The clock has been on since 22 November 2026. n8n's own schedules for WF1 and WF4 are kept as a safety net until
-  the clock has run a full day without problems (docs/PROGRESS.md).
+- Typed replies show in the app within about 10 minutes.
+- The clock has been on since 22 November 2026, 17:36 UTC. Until 23 November 2026, 17:36 UTC, WF1 (every hour) and
+  WF4 (every 6 minutes) keep their own n8n schedule triggers as a safety net. After that, the owner's plan is to switch
+  those two schedule triggers off, so WF1 runs only if someone runs it and WF4 runs on pokes.
 - `npm run clock -w scripts -- status` shows the clock, its jobs, whether the poke key is in Vault (yes or no only) and
-  the n8n runs this month. `off` switches it off at once.
+  the n8n runs this month. `off` switches it off at once; then turn the schedule triggers of WF1 and WF4 back on and
+  publish both again.
 
 ### Google Drive
 
@@ -396,29 +404,29 @@ catcher at <http://127.0.0.1:55424>. The local app starts empty: follow the Get 
 
 ### npm commands
 
-| Command                                                          | What it does                                                                                  |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `npm run db:start`, `npm run db:stop`                            | Start or stop the local Supabase stack                                                        |
-| `npm run db:reset`                                               | Rebuild the local database from the migrations and `seed.local.sql`                           |
-| `npm run dev`                                                    | The app at <http://localhost:5173> against the local stack                                    |
-| `npm run check`                                                  | Format check, lint, types, unit tests, build and the production build check                   |
-| `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` | Each check on its own                                                                         |
-| `npm run format`                                                 | Format every file with Prettier                                                               |
-| `npm run db:test`                                                | Every database test on throwaway databases                                                    |
-| `npm run mock`, `npm run mock -- --race`                         | The mock journey, with the race checks                                                        |
-| `npm run e2e`, `npm run e2e:scale`                               | The end to end suite and the scale test, in their own test stack                              |
-| `npm run help:screenshots`                                       | Make the pictures of the in app Help again                                                    |
-| `npm run scan-text -w scripts`                                   | The wording scan                                                                              |
-| `npm run check-migrations -w scripts`                            | Build a throwaway database from every migration and the seed                                  |
-| `npm run check-rollbacks -w scripts`                             | Prove every Release 3 rollback file                                                           |
-| `npm run n8n-export -w scripts`                                  | Build the exported workflow files in `n8n/sandbox/` and `n8n/production/` from the base files |
-| `npm run test-list -w scripts`                                   | List every scenario from the test files (for docs/TEST_REPORT.md)                             |
-| `npm run db:login`, `npm run db:link`, `npm run db:push`         | The Supabase command line for the hosted project                                              |
-| `npm run backup -w scripts -- --label <name>`                    | Back up and verify the live database                                                          |
-| `npm run clock -w scripts -- status`                             | The database clock (`on` and `off` too)                                                       |
-| `npm run admins -w scripts -- list`                              | List admins (`add <email>` and `remove <email>` too)                                          |
-| `npm run configure:production -w scripts`                        | Write the environment, sign in domain and app links into the live database                    |
-| `npm run discord:production -w scripts`                          | Run the Discord checks from your computer instead of n8n                                      |
+| Command                                                          | What it does                                                                |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `npm run db:start`, `npm run db:stop`                            | Start or stop the local Supabase stack                                      |
+| `npm run db:reset`                                               | Rebuild the local database from the migrations and `seed.local.sql`         |
+| `npm run dev`                                                    | The app at <http://localhost:5173> against the local stack                  |
+| `npm run check`                                                  | Format check, lint, types, unit tests, build and the production build check |
+| `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` | Each check on its own                                                       |
+| `npm run format`                                                 | Format every file with Prettier                                             |
+| `npm run db:test`                                                | Every database test on throwaway databases                                  |
+| `npm run mock`, `npm run mock -- --race`                         | The mock journey, with the race checks                                      |
+| `npm run e2e`, `npm run e2e:scale`                               | The end to end suite and the scale test, in their own test stack            |
+| `npm run help:screenshots`                                       | Make the pictures of the in app Help again                                  |
+| `npm run scan-text -w scripts`                                   | The wording scan                                                            |
+| `npm run check-migrations -w scripts`                            | Build a throwaway database from every migration and the seed                |
+| `npm run check-rollbacks -w scripts`                             | Prove every Release 3 rollback file                                         |
+| `npm run n8n-export -w scripts`                                  | Build the one workflow set in `n8n/sandbox/` from the base files in `n8n/`  |
+| `npm run test-list -w scripts`                                   | List every scenario from the test files (for docs/TEST_REPORT.md)           |
+| `npm run db:login`, `npm run db:link`, `npm run db:push`         | The Supabase command line for the hosted project                            |
+| `npm run backup -w scripts -- --label <name>`                    | Back up and verify the live database                                        |
+| `npm run clock -w scripts -- status`                             | The database clock (`on` and `off` too)                                     |
+| `npm run admins -w scripts -- list`                              | List admins (`add <email>` and `remove <email>` too)                        |
+| `npm run configure:production -w scripts`                        | Write the environment, sign in domain and app links into the live database  |
+| `npm run discord:production -w scripts`                          | Run the Discord checks from your computer instead of n8n                    |
 
 The commands that touch the live database (`backup`, `clock`, `admins`, `configure:production`, `discord:production`)
 read `.env.production`, the live settings file on your computer. It is ignored by Git and never committed.
@@ -469,7 +477,7 @@ docs/PROGRESS.md says which changes are live.
 
 7. **Live checks** on <https://your-app.vercel.app>: sign in, Home loads with no console errors, Settings,
    Connections shows Working or Ready, `npm run clock -w scripts -- status` looks right, and the n8n executions of
-   WF1 and WF4 succeed. Then the checks for the change itself.
+   WF4 (and of WF1 while its schedule trigger is on) succeed. Then the checks for the change itself.
 8. **Turn messages back on** if you paused them. If anything fails, roll back first, then fix locally (see
    [Backups and rollback](#backups-and-rollback)).
 
@@ -608,7 +616,7 @@ nothing is sent twice.
   instructor channels, both after the beta.
 - **Adding a domain** needs no code: follow the Help guide Setting up a new domain.
 
-## For the Ops team
+## For the operations team
 
 This part is for the people who use the app every day. The full guide is in the app: press **Help** in the sidebar,
 or the **?** next to any page title.
