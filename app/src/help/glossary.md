@@ -31,4 +31,4 @@ order: 16
 - **Task:** something a person on the team needs to do.
 - **Testing:** a domain whose messages go only to the testing channel and testing email.
 - **Very close to the class:** the last days before a class, when replies are expected fastest (3 by default).
-- **Warning:** something unusual but allowed. You can go ahead and give a reason.
+- **Warning:** something unusual but allowed. You can go ahead after you say why; the reason is kept in Activity history.

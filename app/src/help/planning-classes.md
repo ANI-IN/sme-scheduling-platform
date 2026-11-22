@@ -23,7 +23,8 @@ The class times come from the cohort's own class times if it has them, otherwise
 ## Warnings and blocks
 
 - **Blocks** must be fixed first, for example a module without class times or a class week that is already planned.
-- **Warnings** are unusual but allowed, for example a class on a holiday, before 6 AM or after 10 PM local time, overlapping classes in the same cohort, or a class that is very soon. Your reason is saved in Activity history.
+- **Warnings** are unusual but allowed, for example a class on a holiday, before 6 AM or after 10 PM local time (Settings, Automation, Planning), overlapping classes in the same cohort, or an instructor with under 30 minutes between two classes or more than 2 classes in a day. To go ahead, say why: your reason is saved in Activity history.
+- **Information** needs no reason, for example a class that is very soon.
 
 ## Add one class
 
