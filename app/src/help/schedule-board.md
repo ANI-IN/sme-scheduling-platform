@@ -23,6 +23,8 @@ Badges on a cell say what is unusual about a class week, such as **Clash**, **Ho
 
 Press **Legend** to see every status and every badge the board, the cohort headers and the side panel can show, each with one sentence about what it means.
 
+**Answer due soon** shows on a class week waiting for an answer only when the answer is due within 12 hours. Change the number of hours under Settings, Automation, More options.
+
 ## Needs a decision
 
 The counts at the top add up every problem in the weeks shown: clashes, unavailable instructors, odd hours, holidays, class weeks that need an instructor, proposed times and more. Select one to show only the class weeks with it, or tick **Only problems**. Each problem is fixed from its class week; see [When an instructor cancels or a class moves](/help/cancellations-and-moves).
@@ -41,6 +43,8 @@ Each cohort shows its time zone, whether it follows its standard schedule (**Sta
    - **Make one shared class:** the earliest selected class week hosts the class and the others join it. You need at least two.
 3. Before anything is saved, one preview lists every selected class week, who is told or asked again, and every new problem the change would create. Something that **blocks** must be fixed first; a **warning** needs a reason, which is saved in Activity history.
 4. Press the button at the bottom to save, or **Go back** to change nothing. Press **Done selecting** to open cells again.
+
+On [Upcoming classes](/classes), **Move by weeks** and **Cancel classes** for the ticked class weeks open the same preview, with the same checks and reasons.
 
 ## Compare to standard and download
 

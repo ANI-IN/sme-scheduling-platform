@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { plain } from '@/lib/plain';
 import { useCohorts, useModules, useStandards, type Domain } from '@/lib/data';
 import { PlanFromStandardDialog } from './setup/standardParts';
 import { parseDateList } from '@/lib/time';
+import { applyPlanChecks, type PlanCheck } from '@/lib/planCheck';
 import { asRegion, REGION_NAME, type Region } from '@/lib/region';
 import { RegionBadge, TimeCheck, timeReady } from '@/components/ClassTime';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
@@ -50,6 +51,11 @@ type ProposedWeek = {
   problem: string | null;
   duplicate: boolean;
   holidays: string[];
+  /** Names the class week while it is edited, and counts its changes (for the checks after each change). */
+  key?: number;
+  rev?: number;
+  /** What stops it from being created, from the checks after a change. */
+  blocks?: string[];
 };
 
 const NEW = '__new__';
@@ -78,6 +84,15 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
   const [pending, setPending] = useState<Warning[] | null>(null);
+  // Each change to a class week is checked again by the database, so its warnings are those of the times shown.
+  const nextKey = useRef(0);
+  const rowsRef = useRef<ProposedWeek[] | null>(null);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  const toCheck = useRef(new Set<number>());
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(checkTimer.current), []);
   // A new cohort can instead be planned from a standard schedule (decision 298).
   const standards = useStandards(domain.id);
   const hasStandard = (standards.data ?? []).some(
@@ -137,13 +152,15 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       }
       if (dates.length === 0) throw new Error('There are no dates to plan.');
       setRows(
-        (await rpc('generate_classes', {
-          p_domain_id: domain.id,
-          p_start_module_id: startModuleId,
-          p_week_starts: dates,
-          p_cohort: cohortName,
-          p_region: planRegion,
-        })) as unknown as ProposedWeek[],
+        (
+          (await rpc('generate_classes', {
+            p_domain_id: domain.id,
+            p_start_module_id: startModuleId,
+            p_week_starts: dates,
+            p_cohort: cohortName,
+            p_region: planRegion,
+          })) as unknown as ProposedWeek[]
+        ).map((w) => ({ ...w, key: ++nextKey.current, rev: 0 })),
       );
     } catch (e) {
       setErr(e);
@@ -161,17 +178,49 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       p_cohort: cohortName,
       p_region: planRegion,
     })) as unknown as ProposedWeek[];
-    if (w) setRows((r) => r!.map((x, j) => (j === idx ? w : x)));
+    if (w)
+      setRows((r) =>
+        r!.map((x, j) => (j === idx ? { ...w, key: x.key, rev: (x.rev ?? 0) + 1 } : x)),
+      );
+  }
+
+  /** The planned class week as Create sends it. */
+  const payload = (w: ProposedWeek) => ({
+    module_id: w.module_id,
+    cohort: cohortName,
+    region: planRegion,
+    classes: w.classes.map((c) => ({ ...c, region: c.region ?? planRegion })),
+  });
+
+  /** Checks the changed class weeks again, shortly after the last change. */
+  function recheck(keys: number[]) {
+    for (const k of keys) toCheck.current.add(k);
+    clearTimeout(checkTimer.current);
+    checkTimer.current = setTimeout(() => {
+      const wanted = toCheck.current;
+      toCheck.current = new Set();
+      const sent = (rowsRef.current ?? []).filter((w) => w.key !== undefined && wanted.has(w.key));
+      if (sent.length === 0) return;
+      const asked = sent.map((w) => ({ key: w.key!, rev: w.rev ?? 0 }));
+      rpc('check_plan', { p_domain_id: domain.id, p_rows: sent.map(payload) }).then(
+        (res) => {
+          const answers = (res as unknown as { rows: PlanCheck[] }).rows;
+          setRows((r) => (r ? applyPlanChecks(r, asked, answers) : r));
+        },
+        (e) => setErr(e),
+      );
+    }, 300);
   }
 
   // Move this class week and every later one by one week (for example around a holiday).
-  const moveLater = (idx: number) =>
+  const moveLater = (idx: number) => {
     setRows((r) =>
       r!.map((w, j) =>
         j < idx
           ? w
           : {
               ...w,
+              rev: (w.rev ?? 0) + 1,
               week_start_date: addDays(w.week_start_date, 7),
               classes: w.classes.map((c) => ({ ...c, date: addDays(c.date, 7), holiday: null })),
               warnings: w.warnings.filter((x) => x.code !== 'holiday'),
@@ -179,15 +228,24 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
             },
       ),
     );
+    recheck(rows!.slice(idx).flatMap((w) => (w.key === undefined ? [] : [w.key])));
+  };
 
-  const editClass = (wi: number, ci: number, patch: Partial<ProposedClass>) =>
+  const editClass = (wi: number, ci: number, patch: Partial<ProposedClass>) => {
     setRows((r) =>
       r!.map((w, j) =>
         j === wi
-          ? { ...w, classes: w.classes.map((c, k) => (k === ci ? { ...c, ...patch } : c)) }
+          ? {
+              ...w,
+              rev: (w.rev ?? 0) + 1,
+              classes: w.classes.map((c, k) => (k === ci ? { ...c, ...patch } : c)),
+            }
           : w,
       ),
     );
+    const key = rows?.[wi]?.key;
+    if (key !== undefined) recheck([key]);
+  };
 
   const summary = useMemo(() => {
     if (!rows) return null;
@@ -198,7 +256,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       from: dates[0],
       to: dates[dates.length - 1],
       warnings: rows.flatMap((w) => w.warnings ?? []),
-      blocked: rows.filter((w) => w.problem || w.duplicate),
+      blocked: rows.filter((w) => w.problem || w.duplicate || (w.blocks?.length ?? 0) > 0),
       unready: rows.flatMap((w) =>
         w.classes.filter(
           (c) =>
@@ -214,12 +272,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
     try {
       const res = (await rpc('create_module_weeks', {
         p_domain_id: domain.id,
-        p_rows: rows!.map((w) => ({
-          module_id: w.module_id,
-          cohort: cohortName,
-          region: planRegion,
-          classes: w.classes.map((c) => ({ ...c, region: c.region ?? planRegion })),
-        })),
+        p_rows: rows!.map(payload),
         p_accept_warnings: accept,
         p_reason: accept ? why || undefined : undefined,
       })) as { created?: number; needs_confirmation?: boolean; warnings?: Warning[] };
@@ -459,9 +512,9 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
               <tbody>
                 {rows.map((w, wi) => (
                   <tr
-                    key={wi}
+                    key={w.key ?? wi}
                     className={
-                      w.problem || w.duplicate
+                      w.problem || w.duplicate || w.blocks?.length
                         ? 'border-t border-border bg-danger-soft'
                         : w.warnings?.length
                           ? 'border-t border-border bg-warning-soft/50'
@@ -500,6 +553,11 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
                           </Link>
                         </div>
                       )}
+                      {(w.blocks ?? []).map((b, bi) => (
+                        <div key={bi} className="mt-1 text-xs text-danger-strong">
+                          {plain(b)}
+                        </div>
+                      ))}
                     </td>
                     <td className={td}>
                       <div className="space-y-1.5">

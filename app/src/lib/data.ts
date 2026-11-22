@@ -97,6 +97,8 @@ export const useWeeks = (domainId: string | undefined) =>
           )
           .eq('domain_id', domainId!)
           .order('week_start_date')
+          // Class weeks of the same week in the order of their first class, earliest first.
+          .order('first_class_at', { nullsFirst: false })
           .order('id')
           .range(from, to),
       ),
