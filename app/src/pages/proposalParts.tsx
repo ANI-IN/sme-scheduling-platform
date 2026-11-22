@@ -8,6 +8,7 @@ import { check, poke, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import { DrawerGroup } from '@/components/DrawerGroup';
+import { PANEL_BADGE } from './boardBadges';
 import {
   Badge,
   Button,
@@ -116,7 +117,7 @@ export function ProposalGroup({ weekId }: { weekId: string }) {
           <p>
             <strong>{p.instructor}</strong>{' '}
             <Badge tone={p.kind === 'Confirmed' ? 'success' : 'accent'}>
-              {p.kind === 'Confirmed' ? 'Confirmed' : 'Being asked'}
+              {p.kind === 'Confirmed' ? 'Confirmed' : PANEL_BADGE.beingAsked}
             </Badge>{' '}
             proposes:
           </p>

@@ -15,6 +15,8 @@ export const WEEK_KINDS = [
   'Cancelled',
 ] as const;
 export type WeekKind = (typeof WEEK_KINDS)[number];
+/** The side panel badge for a confirmed class week that is at risk. */
+export const CONFIRMED_AT_RISK = 'Confirmed, at risk';
 
 export type WeekState = {
   label: string;
@@ -62,7 +64,7 @@ export function weekState(w: WeekRow, names: Map<string, string>): WeekState {
       ...base,
       label: `Confirmed (${confirmed})${w.at_risk ? ' · at risk' : ''}`,
       kind: 'Confirmed',
-      short: w.at_risk ? 'Confirmed, at risk' : 'Confirmed',
+      short: w.at_risk ? CONFIRMED_AT_RISK : 'Confirmed',
       tone: w.at_risk ? 'amber' : 'green',
     };
   if (askingName)

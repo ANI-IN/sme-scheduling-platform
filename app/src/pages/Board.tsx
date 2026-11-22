@@ -2,23 +2,10 @@
 // instructor, or as a list. Each cell shows its main status (colour, icon and word together), its instructor and its
 // exception badges; Needs a decision counts every problem and filters by it. A cell opens the class drawer, which
 // holds every action. All data and every check come from the database (schedule_board).
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
-import {
-  AlertTriangle,
-  Download,
-  CalendarClock,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  Clock,
-  Pause,
-  PauseCircle,
-  Wrench,
-  XCircle,
-} from 'lucide-react';
+import { Download, ChevronDown, ChevronRight, Pause } from 'lucide-react';
 import { rpc } from '@/lib/rpc';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
@@ -41,6 +28,21 @@ import { AddBreakDialog, AddCohortHolidayDialog } from './setup/breakParts';
 import { MergeCohortsDialog } from './setup/mergeParts';
 import { ShareDialog } from './sharedParts';
 import { BulkChangeDialog } from './boardBulk';
+import {
+  COHORT_BADGE,
+  MARK,
+  SERIOUS,
+  STATUS,
+  badgeLabel,
+  confirmedCount,
+  decisionLabel,
+  legendGroups,
+  moreBadges,
+  type Status,
+} from './boardBadges';
+
+/** The group of cohorts that follow no standard schedule. */
+export const NO_STANDARD_GROUP = 'No standard schedule';
 
 type Problem = { code: string; level: 'Block' | 'Warning' | 'Information'; text: string };
 type Cell = {
@@ -86,66 +88,6 @@ type Board = {
   breaks: BreakRow[];
   decisions: Record<string, number>;
 };
-type Status =
-  | 'Confirmed'
-  | 'Waiting'
-  | 'Needs instructor'
-  | 'Proposed time'
-  | 'Not asked yet'
-  | 'Setup incomplete'
-  | 'Paused'
-  | 'Cancelled'
-  | 'Completed';
-
-/** The main statuses: always colour, icon and word together. */
-const STATUS: Record<
-  Status,
-  {
-    tone: 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
-    icon: typeof Circle;
-    word: string;
-  }
-> = {
-  Confirmed: { tone: 'success', icon: CheckCircle2, word: 'Confirmed' },
-  Waiting: { tone: 'warning', icon: Clock, word: 'Waiting for an answer' },
-  'Needs instructor': { tone: 'danger', icon: AlertTriangle, word: 'Needs instructor' },
-  'Proposed time': { tone: 'accent', icon: CalendarClock, word: 'Proposed time' },
-  'Not asked yet': { tone: 'neutral', icon: Circle, word: 'Not asked yet' },
-  'Setup incomplete': { tone: 'neutral', icon: Wrench, word: 'Setup incomplete' },
-  Paused: { tone: 'neutral', icon: PauseCircle, word: 'Paused' },
-  Cancelled: { tone: 'neutral', icon: XCircle, word: 'Cancelled' },
-  Completed: { tone: 'neutral', icon: CheckCircle2, word: 'Completed' },
-};
-
-/** Exception badges, in the glossary's words. */
-export const BADGE: Record<string, string> = {
-  clash: 'Clash',
-  tight_gap: 'Tight gap',
-  busy_day: 'Full day',
-  unavailable: 'Unavailable',
-  monthly_limit: 'Monthly limit',
-  not_in_use: 'Instructor not in use',
-  sooner_class_first: 'Sooner class first',
-  unusual_hours: 'Odd hours',
-  holiday: 'Holiday',
-  cohort_holiday: 'Cohort holiday',
-  in_break: 'During a break',
-  cohort_overlap: 'Overlaps another class',
-  proposed_time: 'Proposed time',
-  waiting_new_time: 'Waiting to confirm a new time',
-  shared_class: 'Shared class',
-  answer_due_soon: 'Answer due soon',
-  message_failed: 'Message failed',
-  help_open: 'Help request open',
-  tasks_overdue: 'Class tasks overdue',
-  moved: 'Moved',
-  extra_class: 'Extra class',
-  declined: 'Declined or no reply before',
-  ambiguous_time: 'Daylight saving',
-  needs_instructor: 'Needs instructor',
-};
-const SERIOUS = new Set(['clash', 'unavailable', 'message_failed', 'needs_instructor']);
-
 function StatusChip({ status }: { status: Status }) {
   const s = STATUS[status];
   const Icon = s.icon;
@@ -190,7 +132,8 @@ export default function Board() {
   const { domain } = useDomain();
   const auth = useAuth();
   const [prefs, setPrefs] = usePrefs(`board:${auth.account?.member?.email ?? 'me'}`);
-  const [start, setStart] = useState(() => sunday(DateTime.now()).minus({ weeks: 1 }));
+  // The board opens at this week, so no empty past weeks come first; Earlier shows the weeks before.
+  const [start, setStart] = useState(() => sunday(DateTime.now()));
   const [decision, setDecision] = useState<string | null>(null);
   const [openWeek, setOpenWeek] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -262,7 +205,7 @@ export default function Board() {
   const tracks = useMemo(() => {
     const m = new Map<string, CohortCol[]>();
     for (const c of b?.cohorts ?? []) {
-      const k = c.standard ?? 'Other cohorts';
+      const k = c.standard ?? NO_STANDARD_GROUP;
       m.set(k, [...(m.get(k) ?? []), c]);
     }
     return [...m.entries()];
@@ -276,7 +219,7 @@ export default function Board() {
   };
 
   const CellButton = ({ c }: { c: Cell }) => {
-    const shown = c.badges.filter((x) => BADGE[x]);
+    const shown = c.badges.filter((x) => badgeLabel(x));
     const differs = prefs.compare && (c.customized || c.standard_position === null);
     const body = (
       <>
@@ -293,7 +236,7 @@ export default function Board() {
         {differs && (
           <div className="mt-1">
             <Badge tone="warning">
-              {c.standard_position === null ? 'Not in the standard' : 'Differs from the standard'}
+              {c.standard_position === null ? MARK.notInStandard : MARK.differs}
             </Badge>
           </div>
         )}
@@ -306,10 +249,10 @@ export default function Board() {
           <div className="mt-1 flex flex-wrap gap-1">
             {shown.slice(0, 3).map((x) => (
               <Badge key={x} tone={SERIOUS.has(x) ? 'danger' : 'warning'}>
-                {BADGE[x]}
+                {badgeLabel(x)}
               </Badge>
             ))}
-            {shown.length > 3 && <Badge>+{shown.length - 3}</Badge>}
+            {shown.length > 3 && <Badge>{moreBadges(shown.length - 3)}</Badge>}
           </div>
         )}
       </>
@@ -357,7 +300,7 @@ export default function Board() {
           module: c.module,
           status: STATUS[c.status].word,
           instructor: c.instructor ?? '',
-          badges: c.badges.map((x) => BADGE[x] ?? x).join('; '),
+          badges: c.badges.map((x) => badgeLabel(x) ?? x).join('; '),
           problems: c.problems.map((p) => `${p.level}: ${p.text}`).join(' | '),
           follows_standard: c.standard_position === null ? 'no' : c.customized ? 'changed' : 'yes',
         })),
@@ -399,11 +342,7 @@ export default function Board() {
           >
             Earlier
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setStart(sunday(DateTime.now()).minus({ weeks: 1 }))}
-          >
+          <Button size="sm" variant="outline" onClick={() => setStart(sunday(DateTime.now()))}>
             This week
           </Button>
           <Button
@@ -505,19 +444,7 @@ export default function Board() {
         </section>
       )}
 
-      {legend && (
-        <section
-          aria-label="Legend"
-          className="mb-4 flex flex-wrap gap-2 rounded-md border border-border p-3"
-        >
-          {(Object.keys(STATUS) as Status[]).map((s) => (
-            <StatusChip key={s} status={s} />
-          ))}
-          <Badge>
-            <Pause className="h-3.5 w-3.5" aria-hidden /> Break
-          </Badge>
-        </section>
-      )}
+      {legend && <Legend />}
 
       <section aria-label="Needs a decision" className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Needs a decision</h2>
@@ -533,7 +460,7 @@ export default function Board() {
                 aria-pressed={decision === k}
                 onClick={() => setDecision(decision === k ? null : k)}
               >
-                {BADGE[k] ?? k.replace(/_/g, ' ')}: {n}
+                {decisionLabel(k)}: {n}
               </Button>
             ))}
             {decision && (
@@ -644,18 +571,22 @@ export default function Board() {
                                       : 'neutral'
                                 }
                               >
-                                {c.mode === 'Custom' ? `Custom (${c.changes})` : c.mode}
+                                {c.mode === 'Custom'
+                                  ? `${COHORT_BADGE.custom} (${c.changes})`
+                                  : c.mode === 'Standard'
+                                    ? COHORT_BADGE.standard
+                                    : COHORT_BADGE.fullyCustom}
                               </Badge>
                               <Badge
                                 tone={
                                   h.total > 0 && h.confirmed === h.total ? 'success' : 'neutral'
                                 }
                               >
-                                {h.confirmed} of {h.total} confirmed
+                                {confirmedCount(h.confirmed, h.total)}
                               </Badge>
                               {c.merged_into && c.merged_from && (
                                 <Badge tone="accent">
-                                  Merged into {c.merged_into_name} from{' '}
+                                  {COHORT_BADGE.mergedInto} {c.merged_into_name} from{' '}
                                   {DateTime.fromISO(c.merged_from).toFormat('LLL d')}
                                 </Badge>
                               )}
@@ -706,7 +637,7 @@ export default function Board() {
                         className="px-3 py-2"
                       >
                         <Badge>
-                          <Pause className="h-3.5 w-3.5" aria-hidden /> Program break:{' '}
+                          <Pause className="h-3.5 w-3.5" aria-hidden /> {MARK.programBreak}:{' '}
                           {program.reason}
                         </Badge>
                       </td>
@@ -722,7 +653,7 @@ export default function Board() {
                                   <div className="space-y-1">
                                     {br && here.length === 0 && (
                                       <Badge>
-                                        <Pause className="h-3.5 w-3.5" aria-hidden /> Break:{' '}
+                                        <Pause className="h-3.5 w-3.5" aria-hidden /> {MARK.break}:{' '}
                                         {br.reason}
                                       </Badge>
                                     )}
@@ -823,6 +754,38 @@ export default function Board() {
   );
 }
 
+/** Every status and badge the board and its side panel can show, each with one sentence. */
+function Legend() {
+  return (
+    <section aria-labelledby="board-legend" className="mb-4 rounded-md border border-border p-3">
+      <h2 id="board-legend" className="text-sm font-semibold">
+        Legend
+      </h2>
+      {legendGroups().map((g) => (
+        <div key={g.title} className="mt-3">
+          <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{g.title}</h3>
+          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
+            {g.items.map((i) => {
+              const Icon = i.icon;
+              return (
+                <div key={i.label} className="min-w-0">
+                  <dt className="inline">
+                    <Badge tone={i.tone}>
+                      {Icon && <Icon className="h-3.5 w-3.5" aria-hidden />}
+                      {i.label}
+                    </Badge>
+                  </dt>
+                  <dd className="ml-1.5 inline text-muted-foreground">{i.text}</dd>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 /** The cohort header menu: add a break, a cohort holiday, merge, and links to its settings and instructor order. */
 function CohortMenu({
   name,
@@ -876,7 +839,24 @@ function CohortMenu({
   );
 }
 
-/** By instructor: one row per instructor, one column per week. */
+const NO_INSTRUCTOR = 'No instructor yet';
+const PHONE = '(width < 768px)';
+/** True on a phone sized screen, and follows the screen when it turns or resizes. */
+function usePhone() {
+  return useSyncExternalStore(
+    (changed) => {
+      const m = window.matchMedia(PHONE);
+      m.addEventListener('change', changed);
+      return () => m.removeEventListener('change', changed);
+    },
+    () => window.matchMedia(PHONE).matches,
+  );
+}
+
+/**
+ * By instructor: one row per instructor, one column per week. On a phone each instructor is a heading with their
+ * class weeks as cards underneath, so nothing scrolls sideways and no week without a class takes room.
+ */
 function InstructorGrid({
   cells,
   rows,
@@ -888,7 +868,10 @@ function InstructorGrid({
   thisWeek: string | null;
   render: (c: Cell) => React.ReactNode;
 }) {
-  const people = [...new Set(cells.map((c) => c.instructor ?? 'No instructor yet'))].sort();
+  const phone = usePhone();
+  const people = [...new Set(cells.map((c) => c.instructor ?? NO_INSTRUCTOR))].sort();
+  if (phone)
+    return <InstructorCards cells={cells} people={people} thisWeek={thisWeek} render={render} />;
   return (
     <div className="max-h-[70vh] overflow-auto rounded-md border border-border">
       <table className="text-sm">
@@ -922,7 +905,7 @@ function InstructorGrid({
                     {cells
                       .filter(
                         (c) =>
-                          (c.instructor ?? 'No instructor yet') === p &&
+                          (c.instructor ?? NO_INSTRUCTOR) === p &&
                           DateTime.fromISO(c.week_start_date) >= r &&
                           DateTime.fromISO(c.week_start_date) < r.plus({ weeks: 1 }),
                       )
@@ -941,6 +924,63 @@ function InstructorGrid({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** By instructor on a phone: each instructor's class weeks as cards, in date order. */
+function InstructorCards({
+  cells,
+  people,
+  thisWeek,
+  render,
+}: {
+  cells: Cell[];
+  people: string[];
+  thisWeek: string | null;
+  render: (c: Cell) => React.ReactNode;
+}) {
+  if (people.length === 0)
+    return <p className="text-sm text-muted-foreground">No class weeks match these filters.</p>;
+  return (
+    <div className="space-y-6">
+      {people.map((p) => {
+        const mine = cells
+          .filter((c) => (c.instructor ?? NO_INSTRUCTOR) === p)
+          .sort(
+            (x, y) =>
+              x.week_start_date.localeCompare(y.week_start_date) ||
+              (x.cohort ?? '').localeCompare(y.cohort ?? ''),
+          );
+        return (
+          <div key={p}>
+            <h2 className="mb-2 text-base font-semibold">
+              {p}{' '}
+              <span className="text-sm font-normal text-muted-foreground">
+                ({mine.length} class week{mine.length === 1 ? '' : 's'})
+              </span>
+            </h2>
+            <ul className="space-y-3" aria-label={`Class weeks of ${p}`}>
+              {mine.map((c) => {
+                const now = sunday(DateTime.fromISO(c.week_start_date)).toISODate() === thisWeek;
+                return (
+                  <li
+                    key={c.id}
+                    aria-current={now ? 'date' : undefined}
+                    className={cn('min-w-0 rounded-md', now && 'bg-info-soft/40 p-1')}
+                  >
+                    <div className="mb-1 text-xs text-muted-foreground">
+                      Week of {DateTime.fromISO(c.week_start_date).toFormat('LLL d')}
+                      {now && ' (this week)'}, {c.cohort ?? 'No cohort'}
+                    </div>
+                    {render(c)}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }
