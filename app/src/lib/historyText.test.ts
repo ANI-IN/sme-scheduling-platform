@@ -322,3 +322,21 @@ describe('breaks and cohort holidays in plain sentences (decision 301)', () => {
     ).toBe('Sienna removed the program break Week off');
   });
 });
+
+describe('proposed times in plain sentences (decision 302)', () => {
+  it('says who proposed, accepted or rejected a time', () => {
+    const team = { ...base, category: 'Team actions', module_id: ids.api };
+    expect(
+      describeHistory({ ...team, action: 'Proposed time accepted: Shelly Carver' }, book).sentence,
+    ).toBe('Sienna accepted the time Shelly Carver proposed for API Design');
+    expect(
+      describeHistory({ ...team, action: 'Proposed time rejected: Shelly Carver' }, book).sentence,
+    ).toBe('Sienna kept the time of API Design, not the one Shelly Carver proposed');
+    expect(
+      describeHistory(
+        { ...team, category: 'Instructor responses', action: 'Shelly Carver proposed another time' },
+        book,
+      ).sentence,
+    ).toBe('Shelly Carver proposed another time for API Design');
+  });
+});

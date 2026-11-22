@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"class_session": {
                   Row: {
-                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"holiday_kept_on": string | null,"holiday_kept_reason": string | null,"id": string,"module_week_id": string,"notes": string | null,"pattern_item_id": string | null,"problem_flag": boolean,"region": string,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "cancelled_reason": string | null,"class_type": string,"created_at": string,"ends_at": string,"holiday_kept_on": string | null,"holiday_kept_reason": string | null,"id": string,"module_week_id": string,"moved_at": string | null,"notes": string | null,"pattern_item_id": string | null,"previous_ends_at": string | null,"previous_starts_at": string | null,"problem_flag": boolean,"region": string,"starts_at": string,"status": string,"title": string,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id": string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type": string,"created_at"?: string,"ends_at": string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id": string,"moved_at"?: string | null,"notes"?: string | null,"pattern_item_id"?: string | null,"previous_ends_at"?: string | null,"previous_starts_at"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id"?: string,"notes"?: string | null,"pattern_item_id"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "cancelled_reason"?: string | null,"class_type"?: string,"created_at"?: string,"ends_at"?: string,"holiday_kept_on"?: string | null,"holiday_kept_reason"?: string | null,"id"?: string,"module_week_id"?: string,"moved_at"?: string | null,"notes"?: string | null,"pattern_item_id"?: string | null,"previous_ends_at"?: string | null,"previous_starts_at"?: string | null,"problem_flag"?: boolean,"region"?: string,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1299,6 +1299,44 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"time_proposal": {
+                  Row: {
+                    "created_at": string,"decided_at": string | null,"decided_by": string | null,"decision_note": string | null,"domain_id": string,"id": string,"instructor_id": string,"module_week_id": string,"note": string | null,"proposed": NonNullable<Json>,"request_id": string,"status": string,"time_version": number,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"domain_id": string,"id"?: string,"instructor_id": string,"module_week_id": string,"note"?: string | null,"proposed": NonNullable<Json>,"request_id": string,"status"?: string,"time_version": number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_note"?: string | null,"domain_id"?: string,"id"?: string,"instructor_id"?: string,"module_week_id"?: string,"note"?: string | null,"proposed"?: NonNullable<Json>,"request_id"?: string,"status"?: string,"time_version"?: number,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "time_proposal_domain_id_fkey"
+      columns: ["domain_id"]
+isOneToOne: false
+      referencedRelation: "domain"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_proposal_instructor_id_fkey"
+      columns: ["instructor_id"]
+isOneToOne: false
+      referencedRelation: "instructor"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_proposal_module_week_id_fkey"
+      columns: ["module_week_id"]
+isOneToOne: false
+      referencedRelation: "module_week"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "time_proposal_request_id_fkey"
+      columns: ["request_id"]
+isOneToOne: false
+      referencedRelation: "request"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -1437,6 +1475,9 @@ isOneToOne: false
                            },
 "deactivate_instructor":
 { Args: { "p_decisions"?: Json,"p_instructor_id": string,"p_status"?: string }; Returns: Json
+                           },
+"decide_time_proposal":
+{ Args: { "p_accept": boolean,"p_accept_warnings"?: boolean,"p_id": string,"p_note"?: string,"p_reason"?: string }; Returns: Json
                            },
 "delete_item":
 { Args: { "p_id": string,"p_kind": string,"p_typed_name"?: string }; Returns: Json
@@ -1736,6 +1777,9 @@ isOneToOne: false
                            },
 "team_assignments":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"time_proposal_preview":
+{ Args: { "p_id": string }; Returns: Json
                            },
 "undo_history_event":
 { Args: { "p_event_id": number }; Returns: Json

@@ -20,6 +20,7 @@ export const attentionTypeLabel: Record<string, string> = {
   LateReply: 'Reply after the request closed',
   ScheduleLow: 'Few classes planned ahead',
   TimeChangeNotConfirmed: 'Time change not confirmed',
+  TimeProposal: 'Proposed time to check',
   CheckInNoReply: 'No answer to reminder before class',
   ThinBench: 'Few instructors available',
   UnverifiedInRanking: 'Contact details not checked',

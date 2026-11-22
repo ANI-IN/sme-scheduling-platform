@@ -20,6 +20,8 @@ import { useDomain } from '@/lib/domain';
 import { AddClassDialog } from './AddClassDialog';
 import { ResetToStandard } from './setup/standardParts';
 import { BreakAndHolidayNotices } from './setup/breakParts';
+import { ProposalGroup } from './proposalParts';
+import { DrawerGroup } from '@/components/DrawerGroup';
 import {
   Badge,
   Button,
@@ -199,6 +201,8 @@ export function ClassDrawer({
             <ClassEditor key={`${c.id}:${c.version}`} c={c} run={run} />
           ))}
         </DrawerGroup>
+
+        <ProposalGroup weekId={week.id} />
 
         {week.standard_position !== null && <StandardGroup week={week} />}
 
@@ -724,30 +728,6 @@ const MSG_STATUS: Record<string, string> = {
   Cancelled: 'Not sent',
 };
 
-function DrawerGroup({
-  title,
-  description,
-  tone,
-  children,
-}: {
-  title: string;
-  description?: string;
-  tone?: 'danger';
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3 border-t border-border pt-4">
-      <div>
-        <h3 className={tone === 'danger' ? 'font-semibold text-danger-strong' : 'font-semibold'}>
-          {title}
-        </h3>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 type Compare = {
   follows_standard: boolean;
   standard?: {
@@ -892,6 +872,16 @@ function ClassEditor({
         <Badge>{c.class_type}</Badge>
         <RegionBadge region={c.region} />
         <ClassTime start={c.starts_at} end={c.ends_at} region={c.region} className="font-medium" />
+        {c.status === 'Planned' && c.previous_starts_at && (
+          <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <Badge tone="accent">Moved</Badge> before:{' '}
+            <ClassTime
+              start={c.previous_starts_at}
+              end={c.previous_ends_at ?? c.ends_at}
+              region={c.region}
+            />
+          </span>
+        )}
         {c.status !== 'Planned' && (
           <Badge tone={c.status === 'Cancelled' ? 'danger' : 'neutral'}>{c.status}</Badge>
         )}

@@ -34,8 +34,10 @@ select ok((select body_text from public.message where module_week_id = :'mw' and
           like '%Live class: Sun, Jan 31 · 9:00 AM to 1:00 PM PST%', 'M1 shows the class in PT with PST label');
 select ok((select body_text from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Discord')
           like 'Hi <@%', 'Discord message @mentions the instructor');
-select is((select jsonb_array_length(buttons) from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Email'), 2,
-  'two link buttons: Yes / No');
+-- Release 3, M9 (decision 302): a third button, Propose another time.
+select is((select string_agg(b ->> 'answer', ' / ' order by o) from public.message m, jsonb_array_elements(m.buttons) with ordinality t(b, o)
+            where m.module_week_id = :'mw' and m.template_id = 'M1' and m.channel = 'Email'), 'Yes / No / ProposeTime',
+  'three link buttons: Yes / No / Propose another time');
 
 -- idempotent: running again at the same time sends nothing new
 select tests.tick(:'dom', '2027-01-01 18:00+00');

@@ -68,7 +68,7 @@ select is((select count(*)::int from public.message where instructor_id = :'i3' 
   '13. Instr3 gets one message for both moved class weeks');
 select alike((select (jsonb_array_length(buttons))::text || ' ' || (buttons -> 0 ->> 'label') from public.message
                where instructor_id = :'i3' and template_id = 'M17' and channel = 'Email'),
-  '4 % Still works: Concurrency BR, Mar 14', '14. with Still works and Doesn''t work for each class week');
+  '6 % Still works: Concurrency BR, Mar 14', '14. with Still works, Doesn''t work and Propose another time for each class week');
 select is((select count(*)::int from public.request where instructor_id = :'i3' and kind = 'TimeChange' and status = 'Sent'), 2,
   '15. each class week has its own time change request');
 select alike((select body_text from public.message where instructor_id = :'i3' and template_id = 'M17' and channel = 'Email'),

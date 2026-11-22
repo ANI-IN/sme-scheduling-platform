@@ -360,6 +360,15 @@ const rewrites: [
   [/^Break removed: (.+)$/, (m, c) => `${c.actor} removed the break ${m[1]}`],
   [/^Program break removed: (.+)$/, (m, c) => `${c.actor} removed the program break ${m[1]}`],
   [
+    /^Proposed time accepted: (.+)$/,
+    (m, c) => `${c.actor} accepted the time ${m[1]} proposed for ${c.module}`,
+  ],
+  [
+    /^Proposed time rejected: (.+)$/,
+    (m, c) => `${c.actor} kept the time of ${c.module}, not the one ${m[1]} proposed`,
+  ],
+  [/^(.+) proposed another time$/, (m, c) => `${m[1]} proposed another time for ${c.module}`],
+  [
     /^Class kept on a cohort holiday$/,
     (_m, c) => `${c.actor} kept a ${c.module} class on a cohort holiday`,
   ],

@@ -24,6 +24,17 @@ A class can move to any day, for example from Sunday to Wednesday. The class wee
 
 Under **More options**, use **Move dates** to move this class week and every later one by a number of weeks, for example around a holiday. Each class keeps its local time. For a break of the whole cohort, add a break instead: see [Breaks and cohort holidays](/help/breaks-and-holidays).
 
+## When an instructor proposes another time
+
+A request to teach and a time change message have a **Propose another time** button. The instructor changes the date or time of any class, in the class's own time zone, and can add a note. Nothing changes until you decide, and their reply time is extended by up to 48 hours.
+
+1. A task **Proposed time to check** appears under Needs your attention on [Home](/). Open the class week.
+2. Under **Proposed time**, check the new times and any new problem at those times: a clash with their other classes, the cohort's other classes, holidays, odd hours, or unavailable dates. A clash can't be accepted.
+3. Press **Accept proposed time**. The classes move for the whole cohort. Someone being asked is then confirmed; a confirmed instructor stays confirmed and is not asked again about the time they proposed.
+4. Or press **Reject** and add a note. They are told the time stays, with the buttons of their request again.
+
+A class that moved shows **Moved** with its time before. While a confirmed instructor has not answered about a new time, the class week says it is waiting for them.
+
 ## Cancel
 
 - **Cancel class** cancels one class. If it was the last one, the whole class week is cancelled.

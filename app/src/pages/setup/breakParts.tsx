@@ -718,7 +718,7 @@ export function BreakAndHolidayNotices({ weekId }: { weekId: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const shown = (problems.data ?? []).filter(
-    (x) => x.code === 'cohort_holiday' || x.code === 'in_break',
+    (x) => x.code === 'cohort_holiday' || x.code === 'in_break' || x.code === 'waiting_new_time',
   );
   if (shown.length === 0) return null;
   return (

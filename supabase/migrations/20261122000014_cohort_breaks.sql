@@ -527,8 +527,8 @@ begin
 end;
 $$;
 
--- One message per confirmed instructor for all their moved class weeks (at most 12 class weeks a message, so the
--- buttons fit), with Still works and Doesn't work for each class week. Each class week has its own time change
+-- One message per confirmed instructor for all their moved class weeks (at most 8 class weeks a message, so the
+-- buttons fit: Still works, Doesn't work and Propose another time for each), with Still works and Doesn't work for each class week. Each class week has its own time change
 -- request, so each answer works as before. While messages are paused nothing is sent now: the hourly run sends the
 -- usual time change message per class week when they are turned back on.
 create or replace function private.break_messages(p_weeks uuid[], p_text text, p_now timestamptz)
@@ -556,9 +556,9 @@ begin
             where w.id = any (coalesce(p_weeks, '{}')) and bk.status = 'Active' and not w.paused
               and w.first_class_at > p_now and private.instructor_messages_allowed(w.domain_id)
             group by bk.instructor_id loop
-    for v_part in 0 .. (cardinality(g.weeks) - 1) / 12 loop
+    for v_part in 0 .. (cardinality(g.weeks) - 1) / 8 loop
       v_buttons := '[]'; v_lines := ''; v_first_req := null; v_min_deadline := null; v_any_urgent := false;
-      foreach v_mw in array g.weeks[v_part * 12 + 1 : v_part * 12 + 12] loop
+      foreach v_mw in array g.weeks[v_part * 8 + 1 : v_part * 8 + 8] loop
         select bk.*, w.time_version as mw_tv, w.first_class_at, w.domain_id, m.name as module_name,
                private.week_region(w.id) as region into b
           from public.booking bk join public.module_week w on w.id = bk.module_week_id join public.module m on m.id = w.module_id
@@ -585,9 +585,9 @@ begin
                       from jsonb_array_elements(private.buttons(v_req, array['StillWorks', 'DoesntWork'])) with ordinality t(x, o));
         v_lines := v_lines || case when v_lines = '' then '' else E'\n\n' end || b.module_name || E'\n' || private.class_lines(v_mw);
       end loop;
-      perform private.queue_instructor_message('M17', g.instructor_id, g.weeks[v_part * 12 + 1], v_first_req, p_now, v_buttons,
+      perform private.queue_instructor_message('M17', g.instructor_id, g.weeks[v_part * 8 + 1], v_first_req, p_now, v_buttons,
         jsonb_build_object('classes', v_lines, 'text', p_text,
-          'deadline', private.fmt_local(v_min_deadline, private.week_region(g.weeks[v_part * 12 + 1]))), v_any_urgent);
+          'deadline', private.fmt_local(v_min_deadline, private.week_region(g.weeks[v_part * 8 + 1]))), v_any_urgent);
       v_n := v_n + 1;
     end loop;
   end loop;
