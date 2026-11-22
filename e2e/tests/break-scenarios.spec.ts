@@ -120,7 +120,7 @@ test('a cohort holiday shows on its class, which can be kept with a reason', asy
   await drawer.getByRole('button', { name: 'Add a cohort holiday' }).click();
   const dlg = page.getByRole('dialog', { name: 'Add a cohort holiday' });
   await dlg.getByLabel('Cohort').selectOption({ label: COHORT });
-  await dlg.getByLabel('Day').fill(saturday);
+  await dlg.getByLabel('Day', { exact: true }).fill(saturday);
   await dlg.getByLabel('Name').fill('E2E Founders day');
   await dlg.getByRole('button', { name: 'Add holiday' }).click();
   await expect(dlg.getByText('Holiday added. 1 class is on that day:')).toBeVisible();

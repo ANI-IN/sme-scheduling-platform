@@ -61,7 +61,9 @@ test('the person being asked proposes a later start; Ops accepts it and they are
   await expect(drawer).toBeVisible();
   await ready(page);
   await expect(drawer.getByRole('heading', { name: 'Proposed time' })).toBeVisible();
-  await expect(drawer.getByText(`Their note: E2E: an hour later suits me`)).toBeVisible();
+  await expect(
+    drawer.getByText(`Their note: E2E: an hour later suits me`, { exact: true }),
+  ).toBeVisible();
   await expect(drawer.getByRole('list', { name: 'Proposed times' }).locator('li')).toHaveCount(1);
   await a11y(page, 'proposed time on the class week');
   await noDashes(page, 'proposed time on the class week');
