@@ -81,14 +81,20 @@ async function load() {
       union select discord_channel_id from public.instructor union select channel_id from public.instructor_channel) x
      where x.id ~ '^\\d{17,20}$'
     on conflict (id) do nothing;
+    -- A reload keeps servers, so the new server waits again even if a test approved or refused it.
+    insert into public.discord_server (id, name, status, access)
+    values ('900000000000000117', 'New program server', 'NotChecked', 'Waiting')
+    on conflict (id) do update set name = excluded.name, status = excluded.status, access = 'Waiting',
+      access_changed_at = null, access_changed_by = null, archived_at = null;
+    delete from public.discord_server_domain where server_id = '900000000000000117';
     update public.discord_server set access = 'Approved', access_changed_at = now()
-     where id like '9000000000000001%' or id = '900000000000000099';
+     where id between '900000000000000101' and '900000000000000116' or id = '900000000000000099';
     insert into public.discord_server_domain (server_id, domain_id)
     select s.id, d.id from public.discord_server s cross join public.domain d where s.access = 'Approved'
     on conflict do nothing;
-    insert into public.discord_server (id, name, status, access)
-    values ('900000000000000117', 'New program server', 'NotChecked', 'Waiting')
-    on conflict (id) do nothing;`);
+    -- App settings survive a reload too: a test (the click through) may have chosen a test channel as the admin
+    -- alert channel, which may not then be an instructor's channel (DIS 15). Every load starts without one.
+    update public.app_config set admin_discord_channel_id = null where id = 1;`);
   // The screenshot account plays the Sandbox operations person and skips the Discord question.
   // A reset keeps real people, so first remove an earlier copy of the screenshot account.
   await c.query(`delete from public.team_member where email = $1`, [

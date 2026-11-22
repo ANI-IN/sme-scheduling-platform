@@ -13,7 +13,16 @@ import {
 } from './fixtures.ts';
 
 test.describe.configure({ mode: 'default' });
-test.beforeEach(() => loadDemoData());
+// The test data makes the test account again on every load; link it to its sign in, as a real sign in does, so it
+// is listed among the admins (only people who have signed in are).
+test.beforeEach(async () => {
+  await loadDemoData();
+  await sql(
+    `update public.team_member set auth_user_id = (select u.id from auth.users u where lower(u.email) = $1),
+            version = version where lower(email) = $1`,
+    ['ops.placeholder@example.com'],
+  );
+});
 test.afterAll(() => loadDemoData());
 
 const ME = 'ops.placeholder@example.com';
@@ -25,7 +34,8 @@ test('the Admin page shows who may sign in, the beta list, recipients and the ad
 }) => {
   await page.goto('/settings/admin');
   await ready(page);
-  await expect(page.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible();
+  // The page title also holds its help link ("Admin" and "Help for Admin").
+  await expect(page.locator('main h1').first()).toHaveText(/^Admin/);
   for (const t of ['Who may sign in', 'Beta list', 'Who may receive messages', 'Admins'])
     await expect(page.getByRole('heading', { name: t, exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Admin', exact: true })).toBeVisible();
