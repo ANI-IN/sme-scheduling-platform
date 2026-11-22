@@ -16,6 +16,7 @@ import { Login } from '@/pages/Login';
 
 const Home = lazy(() => import('@/pages/Home'));
 const Schedule = lazy(() => import('@/pages/Schedule'));
+const Board = lazy(() => import('@/pages/Board'));
 const Outreach = lazy(() => import('@/pages/Outreach'));
 const Modules = lazy(() => import('@/pages/setup/Modules'));
 const ModuleDetail = lazy(() => import('@/pages/setup/ModuleDetail'));
@@ -70,6 +71,7 @@ function Gate() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Home />} />
+            <Route path="/board" element={<Board />} />
             <Route path="/classes" element={<Schedule />} />
             <Route path="/requests" element={<Outreach />} />
             <Route path="/setup/modules" element={<Modules />} />

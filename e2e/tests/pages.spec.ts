@@ -20,6 +20,7 @@ const PAGES = [
   '/setup/modules/new',
   'MODULE',
   '/setup/standards',
+  '/board',
   '/setup/instructors',
   '/setup/team',
   '/setup/domains',

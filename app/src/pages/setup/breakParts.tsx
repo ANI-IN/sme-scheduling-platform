@@ -439,10 +439,18 @@ function RemoveBreakDialog({
 }
 
 /** A holiday for one cohort: shows the classes on that day, which are then fixed in their class weeks. */
-function AddCohortHolidayDialog({ domainId, onClose }: { domainId: string; onClose: () => void }) {
+export function AddCohortHolidayDialog({
+  domainId,
+  cohortId,
+  onClose,
+}: {
+  domainId: string;
+  cohortId?: string;
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
   const cohorts = useCohorts(domainId);
-  const [cohort, setCohort] = useState('');
+  const [cohort, setCohort] = useState(cohortId ?? '');
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);

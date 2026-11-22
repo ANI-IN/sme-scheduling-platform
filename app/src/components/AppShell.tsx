@@ -7,6 +7,7 @@ import {
   Activity,
   BookOpen,
   CalendarDays,
+  LayoutGrid,
   Check,
   ChevronDown,
   ChevronsLeft,
@@ -47,6 +48,7 @@ const groups: { label?: string; items: Item[] }[] = [
   {
     label: 'Classes',
     items: [
+      { to: '/board', label: 'Schedule board', icon: LayoutGrid },
       { to: '/classes', label: 'Upcoming classes', icon: CalendarDays },
       { to: '/requests', label: 'Instructor requests', icon: Send },
     ],

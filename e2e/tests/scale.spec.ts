@@ -9,6 +9,7 @@ const LIMIT_S = 8;
 
 const PAGES = [
   '/',
+  '/board',
   '/classes',
   '/requests',
   '/setup/modules',

@@ -50,15 +50,17 @@ type MergePlan = {
 
 export function MergeCohortsDialog({
   domainId,
+  cohortId,
   onClose,
 }: {
   domainId: string;
+  cohortId?: string;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
   const cohorts = useCohorts(domainId);
   const usable = (cohorts.data ?? []).filter((c) => !c.merged_into);
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(cohortId ? [cohortId] : []);
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
   const [region, setRegion] = useState('US');

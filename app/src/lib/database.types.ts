@@ -1726,6 +1726,9 @@ isOneToOne: false
 "save_standard_schedule":
 { Args: { "p_breaks"?: Json,"p_domain_id": string,"p_expected_version"?: number,"p_id": string,"p_module_ids": (string)[],"p_name": string,"p_notes"?: string }; Returns: Json
                            },
+"schedule_board":
+{ Args: { "p_domain_id": string,"p_from": string,"p_to": string }; Returns: Json
+                           },
 "schedule_problems":
 { Args: { "p_module_week_ids": (string)[] }; Returns: Json
                            },

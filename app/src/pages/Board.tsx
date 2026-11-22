@@ -1,0 +1,760 @@
+// The Schedule board (Release 3, M12a, decisions 295 and 305): every cohort's class weeks in one grid, by cohort or by
+// instructor, or as a list. Each cell shows its main status (colour, icon and word together), its instructor and its
+// exception badges; Needs a decision counts every problem and filters by it. A cell opens the class drawer, which
+// holds every action. All data and every check come from the database (schedule_board).
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { DateTime } from 'luxon';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Clock,
+  Pause,
+  PauseCircle,
+  Wrench,
+  XCircle,
+} from 'lucide-react';
+import { rpc } from '@/lib/rpc';
+import { useDomain } from '@/lib/domain';
+import { useAuth } from '@/lib/auth';
+import { useInstructors, useWeeks } from '@/lib/data';
+import { RegionBadge } from '@/components/ClassTime';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  ErrorText,
+  PageHeader,
+  Select,
+  SkeletonRows,
+  Toolbar,
+  cn,
+} from '@/components/ui';
+import { ClassDrawer } from './ClassDrawer';
+import { AddBreakDialog, AddCohortHolidayDialog } from './setup/breakParts';
+import { MergeCohortsDialog } from './setup/mergeParts';
+
+type Problem = { code: string; level: 'Block' | 'Warning' | 'Information'; text: string };
+type Cell = {
+  id: string;
+  cohort_id: string | null;
+  cohort: string | null;
+  module: string;
+  week_start_date: string;
+  past: boolean;
+  status: Status;
+  instructor: string | null;
+  badges: string[];
+  problems: Problem[];
+  shared_with: string | null;
+  guests: number;
+};
+type CohortCol = {
+  id: string;
+  name: string;
+  region: string;
+  standard: string | null;
+  mode: 'Standard' | 'Custom' | 'Fully custom';
+  changes: number;
+  merged_into: string | null;
+  merged_from: string | null;
+  merged_into_name: string | null;
+  archived: boolean;
+};
+type BreakRow = {
+  id: string;
+  cohort_id: string;
+  program_break_id: string | null;
+  starts_on: string;
+  weeks: number;
+  reason: string;
+};
+type Board = {
+  now: string;
+  weeks: Cell[];
+  cohorts: CohortCol[];
+  breaks: BreakRow[];
+  decisions: Record<string, number>;
+};
+type Status =
+  | 'Confirmed'
+  | 'Waiting'
+  | 'Needs instructor'
+  | 'Proposed time'
+  | 'Not asked yet'
+  | 'Setup incomplete'
+  | 'Paused'
+  | 'Cancelled'
+  | 'Completed';
+
+/** The main statuses: always colour, icon and word together. */
+const STATUS: Record<
+  Status,
+  {
+    tone: 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
+    icon: typeof Circle;
+    word: string;
+  }
+> = {
+  Confirmed: { tone: 'success', icon: CheckCircle2, word: 'Confirmed' },
+  Waiting: { tone: 'warning', icon: Clock, word: 'Waiting for an answer' },
+  'Needs instructor': { tone: 'danger', icon: AlertTriangle, word: 'Needs instructor' },
+  'Proposed time': { tone: 'accent', icon: CalendarClock, word: 'Proposed time' },
+  'Not asked yet': { tone: 'neutral', icon: Circle, word: 'Not asked yet' },
+  'Setup incomplete': { tone: 'neutral', icon: Wrench, word: 'Setup incomplete' },
+  Paused: { tone: 'neutral', icon: PauseCircle, word: 'Paused' },
+  Cancelled: { tone: 'neutral', icon: XCircle, word: 'Cancelled' },
+  Completed: { tone: 'neutral', icon: CheckCircle2, word: 'Completed' },
+};
+
+/** Exception badges, in the glossary's words. */
+export const BADGE: Record<string, string> = {
+  clash: 'Clash',
+  tight_gap: 'Tight gap',
+  busy_day: 'Full day',
+  unavailable: 'Unavailable',
+  monthly_limit: 'Monthly limit',
+  not_in_use: 'Instructor not in use',
+  sooner_class_first: 'Sooner class first',
+  unusual_hours: 'Odd hours',
+  holiday: 'Holiday',
+  cohort_holiday: 'Cohort holiday',
+  in_break: 'During a break',
+  cohort_overlap: 'Overlaps another class',
+  proposed_time: 'Proposed time',
+  waiting_new_time: 'Waiting to confirm a new time',
+  shared_class: 'Shared class',
+  answer_due_soon: 'Answer due soon',
+  message_failed: 'Message failed',
+  help_open: 'Help request open',
+  tasks_overdue: 'Class tasks overdue',
+  moved: 'Moved',
+  extra_class: 'Extra class',
+  declined: 'Declined or no reply before',
+  ambiguous_time: 'Daylight saving',
+  needs_instructor: 'Needs instructor',
+};
+const SERIOUS = new Set(['clash', 'unavailable', 'message_failed', 'needs_instructor']);
+
+function StatusChip({ status }: { status: Status }) {
+  const s = STATUS[status];
+  const Icon = s.icon;
+  return (
+    <Badge tone={s.tone} className={status === 'Cancelled' ? 'line-through' : undefined}>
+      <Icon className="h-3.5 w-3.5" aria-hidden /> {s.word}
+    </Badge>
+  );
+}
+
+type Prefs = { view: 'cohort' | 'instructor' | 'list'; weeks: number; onlyProblems: boolean };
+
+/** Filters remembered per person on this device. */
+function usePrefs(key: string) {
+  const initial = (): Prefs => {
+    try {
+      const v = JSON.parse(localStorage.getItem(key) ?? '') as Prefs;
+      if (v && v.view) return v;
+    } catch {
+      /* first visit */
+    }
+    // On a phone the List view comes first.
+    return { view: window.innerWidth < 768 ? 'list' : 'cohort', weeks: 8, onlyProblems: false };
+  };
+  const [prefs, setPrefs] = useState<Prefs>(initial);
+  const update = (p: Partial<Prefs>) => {
+    const next = { ...prefs, ...p };
+    setPrefs(next);
+    localStorage.setItem(key, JSON.stringify(next));
+  };
+  return [prefs, update] as const;
+}
+
+const sunday = (d: DateTime) => d.minus({ days: d.weekday % 7 }).startOf('day');
+
+export default function Board() {
+  const { domain } = useDomain();
+  const auth = useAuth();
+  const [prefs, setPrefs] = usePrefs(`board:${auth.account?.member?.email ?? 'me'}`);
+  const [start, setStart] = useState(() => sunday(DateTime.now()).minus({ weeks: 1 }));
+  const [decision, setDecision] = useState<string | null>(null);
+  const [openWeek, setOpenWeek] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [menu, setMenu] = useState<{ kind: 'break' | 'holiday' | 'merge'; cohort?: string } | null>(
+    null,
+  );
+  const [legend, setLegend] = useState(false);
+  const from = start.toISODate()!;
+  const to = start.plus({ weeks: prefs.weeks }).minus({ days: 1 }).toISODate()!;
+  const board = useQuery({
+    queryKey: ['module_week', 'board', domain?.id, from, to],
+    enabled: !!domain,
+    queryFn: async () =>
+      (await rpc('schedule_board', {
+        p_domain_id: domain!.id,
+        p_from: from,
+        p_to: to,
+      })) as unknown as Board,
+  });
+  const weeks = useWeeks(domain?.id);
+  const instructors = useInstructors();
+  const names = useMemo(
+    () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
+    [instructors.data],
+  );
+  const b = board.data;
+  const cells = useMemo(() => {
+    const all = b?.weeks ?? [];
+    return all.filter(
+      (c) =>
+        (!prefs.onlyProblems ||
+          c.problems.some((p) => p.level !== 'Information') ||
+          c.status === 'Needs instructor' ||
+          c.status === 'Proposed time') &&
+        (!decision ||
+          c.badges.includes(decision) ||
+          c.problems.some((p) => p.code === decision) ||
+          c.status.toLowerCase().replace(/ /g, '_') === decision),
+    );
+  }, [b, prefs.onlyProblems, decision]);
+  const rows = useMemo(
+    () => Array.from({ length: prefs.weeks }, (_, i) => start.plus({ weeks: i })),
+    [start, prefs.weeks],
+  );
+  const thisWeek = sunday(DateTime.now()).toISODate();
+  const open = (weeks.data ?? []).find((w) => w.id === openWeek);
+
+  const cellsAt = (cohort: string, row: DateTime) =>
+    cells.filter(
+      (c) =>
+        c.cohort_id === cohort &&
+        DateTime.fromISO(c.week_start_date) >= row &&
+        DateTime.fromISO(c.week_start_date) < row.plus({ weeks: 1 }),
+    );
+  const breakAt = (cohort: string, row: DateTime) =>
+    (b?.breaks ?? []).find(
+      (x) =>
+        x.cohort_id === cohort &&
+        DateTime.fromISO(x.starts_on) < row.plus({ weeks: 1 }) &&
+        DateTime.fromISO(x.starts_on).plus({ weeks: x.weeks }) > row,
+    );
+  // Tracks: the cohorts of one standard schedule, which can be folded away together.
+  const tracks = useMemo(() => {
+    const m = new Map<string, CohortCol[]>();
+    for (const c of b?.cohorts ?? []) {
+      const k = c.standard ?? 'Other cohorts';
+      m.set(k, [...(m.get(k) ?? []), c]);
+    }
+    return [...m.entries()];
+  }, [b]);
+  const visibleCohorts = tracks.flatMap(([t, cs]) => (collapsed.has(t) ? [] : cs));
+  const health = (cohort: string) => {
+    const mine = (b?.weeks ?? []).filter(
+      (c) => c.cohort_id === cohort && !c.past && c.status !== 'Cancelled',
+    );
+    return { confirmed: mine.filter((c) => c.status === 'Confirmed').length, total: mine.length };
+  };
+
+  const CellButton = ({ c }: { c: Cell }) => {
+    const shown = c.badges.filter((x) => BADGE[x]);
+    const body = (
+      <>
+        <div className="font-medium">{c.module}</div>
+        <StatusChip status={c.status} />
+        {c.instructor && (
+          <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            {c.status === 'Not asked yet' ? `Primary: ${c.instructor}` : c.instructor}
+          </div>
+        )}
+        {shown.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {shown.slice(0, 3).map((x) => (
+              <Badge key={x} tone={SERIOUS.has(x) ? 'danger' : 'warning'}>
+                {BADGE[x]}
+              </Badge>
+            ))}
+            {shown.length > 3 && <Badge>+{shown.length - 3}</Badge>}
+          </div>
+        )}
+      </>
+    );
+    if (c.past)
+      return (
+        <div className="rounded-md border border-border bg-muted/40 p-2 text-left text-sm opacity-80">
+          {body}
+        </div>
+      );
+    return (
+      <button
+        type="button"
+        onClick={() => setOpenWeek(c.id)}
+        aria-label={`Open ${c.module} for ${c.cohort ?? 'no cohort'}, week of ${DateTime.fromISO(c.week_start_date).toFormat('LLL d')}: ${STATUS[c.status].word}`}
+        className="w-full rounded-md border border-border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        {body}
+      </button>
+    );
+  };
+
+  const decisions = Object.entries(b?.decisions ?? {}).filter(([, n]) => n > 0);
+
+  return (
+    <div>
+      <PageHeader
+        title="Schedule board"
+        description="Every cohort's class weeks at a glance. Each cell shows its status, its instructor and anything that needs a decision. Select a cell for details and actions."
+      />
+      <Toolbar>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="View">
+          {(
+            [
+              ['cohort', 'By cohort'],
+              ['instructor', 'By instructor'],
+              ['list', 'List'],
+            ] as const
+          ).map(([v, label]) => (
+            <Button
+              key={v}
+              size="sm"
+              variant={prefs.view === v ? 'primary' : 'outline'}
+              aria-pressed={prefs.view === v}
+              onClick={() => setPrefs({ view: v })}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Weeks shown">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStart(start.minus({ weeks: prefs.weeks }))}
+          >
+            Earlier
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStart(sunday(DateTime.now()).minus({ weeks: 1 }))}
+          >
+            This week
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setStart(start.plus({ weeks: prefs.weeks }))}
+          >
+            Later
+          </Button>
+          <Select
+            aria-label="Number of weeks"
+            value={String(prefs.weeks)}
+            onChange={(e) => setPrefs({ weeks: Number(e.target.value) })}
+            className="h-9 w-32"
+          >
+            {[4, 8, 12, 26].map((n) => (
+              <option key={n} value={n}>
+                {n} weeks
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Checkbox
+          label="Only problems"
+          checked={prefs.onlyProblems}
+          onChange={(v) => setPrefs({ onlyProblems: v })}
+        />
+        <Button size="sm" variant="ghost" aria-expanded={legend} onClick={() => setLegend(!legend)}>
+          Legend
+        </Button>
+      </Toolbar>
+
+      {legend && (
+        <section
+          aria-label="Legend"
+          className="mb-4 flex flex-wrap gap-2 rounded-md border border-border p-3"
+        >
+          {(Object.keys(STATUS) as Status[]).map((s) => (
+            <StatusChip key={s} status={s} />
+          ))}
+          <Badge>
+            <Pause className="h-3.5 w-3.5" aria-hidden /> Break
+          </Badge>
+        </section>
+      )}
+
+      <section aria-label="Needs a decision" className="mb-4">
+        <h2 className="mb-2 text-sm font-semibold">Needs a decision</h2>
+        {decisions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing needs a decision in these weeks.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {decisions.map(([k, n]) => (
+              <Button
+                key={k}
+                size="sm"
+                variant={decision === k ? 'primary' : 'outline'}
+                aria-pressed={decision === k}
+                onClick={() => setDecision(decision === k ? null : k)}
+              >
+                {BADGE[k] ?? k.replace(/_/g, ' ')}: {n}
+              </Button>
+            ))}
+            {decision && (
+              <Button size="sm" variant="ghost" onClick={() => setDecision(null)}>
+                Show everything
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {board.isLoading ? (
+        <SkeletonRows rows={6} />
+      ) : board.error ? (
+        <ErrorText error={board.error} />
+      ) : !b || b.weeks.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No class weeks in these weeks.</p>
+      ) : prefs.view === 'list' ? (
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted/60">
+              <tr>
+                <th className="px-3 py-2 text-left">Week of</th>
+                <th className="px-3 py-2 text-left">Cohort</th>
+                <th className="px-3 py-2 text-left">Class week</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cells.map((c) => (
+                <tr key={c.id} className="border-t border-border align-top">
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {DateTime.fromISO(c.week_start_date).toFormat('LLL d')}
+                  </td>
+                  <td className="px-3 py-2">{c.cohort ?? 'No cohort'}</td>
+                  <td className="px-3 py-2">
+                    <CellButton c={c} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : prefs.view === 'instructor' ? (
+        <InstructorGrid
+          cells={cells}
+          rows={rows}
+          thisWeek={thisWeek}
+          render={(c) => <CellButton c={c} />}
+        />
+      ) : (
+        <div className="max-h-[70vh] overflow-auto rounded-md border border-border">
+          <table className="text-sm">
+            <thead className="sticky top-0 z-20 bg-card">
+              <tr>
+                <th className="sticky left-0 z-30 bg-card px-3 py-2" rowSpan={2}>
+                  Week of
+                </th>
+                {tracks.map(([t, cs]) => (
+                  <th
+                    key={t}
+                    colSpan={collapsed.has(t) ? 1 : cs.length}
+                    className="border-l border-border px-3 py-1 text-left"
+                  >
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs font-semibold"
+                      aria-expanded={!collapsed.has(t)}
+                      onClick={() => {
+                        const n = new Set(collapsed);
+                        if (n.has(t)) n.delete(t);
+                        else n.add(t);
+                        setCollapsed(n);
+                      }}
+                    >
+                      {collapsed.has(t) ? (
+                        <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                      {t} ({cs.length})
+                    </button>
+                  </th>
+                ))}
+              </tr>
+              <tr>
+                {tracks.flatMap(([t, cs]) =>
+                  collapsed.has(t)
+                    ? [<th key={`${t}:folded`} className="border-l border-border px-3 py-2" />]
+                    : cs.map((c) => {
+                        const h = health(c.id);
+                        return (
+                          <th
+                            key={c.id}
+                            scope="col"
+                            className="min-w-48 border-l border-border px-3 py-2 text-left align-top"
+                          >
+                            <div className="flex items-center gap-1">
+                              <span className="font-semibold">{c.name}</span>
+                              <RegionBadge region={c.region} />
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1 font-normal">
+                              <Badge
+                                tone={
+                                  c.mode === 'Standard'
+                                    ? 'success'
+                                    : c.mode === 'Custom'
+                                      ? 'warning'
+                                      : 'neutral'
+                                }
+                              >
+                                {c.mode === 'Custom' ? `Custom (${c.changes})` : c.mode}
+                              </Badge>
+                              <Badge
+                                tone={
+                                  h.total > 0 && h.confirmed === h.total ? 'success' : 'neutral'
+                                }
+                              >
+                                {h.confirmed} of {h.total} confirmed
+                              </Badge>
+                              {c.merged_into && c.merged_from && (
+                                <Badge tone="accent">
+                                  Merged into {c.merged_into_name} from{' '}
+                                  {DateTime.fromISO(c.merged_from).toFormat('LLL d')}
+                                </Badge>
+                              )}
+                            </div>
+                            <CohortMenu
+                              name={c.name}
+                              onPick={(kind) => setMenu({ kind, cohort: c.id })}
+                            />
+                          </th>
+                        );
+                      }),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const iso = row.toISODate()!;
+                const programs = new Set(
+                  visibleCohorts.map((c) => breakAt(c.id, row)?.program_break_id ?? '-'),
+                );
+                const program =
+                  visibleCohorts.length > 1 && programs.size === 1 && !programs.has('-')
+                    ? breakAt(visibleCohorts[0]!.id, row)
+                    : null;
+                return (
+                  <tr
+                    key={iso}
+                    aria-current={iso === thisWeek ? 'date' : undefined}
+                    className={cn(
+                      'border-t border-border align-top',
+                      iso === thisWeek && 'bg-info-soft/40',
+                    )}
+                  >
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 bg-card px-3 py-2 text-left whitespace-nowrap"
+                    >
+                      {row.toFormat('LLL d')}
+                      {iso === thisWeek && (
+                        <div className="text-xs font-normal text-muted-foreground">This week</div>
+                      )}
+                    </th>
+                    {program ? (
+                      <td
+                        colSpan={
+                          visibleCohorts.length + tracks.filter(([t]) => collapsed.has(t)).length
+                        }
+                        className="px-3 py-2"
+                      >
+                        <Badge>
+                          <Pause className="h-3.5 w-3.5" aria-hidden /> Program break:{' '}
+                          {program.reason}
+                        </Badge>
+                      </td>
+                    ) : (
+                      tracks.flatMap(([t, cs]) =>
+                        collapsed.has(t)
+                          ? [<td key={`${t}:${iso}`} className="border-l border-border" />]
+                          : cs.map((c) => {
+                              const here = cellsAt(c.id, row);
+                              const br = breakAt(c.id, row);
+                              return (
+                                <td key={c.id} className="border-l border-border px-2 py-2">
+                                  <div className="space-y-1">
+                                    {br && here.length === 0 && (
+                                      <Badge>
+                                        <Pause className="h-3.5 w-3.5" aria-hidden /> Break:{' '}
+                                        {br.reason}
+                                      </Badge>
+                                    )}
+                                    {here.map((x) => (
+                                      <CellButton key={x.id} c={x} />
+                                    ))}
+                                  </div>
+                                </td>
+                              );
+                            }),
+                      )
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {open && <ClassDrawer week={open} names={names} onClose={() => setOpenWeek(null)} />}
+      {menu?.kind === 'break' && domain && (
+        <AddBreakDialog
+          domainId={domain.id}
+          program={false}
+          cohortId={menu.cohort}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {menu?.kind === 'holiday' && domain && (
+        <AddCohortHolidayDialog
+          domainId={domain.id}
+          cohortId={menu.cohort}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {menu?.kind === 'merge' && domain && (
+        <MergeCohortsDialog
+          domainId={domain.id}
+          cohortId={menu.cohort}
+          onClose={() => setMenu(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The cohort header menu: add a break, a cohort holiday, merge, and links to its settings and instructor order. */
+function CohortMenu({
+  name,
+  onPick,
+}: {
+  name: string;
+  onPick: (kind: 'break' | 'holiday' | 'merge') => void;
+}) {
+  const [openMenu, setOpenMenu] = useState(false);
+  return (
+    <div className="relative mt-1 font-normal">
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-expanded={openMenu}
+        onClick={() => setOpenMenu(!openMenu)}
+      >
+        Cohort actions <span className="sr-only">for {name}</span>
+      </Button>
+      {openMenu && (
+        <div className="absolute z-40 mt-1 flex w-56 flex-col rounded-md border border-border bg-card p-1 shadow-md">
+          {(
+            [
+              ['break', 'Add a break'],
+              ['holiday', 'Add a cohort holiday'],
+              ['merge', 'Merge with another cohort'],
+            ] as const
+          ).map(([k, label]) => (
+            <Button
+              key={k}
+              size="sm"
+              variant="ghost"
+              className="justify-start"
+              onClick={() => {
+                setOpenMenu(false);
+                onPick(k);
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+          <a className="rounded px-3 py-1.5 text-sm hover:bg-muted" href="/setup/domains">
+            Cohort settings
+          </a>
+          <a className="rounded px-3 py-1.5 text-sm hover:bg-muted" href="/setup/modules">
+            Instructor order
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** By instructor: one row per instructor, one column per week. */
+function InstructorGrid({
+  cells,
+  rows,
+  thisWeek,
+  render,
+}: {
+  cells: Cell[];
+  rows: DateTime[];
+  thisWeek: string | null;
+  render: (c: Cell) => React.ReactNode;
+}) {
+  const people = [...new Set(cells.map((c) => c.instructor ?? 'No instructor yet'))].sort();
+  return (
+    <div className="max-h-[70vh] overflow-auto rounded-md border border-border">
+      <table className="text-sm">
+        <thead className="sticky top-0 z-20 bg-card">
+          <tr>
+            <th className="sticky left-0 z-30 bg-card px-3 py-2 text-left">Instructor</th>
+            {rows.map((r) => (
+              <th
+                key={r.toISODate()}
+                scope="col"
+                aria-current={r.toISODate() === thisWeek ? 'date' : undefined}
+                className="min-w-48 border-l border-border px-3 py-2 text-left"
+              >
+                {r.toFormat('LLL d')}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {people.map((p) => (
+            <tr key={p} className="border-t border-border align-top">
+              <th
+                scope="row"
+                className="sticky left-0 z-10 bg-card px-3 py-2 text-left whitespace-nowrap"
+              >
+                {p}
+              </th>
+              {rows.map((r) => (
+                <td key={r.toISODate()} className="border-l border-border px-2 py-2">
+                  <div className="space-y-1">
+                    {cells
+                      .filter(
+                        (c) =>
+                          (c.instructor ?? 'No instructor yet') === p &&
+                          DateTime.fromISO(c.week_start_date) >= r &&
+                          DateTime.fromISO(c.week_start_date) < r.plus({ weeks: 1 }),
+                      )
+                      .map((c) => (
+                        <div key={c.id}>
+                          <div className="text-xs text-muted-foreground">
+                            {c.cohort ?? 'No cohort'}
+                          </div>
+                          {render(c)}
+                        </div>
+                      ))}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

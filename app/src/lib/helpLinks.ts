@@ -3,6 +3,7 @@
 /** Which guide the "?" link on each page opens. */
 export function guideForPath(pathname: string): string {
   if (pathname === '/' || pathname.startsWith('/home')) return 'needs-your-attention';
+  if (pathname.startsWith('/board')) return 'schedule-board';
   if (pathname.startsWith('/classes')) return 'planning-classes';
   if (pathname.startsWith('/requests')) return 'what-happens-automatically';
   if (pathname.startsWith('/setup/modules')) return 'setting-up-a-module';
