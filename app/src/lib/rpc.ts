@@ -40,6 +40,25 @@ export function check<R extends { data: unknown; error: unknown }>(res: R): NonN
   return res.data as NonNullable<R['data']>;
 }
 
+/** The database returns at most this many rows per request (supabase/config.toml, max_rows). */
+export const PAGE_ROWS = 1000;
+
+/**
+ * Read every row of a list that can grow past one page (Release 3, M6): asks for rows 0 to 999, 1000 to 1999 and
+ * so on until a page comes back short, so nothing is silently left out. `page` builds the same ordered query
+ * for a range of rows.
+ */
+export async function fetchAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const rows = check(await page(from, from + PAGE_ROWS - 1));
+    out.push(...rows);
+    if (rows.length < PAGE_ROWS) return out;
+  }
+}
+
 /** Ask n8n (WF4) to deliver queued messages now. Carries no data; safe to call often. */
 export async function poke(): Promise<void> {
   if (!env.pokeUrl) return;

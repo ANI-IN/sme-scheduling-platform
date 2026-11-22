@@ -2,7 +2,7 @@
 // invalidate these caches so changes from n8n or teammates show up immediately.
 import { useQuery } from '@tanstack/react-query';
 import { supabase, type Tables } from './supabase';
-import { check, rpc } from './rpc';
+import { check, fetchAll, rpc } from './rpc';
 import { useAuth } from './auth';
 
 /** While the automation is checking Discord for someone, look again every few seconds. */
@@ -87,15 +87,18 @@ export const useWeeks = (domainId: string | undefined) =>
   useQuery({
     queryKey: ['module_week', domainId],
     enabled: !!domainId,
-    queryFn: async () =>
-      check(
-        await supabase
+    // Every class week of the domain, a page at a time (the database returns at most 1,000 rows at once).
+    queryFn: () =>
+      fetchAll((from, to) =>
+        supabase
           .from('module_week')
           .select(
             '*, module(name), class_session(*), booking(*), request(*), help_request(id, status), manual_queue_item(*)',
           )
           .eq('domain_id', domainId!)
-          .order('week_start_date'),
+          .order('week_start_date')
+          .order('id')
+          .range(from, to),
       ),
   });
 
