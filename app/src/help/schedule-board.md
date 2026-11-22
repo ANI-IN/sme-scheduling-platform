@@ -24,3 +24,18 @@ The counts at the top add up every problem in the weeks shown: clashes, unavaila
 ## Cohort headers
 
 Each cohort shows its time zone, whether it follows its standard schedule (**Standard**, **Custom** with the number of changes, or **Fully custom**), how many class weeks are confirmed, and **Merged into** after a merge. **Cohort actions** adds a break or a cohort holiday, merges it with another cohort, or opens its settings and instructor order.
+
+## Change several class weeks at once
+
+1. Press **Select class weeks**. Each cell you click is now selected instead of opened. Click it again to unselect it.
+2. The bar above the board says how many are selected. Choose what to do:
+   - **Add a break:** the break dialog opens with the cohorts of the selected class weeks and the first selected week as its first day.
+   - **Move:** choose how many weeks earlier or later. Every selected class week moves by the same number of weeks, at the same clock time.
+   - **Cancel:** type why. Every selected class week is cancelled, and the people confirmed for them are told.
+   - **Make one shared class:** the earliest selected class week hosts the class and the others join it. You need at least two.
+3. Before anything is saved, one preview lists every selected class week, who is told or asked again, and every new problem the change would create. Something that **blocks** must be fixed first; a **warning** needs a reason, which is saved in Activity history.
+4. Press the button at the bottom to save, or **Go back** to change nothing. Press **Done selecting** to open cells again.
+
+## Compare to standard and download
+
+Tick **Compare to standard** to outline every class week that differs from its cohort's standard schedule. **Download as spreadsheet** saves what is shown; the download is kept in Activity history.
