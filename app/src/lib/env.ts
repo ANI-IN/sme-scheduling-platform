@@ -8,8 +8,6 @@ export const env = {
     (import.meta.env.VITE_COMPANY_EMAIL_DOMAIN as string | undefined) ??
     ''
   ).toLowerCase(),
-  pokeUrl: import.meta.env.VITE_N8N_POKE_URL as string | undefined,
-  pokeKey: import.meta.env.VITE_N8N_POKE_KEY as string | undefined,
 };
 
 export const configMissing = !env.supabaseUrl || !env.supabaseKey;

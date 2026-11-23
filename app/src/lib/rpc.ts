@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { env } from './env';
 import type { Database } from './database.types';
 
 type Fns = Database['public']['Functions'];
@@ -51,13 +50,23 @@ export const PAGE_ROWS = 1000;
 export async function fetchAll<T>(
   page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
 ): Promise<T[]> {
+  // Four pages at a time instead of one after another (decision 334): a big domain's class weeks load in one
+  // round trip instead of several. Pages past the end come back empty at once.
   const out: T[] = [];
-  for (let from = 0; ; from += PAGE_ROWS) {
-    const rows = check(await page(from, from + PAGE_ROWS - 1));
-    out.push(...rows);
-    if (rows.length < PAGE_ROWS) return out;
+  for (let from = 0; ; from += PAGE_ROWS * PARALLEL_PAGES) {
+    const batch = await Promise.all(
+      Array.from({ length: PARALLEL_PAGES }, (_, k) =>
+        page(from + k * PAGE_ROWS, from + (k + 1) * PAGE_ROWS - 1).then(check),
+      ),
+    );
+    for (const rows of batch) {
+      out.push(...rows);
+      if (rows.length < PAGE_ROWS) return out;
+    }
   }
 }
+
+const PARALLEL_PAGES = 4;
 
 /** How many IDs go in one `in(...)` filter: each is 37 characters of the address, which must stay short. */
 export const IDS_PER_REQUEST = 100;
@@ -77,18 +86,10 @@ export async function fetchByIds<T>(
 }
 
 /**
- * Ask n8n (WF4) to work now. Carries no data. The database already pokes n8n by itself within a few seconds whenever
- * a message is queued or a Discord check is asked for (decision 329), so this is only a backup, and it never makes
- * anyone wait: it returns at once and the request finishes in the background.
+ * Kept so callers need no change, but it does nothing any more (decision 334). The database pokes n8n by itself within
+ * a few seconds whenever a message is queued or a Discord check is asked for (decision 329), so the app no longer
+ * calls n8n, and the poke key is no longer part of the app.
  */
 export function poke(): Promise<void> {
-  if (!env.pokeUrl) return Promise.resolve();
-  void fetch(env.pokeUrl, {
-    method: 'POST',
-    // Normal CORS request: 'no-cors' would silently drop the x-poke-key header.
-    headers: env.pokeKey ? { 'x-poke-key': env.pokeKey } : undefined,
-  }).catch(() => {
-    // The database clock delivers anyway.
-  });
   return Promise.resolve();
 }

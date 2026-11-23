@@ -158,15 +158,19 @@ export default function Outreach() {
       finding.map((w) => `${w.id}:${w.version}`).join(),
     ],
     enabled: finding.length > 0,
-    queryFn: async () =>
-      Object.fromEntries(
-        await Promise.all(
-          finding.map(async (w) => [
-            w.id,
-            (await rpc('preview_next', { p_module_week_id: w.id })) as unknown as Preview,
-          ]),
-        ),
-      ) as Record<string, Preview>,
+    // One request for every class week, at most 500 at a time (was one request per class week; decision 334).
+    queryFn: async () => {
+      const out: Record<string, Preview> = {};
+      for (let i = 0; i < finding.length; i += 500) {
+        Object.assign(
+          out,
+          (await rpc('preview_next_many', {
+            p_module_week_ids: finding.slice(i, i + 500).map((w) => w.id),
+          })) as unknown as Record<string, Preview>,
+        );
+      }
+      return out;
+    },
   });
 
   const checkinMsgs = useQuery({
