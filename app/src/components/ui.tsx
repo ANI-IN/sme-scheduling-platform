@@ -8,12 +8,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { guideForPath } from '@/lib/helpLinks';
 import type {
   ButtonHTMLAttributes,
+  MouseEvent,
   InputHTMLAttributes,
   ReactNode,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from 'react';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 
 export function cn(...c: (string | false | null | undefined)[]): string {
   return twMerge(clsx(c));
@@ -43,11 +44,26 @@ export function Button({
   size?: 'sm' | 'md' | 'icon';
   loading?: boolean;
 }) {
+  // No double submissions (owner, 24 November 2026): while what a click started is still running, the button waits.
+  const [running, setRunning] = useState(false);
+  const { onClick } = p;
+  const click = onClick
+    ? (e: MouseEvent<HTMLButtonElement>) => {
+        const r = onClick(e) as unknown;
+        if (r && typeof (r as PromiseLike<unknown>).then === 'function') {
+          setRunning(true);
+          const done = () => setRunning(false);
+          (r as PromiseLike<unknown>).then(done, done);
+        }
+      }
+    : undefined;
   return (
     <button
       type="button"
       {...p}
-      disabled={p.disabled || loading}
+      onClick={click}
+      aria-busy={running || loading || undefined}
+      disabled={p.disabled || loading || running}
       className={cn(
         'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50',
         size === 'sm' && 'h-8 px-2.5 text-sm',
