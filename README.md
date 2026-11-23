@@ -178,7 +178,12 @@ confirmed booking is never taken away.
   zone.
 - When US clocks move forward, times between 2:00 AM and 3:00 AM do not exist and are blocked. When they move back,
   times between 1:00 AM and 2:00 AM happen twice and the app asks which one you mean.
-- Instructor quiet hours follow the region of the class: nobody is messaged at night in the class's time zone.
+- Instructor messages go as soon as they are ready, at any hour (decision 332). Quiet hours for instructors are an
+  optional domain setting, off by default; when on, they follow the instructor's own time zone, else the class's.
+  Every time in an instructor message is shown in US Pacific and India time. Team quiet hours do not change.
+- A Draft domain never creates or sends instructor messages; going back to Draft cancels what is waiting (decision 333).
+- A class week never shows Waiting for an answer with nobody asked: the usual next step runs when a change is saved
+  and on every clock run (decision 332). A withdrawn instructor is not asked again for that week (decision 333).
 
 ### Holidays and cohort holidays
 
@@ -359,8 +364,9 @@ and read the last file that defines it; docs/DECISIONS.md explains why each rule
 - Reply reading slows to every 20 minutes above 8,000 n8n runs this month and stops on its own above 9,300 (every WF4
   run still reads replies, and messages still go out).
 - `sme-engine-hourly` runs the automatic check inside the database at minute 30 of every hour.
-- The poke key is kept in Supabase Vault (`n8n_poke_key`), never in a file. App buttons also poke WF4 at once, so
-  their messages go out within seconds.
+- The poke key is kept in Supabase Vault (`n8n_poke_key`), never in a file or in the app. The database pokes WF4
+  within seconds of any queued message or Discord check, so the app itself never calls n8n (decision 334).
+- `sme-run-log-purge` keeps the clock's run log to the last 7 days, every night at 21:15 UTC (decision 333).
 - Typed replies show in the app within about 10 minutes.
 - The clock has been on since 22 November 2026, 17:36 UTC. Until 23 November 2026, 17:36 UTC, WF1 (every hour) and
   WF4 (every 6 minutes) keep their own n8n schedule triggers as a safety net. After that, the owner's plan is to switch
