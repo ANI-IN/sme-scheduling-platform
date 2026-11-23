@@ -44,8 +44,16 @@ test('a Discord account held by another instructor: Release from them, then it i
     `update public.instructor set discord_user_id = '900000000000000077', discord_status = 'Found'
       where full_name = 'Test Instructor A' returning id`,
   );
+  // The username first: changing it starts a check, and the check's answer is played below as a holder.
+  await sql(
+    `update public.instructor set discord_username = 'e2e.held', discord_user_id = null
+      where full_name = 'Test Instructor F'`,
+  );
+  await sql(
+    `delete from public.action_queue where action = 'discord_member' and status = 'Queued'`,
+  );
   const f = await one<{ id: string }>(
-    `update public.instructor set discord_username = 'e2e.held', discord_user_id = null, discord_status = 'Problem',
+    `update public.instructor set discord_status = 'Problem',
             discord_held_by = $1,
             discord_problem = 'This Discord account is already linked to Test Instructor A. If that is an old record of the same person or a mistake, press Release from Test Instructor A, then the account is linked here.'
       where full_name = 'Test Instructor F' returning id`,
