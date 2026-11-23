@@ -30,6 +30,12 @@ const BANNED: [RegExp, string][] = [
   [/\bhourly check\b/i, 'hourly check'],
   [/\bseed(ed)?\b/i, 'seed'],
   [/\brankings?\b/i, 'ranking'],
+  // Owner, 24 November 2026: no technical words or internal states on screen or in messages.
+  [/\bwebhooks?\b/i, 'webhook'],
+  [/\bRPCs?\b/, 'RPC'],
+  [/\bNaN\b/, 'NaN'],
+  [/\bSQL\b/, 'SQL'],
+  [/\bstack trace\b/i, 'stack trace'],
 ];
 const ALLOW_INTERNAL = [/settings[\\/]Connections\.tsx$/];
 /**
