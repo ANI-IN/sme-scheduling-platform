@@ -1,7 +1,8 @@
 import { useDiscordNames } from '@/lib/useDiscordNames';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useLiveUpdates } from '@/lib/live';
+import { useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Dialog as D, DropdownMenu as DM } from 'radix-ui';
 import {
   Activity,
@@ -97,22 +98,12 @@ export const statusTone: Record<string, Tone> = {
 export const isTesting = (d: Domain | null | undefined) =>
   !!d && (d.status === 'Test' || (d.status === 'Paused' && d.paused_from === 'Test'));
 
-const liveTables = [
-  'attention_item',
-  'module_week',
-  'request',
-  'booking',
-  'help_request',
-  'class_session',
-  'system_state',
-  'domain',
-  'history_event',
-];
 const COLLAPSE_KEY = 'ik-sidebar-collapsed';
 
 export function AppShell() {
   useDiscordNames();
-  const qc = useQueryClient();
+  // Live updates: anything the automation or a teammate changes refreshes the open screens (lib/live.ts).
+  useLiveUpdates();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
@@ -122,22 +113,6 @@ export function AppShell() {
       return false;
     }
   });
-
-  // Live updates: anything the automation or a teammate changes refreshes the open screens.
-  useEffect(() => {
-    // A unique name per mount: removing a channel is asynchronous, and reusing the same name before it
-    // is gone makes Supabase refuse new listeners ("cannot add postgres_changes callbacks").
-    const ch = supabase.channel(`live-${Math.random().toString(36).slice(2)}`);
-    for (const table of liveTables) {
-      ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        void qc.invalidateQueries();
-      });
-    }
-    ch.subscribe();
-    return () => {
-      void supabase.removeChannel(ch);
-    };
-  }, [qc]);
 
   // Close the mobile menu after navigating.
   const [lastPath, setLastPath] = useState(location.pathname);

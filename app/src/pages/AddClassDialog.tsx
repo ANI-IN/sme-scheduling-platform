@@ -17,6 +17,7 @@ import {
   Select,
   formatDateValue,
 } from '@/components/ui';
+import { refreshClasses } from '@/lib/live';
 
 type Warning = CheckWarning;
 
@@ -116,7 +117,7 @@ export function AddClassDialog({
         return;
       }
       toast.success(`Class added on ${formatDateValue(f.date)}`);
-      await qc.invalidateQueries();
+      refreshClasses(qc);
       onClose();
     } catch (e) {
       setErr(e);

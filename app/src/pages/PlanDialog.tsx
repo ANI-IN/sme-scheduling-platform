@@ -27,6 +27,7 @@ import {
   td,
   th,
 } from '@/components/ui';
+import { refreshClasses } from '@/lib/live';
 
 type ProposedClass = {
   pattern_item_id: string | null;
@@ -283,7 +284,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
       toast.success(
         `Planned ${res.created} class week${res.created === 1 ? '' : 's'} for ${cohortName}`,
       );
-      await qc.invalidateQueries();
+      refreshClasses(qc);
       onClose();
     } catch (e) {
       setErr(e);

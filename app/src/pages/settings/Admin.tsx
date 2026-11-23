@@ -18,6 +18,7 @@ import {
   PageHeader,
   Section,
 } from '@/components/ui';
+import { refresh } from '@/lib/live';
 
 /** Release 3, decisions 276, 277, 286 and 287: what only admins change, in one place. */
 export default function Admin() {
@@ -86,7 +87,7 @@ function SignInSection() {
     try {
       await rpc('set_sign_in_mode', { p_mode: next });
       toast.success('Who may sign in is changed');
-      await qc.invalidateQueries();
+      refresh(qc, 'app_config', 'beta_access');
     } catch (e) {
       setErr(e);
     }
@@ -139,7 +140,7 @@ function BetaListSection() {
       toast.success(`${email.trim().toLowerCase()} is on the beta list`);
       setEmail('');
       setNote('');
-      await qc.invalidateQueries({ queryKey: ['beta_access'] });
+      refresh(qc, 'beta_access');
     } catch (e) {
       setErr(e);
     } finally {
@@ -157,7 +158,7 @@ function BetaListSection() {
     try {
       await rpc('beta_list_remove', { p_email: e });
       toast.success(`${e} is no longer on the beta list`);
-      await qc.invalidateQueries({ queryKey: ['beta_access'] });
+      refresh(qc, 'beta_access');
     } catch (x) {
       setErr(x);
     }
@@ -275,7 +276,7 @@ function RecipientsSection() {
       toast.success('Who may receive messages is saved');
       setDomains(null);
       setCap(null);
-      await qc.invalidateQueries();
+      refresh(qc, 'app_config');
     } catch (e) {
       setErr(e);
     }
@@ -355,7 +356,7 @@ function AdminsSection() {
     try {
       await rpc('set_admin', { p_team_member_id: id, p_admin: admin });
       toast.success(admin ? `${name} is an admin` : `${name} is no longer an admin`);
-      await qc.invalidateQueries();
+      refresh(qc, 'team_member');
     } catch (e) {
       setErr(e);
     }

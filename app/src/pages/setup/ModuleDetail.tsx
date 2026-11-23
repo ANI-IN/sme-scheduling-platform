@@ -4,6 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import { useAutosave } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { useDomain } from '@/lib/domain';
 import { useCohorts, useModules, useTeam } from '@/lib/data';
 import { LastChanged } from '@/components/LastChanged';
@@ -12,7 +15,6 @@ import { PeoplePicker } from '@/components/PeoplePicker';
 import { ArchiveButton, DeleteButton, useRemovePart } from '@/components/Lifecycle';
 import {
   Badge,
-  Button,
   Checkbox,
   Empty,
   ErrorText,
@@ -67,7 +69,7 @@ export default function ModuleDetail() {
     try {
       await fn();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      refresh(qc, 'module', 'module_operations');
     } catch (e) {
       setErr(e);
     }
@@ -100,7 +102,7 @@ export default function ModuleDetail() {
         tabs={MODULE_TABS}
       >
         <TabPanel value="details">
-          <DetailsForm key={m.version} module={m} run={run} />
+          <DetailsForm module={m} />
         </TabPanel>
         <TabPanel value="times">
           <Section
@@ -170,23 +172,46 @@ export default function ModuleDetail() {
 
 type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
-function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
+function DetailsForm({ module: m }: { module: ModuleRow }) {
   const navigate = useNavigate();
-  const [f, setF] = useState({
+  const stored = {
     name: m.name,
     rotation_order: m.rotation_order,
     status: m.status,
     same: m.same_instructor_for_module_week,
-  });
+  };
+  const [f, setF] = useState(stored);
   const v = useFormErrors({
     name: !f.name.trim() ? 'Enter a name.' : undefined,
     rotation_order: !(f.rotation_order >= 1) ? 'Use 1 or more.' : undefined,
   });
-  const dirty =
-    f.name !== m.name ||
-    f.rotation_order !== m.rotation_order ||
-    f.status !== m.status ||
-    f.same !== m.same_instructor_for_module_week;
+  // Name, order, status and the toggle save as they change (C15); the page header follows when the list reloads.
+  const qc = useQueryClient();
+  const auto = useAutosave({
+    value: { ...f, name: f.name.trim() },
+    instant: ['status', 'same'],
+    stored,
+    version: m.version,
+    valid: !v.hasErrors,
+    onReload: setF,
+    save: async (x, version) => {
+      const [row] = check(
+        await supabase
+          .from('module')
+          .update({
+            name: x.name,
+            rotation_order: x.rotation_order,
+            status: x.status,
+            same_instructor_for_module_week: x.same,
+            version,
+          })
+          .eq('id', m.id)
+          .select(),
+      );
+      refresh(qc, 'module');
+      return row?.version;
+    },
+  });
   return (
     <div className="space-y-5">
       <Section title="Module details">
@@ -194,7 +219,7 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
           <Field label="Name" required error={v.show('name')}>
             <Input
               value={f.name}
-              onBlur={v.touch('name')}
+              onBlur={() => (v.touch('name')(), auto.flush())}
               onChange={(e) => setF({ ...f, name: e.target.value })}
             />
           </Field>
@@ -207,7 +232,7 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
               type="number"
               min={1}
               value={f.rotation_order}
-              onBlur={v.touch('rotation_order')}
+              onBlur={() => (v.touch('rotation_order')(), auto.flush())}
               onChange={(e) => setF({ ...f, rotation_order: Number(e.target.value) })}
             />
           </Field>
@@ -233,32 +258,7 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
             />
           </div>
         </div>
-        <Button
-          className="mt-4"
-          disabled={!dirty}
-          onClick={() =>
-            v.submit() &&
-            run(
-              async () =>
-                check(
-                  await supabase
-                    .from('module')
-                    .update({
-                      name: f.name.trim(),
-                      rotation_order: f.rotation_order,
-                      status: f.status,
-                      same_instructor_for_module_week: f.same,
-                      version: m.version,
-                    })
-                    .eq('id', m.id)
-                    .select(),
-                ),
-              'Changes saved',
-            )
-          }
-        >
-          Save changes
-        </Button>
+        <SaveState className="mt-3" status={auto.status} waiting={auto.dirty} />
         <div className="mt-2">
           <LastChanged at={m.updated_at} by={m.updated_by} />
         </div>
@@ -319,7 +319,7 @@ export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
               'Owner removed',
             )
           )
-            await qc.invalidateQueries();
+            refresh(qc, 'module');
         }}
       />
     </Section>
@@ -428,7 +428,7 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
             'Removed from the operations team',
           )
         )
-          await qc.invalidateQueries();
+          refresh(qc, 'module_operations');
       }}
     />
   );

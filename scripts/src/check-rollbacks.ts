@@ -4,7 +4,7 @@
 //
 // For each `supabase/rollback/<migration>.sql`, in a throwaway database built from the migrations before it:
 //   1. fingerprint the schema (functions with their code, settings and grants, tables, columns, constraints,
-//      indexes, policies, triggers, views and scheduled jobs);
+//      indexes, policies, triggers, views, tables in a publication and scheduled jobs);
 //   2. apply the migration, fingerprint again;
 //   3. apply the rollback: the fingerprint must equal step 1;
 //   4. apply the migration again: the fingerprint must equal step 2.
@@ -48,6 +48,10 @@ with objs as (
   select 'trigger', n.nspname || '.' || c.relname || '.' || t.tgname, md5(pg_get_triggerdef(t.oid))
     from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
    where not t.tgisinternal and n.nspname in ('public', 'private')
+  union all
+  -- Which tables Realtime sends changes for.
+  select 'publication table', pubname || '.' || schemaname || '.' || tablename, md5(pubname)
+    from pg_publication_tables where schemaname in ('public', 'private')
   union all
   select 'view', schemaname || '.' || viewname, md5(definition) from pg_views where schemaname in ('public', 'private')
   union all

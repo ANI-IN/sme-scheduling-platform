@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import { useAutosave } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { instructorStatusLabel } from '@/lib/labels';
 import { useDomains, useInstructors, type Instructor } from '@/lib/data';
 import { ago, fmtLocal } from '@/lib/time';
@@ -298,7 +301,9 @@ export default function Instructors() {
       )}
       {editing && (
         <InstructorDrawer
-          instructor={editing === 'new' ? null : editing}
+          instructor={
+            editing === 'new' ? null : (data?.find((x) => x.id === editing.id) ?? editing)
+          }
           all={data ?? []}
           ranked={editing === 'new' ? [] : (ctx.data?.ranked.get(editing.id) ?? [])}
           upcoming={editing === 'new' ? [] : (ctx.data?.upcoming.get(editing.id) ?? [])}
@@ -417,7 +422,62 @@ export function InstructorDrawer({
     !!instructor &&
     (instructor.primary_email !== f.primary_email.trim().toLowerCase() ||
       (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
-  const refresh = () => qc.invalidateQueries();
+  // Name, phone, notes, classes a month and Test instructor save as they change (C15).
+  const basic = (x: typeof f) => ({
+    full_name: x.full_name.trim(),
+    phone: x.phone.trim() || null,
+    notes: x.notes.trim() || null,
+    is_test: x.is_test,
+    monthly_class_limit: x.monthly_class_limit ? Number(x.monthly_class_limit) : null,
+  });
+  const auto = useAutosave({
+    enabled: !!instructor,
+    value: basic(f),
+    stored: {
+      full_name: instructor?.full_name ?? '',
+      phone: instructor?.phone ?? null,
+      notes: instructor?.notes ?? null,
+      is_test: instructor?.is_test ?? false,
+      monthly_class_limit: instructor?.monthly_class_limit ?? null,
+    },
+    version: instructor?.version,
+    instant: ['is_test'],
+    valid: !errors.full_name && !errors.monthly_class_limit,
+    onReload: (x) =>
+      setF((cur) => ({
+        ...cur,
+        full_name: x.full_name,
+        phone: x.phone ?? '',
+        notes: x.notes ?? '',
+        is_test: x.is_test,
+        monthly_class_limit: x.monthly_class_limit ? String(x.monthly_class_limit) : '',
+      })),
+    save: async (x, version) => {
+      const [row] = check(
+        await supabase
+          .from('instructor')
+          .update({ ...x, version })
+          .eq('id', instructor!.id)
+          .select(),
+      );
+      refresh(qc, 'instructor');
+      return row?.version;
+    },
+  });
+  // The emails and the Discord username keep a Save button: messages go to them, and saving them removes the
+  // contact check and starts a Discord check, so a half typed address must never be stored.
+  const extrasChanged =
+    !!instructor &&
+    extras
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+      .sort()
+      .join() !==
+      instructor.instructor_email
+        .filter((e) => !e.is_primary)
+        .map((e) => e.email)
+        .sort()
+        .join();
 
   async function save(another = false) {
     setErr(null);
@@ -435,13 +495,18 @@ export function InstructorDrawer({
       };
       let id = instructor?.id;
       if (instructor) {
-        check(
+        const [saved] = check(
           await supabase
             .from('instructor')
-            .update({ ...row, version: instructor.version })
+            .update({
+              primary_email: row.primary_email,
+              discord_username: row.discord_username,
+              version: auto.version,
+            })
             .eq('id', instructor.id)
             .select(),
         );
+        if (saved) auto.adoptVersion(saved.version);
       } else {
         const created = check(await supabase.from('instructor').insert(row).select().single())!;
         id = created.id;
@@ -456,10 +521,10 @@ export function InstructorDrawer({
         contactChanged
           ? 'Saved. The contact details changed, so send a new contact check.'
           : instructor
-            ? 'Changes saved'
+            ? 'Email and Discord saved'
             : 'Instructor added',
       );
-      await refresh();
+      refresh(qc, 'instructor');
       if (another) {
         // Save and add another: an empty form for the next person (decision 259).
         setF({
@@ -489,9 +554,9 @@ export function InstructorDrawer({
     setErr(null);
     try {
       await fn();
-      await poke();
+      void poke();
       toast.success(ok);
-      await refresh();
+      refresh(qc, 'instructor', 'request');
     } catch (e) {
       setErr(e);
     }
@@ -512,12 +577,12 @@ export function InstructorDrawer({
       setDeact(res.bookings);
       return;
     }
-    await poke();
+    void poke();
     toast.success(
       `${instructor.full_name} is now ${status === 'Inactive' ? 'not in use' : 'archived'}`,
     );
     setDeact(null);
-    await refresh();
+    refresh(qc, 'instructor', 'booking');
   }
 
   return (
@@ -532,22 +597,36 @@ export function InstructorDrawer({
       }
       footer={
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
-            {instructor ? 'Save changes' : 'Add instructor'}
-          </Button>
-          {!instructor && (
-            <Button
-              variant="secondary"
-              onClick={() => void save(true)}
-              loading={saving}
-              disabled={!!dup}
-            >
-              Save and add another
-            </Button>
+          {instructor ? (
+            <>
+              {(contactChanged || extrasChanged) && (
+                <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
+                  Save email and Discord
+                </Button>
+              )}
+              <Button variant="secondary" onClick={onClose}>
+                Done
+              </Button>
+              <SaveState status={auto.status} waiting={auto.dirty} />
+            </>
+          ) : (
+            <>
+              <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
+                Add instructor
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void save(true)}
+                loading={saving}
+                disabled={!!dup}
+              >
+                Save and add another
+              </Button>
+              <Button variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+            </>
           )}
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
           {/* UI-9: the reason a save failed shows next to the Save button. */}
           <div className="basis-full">
             <ErrorText error={err} />
@@ -567,7 +646,7 @@ export function InstructorDrawer({
           <Field label="Full name" required error={v.show('full_name')}>
             <Input
               value={f.full_name}
-              onBlur={v.touch('full_name')}
+              onBlur={() => (v.touch('full_name')(), auto.flush())}
               onChange={(e) => setF({ ...f, full_name: e.target.value })}
             />
           </Field>
@@ -621,7 +700,11 @@ export function InstructorDrawer({
             </Button>
           </div>
           <Field label="Phone" hint="Only for the team, for example to call in an emergency.">
-            <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            <Input
+              value={f.phone}
+              onBlur={auto.flush}
+              onChange={(e) => setF({ ...f, phone: e.target.value })}
+            />
           </Field>
           <Field
             label="Classes a month (optional)"
@@ -633,13 +716,17 @@ export function InstructorDrawer({
               min={1}
               max={100}
               value={f.monthly_class_limit}
-              onBlur={v.touch('monthly_class_limit')}
+              onBlur={() => (v.touch('monthly_class_limit')(), auto.flush())}
               onChange={(e) => setF({ ...f, monthly_class_limit: e.target.value })}
               className="w-28"
             />
           </Field>
           <Field label="Notes">
-            <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+            <Textarea
+              value={f.notes}
+              onBlur={auto.flush}
+              onChange={(e) => setF({ ...f, notes: e.target.value })}
+            />
           </Field>
           <Checkbox
             label="Test instructor"
@@ -950,7 +1037,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
               onClick={async () => {
                 check(await supabase.from('instructor_unavailability').delete().eq('id', u.id));
                 toast.success('Dates removed');
-                await qc.invalidateQueries();
+                refresh(qc, 'instructor', 'request');
               }}
             >
               Remove
@@ -993,7 +1080,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
               setR({ from: '', to: '', reason: '' });
               v.reset();
               toast.success('Dates added');
-              await qc.invalidateQueries();
+              refresh(qc, 'instructor', 'request');
             } catch (e) {
               setErr(e);
             }

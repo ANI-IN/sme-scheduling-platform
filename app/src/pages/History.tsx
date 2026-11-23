@@ -35,6 +35,7 @@ import {
   td,
   th,
 } from '@/components/ui';
+import { refreshAll } from '@/lib/live';
 
 /** On a phone each entry is a card (cells stack); from tablet width it is a table row. */
 const cell = cn(td, 'block py-1 md:table-cell md:py-2.5');
@@ -375,7 +376,7 @@ export default function History() {
                           try {
                             await rpc('undo_history_event', { p_event_id: e.id });
                             toast.success('Undone');
-                            await qc.invalidateQueries();
+                            refreshAll(qc);
                           } catch (x) {
                             setErr(x);
                           }

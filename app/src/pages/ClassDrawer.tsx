@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { useNameBook, useWeeks, type WeekRow } from '@/lib/data';
 import { discordNames } from '@/lib/discordNames';
 import { messageTitle, plain } from '@/lib/plain';
@@ -36,6 +36,7 @@ import {
   Select,
   Textarea,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Eligible = {
   instructor_id: string;
@@ -56,9 +57,9 @@ export function useRun() {
     try {
       const r = await fn();
       if (ok) toast.success(ok);
-      // Show the result at once, then ask n8n to deliver; refresh again when it has started.
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      // The class lists load again in the background, and n8n is asked to deliver; neither is waited for.
+      refreshClasses(qc);
+      deliverNow(qc);
       return r;
     } catch (e) {
       setErr(e);

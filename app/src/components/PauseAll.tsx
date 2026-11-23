@@ -6,6 +6,7 @@ import { useMe, useSystem } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { useConfirm } from '@/components/Confirm';
 import { Badge, Button, ErrorText, Section } from '@/components/ui';
+import { refreshAll } from '@/lib/live';
 
 /** Pause or resume every message to instructors, with a confirmation. Used everywhere it appears. */
 export function usePauseAll() {
@@ -29,9 +30,9 @@ export function usePauseAll() {
     setErr(null);
     try {
       await rpc('set_kill_switch', { p_outreach_enabled: !on });
-      await poke();
+      void poke();
       toast.success(on ? 'All messages are paused' : 'Messages are on again');
-      await qc.invalidateQueries();
+      refreshAll(qc);
     } catch (e) {
       setErr(e);
       toast.error('Could not change it. Please try again.');

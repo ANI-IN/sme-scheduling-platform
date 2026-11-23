@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { RotateCcw } from 'lucide-react';
 import { rpc } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import type { SaveStatus } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { useDomain } from '@/lib/domain';
 import { useCohorts, type SettingRow } from '@/lib/data';
 import { useUnsavedChanges } from '@/lib/unsaved';
@@ -242,6 +245,9 @@ export default function Automation() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
+  // Switches save as soon as they change (C15). Until the list loads again they show what was just saved.
+  const [justSaved, setJustSaved] = useState<Record<string, unknown>>({});
+  const [switchState, setSwitchState] = useState<Record<string, SaveStatus>>({});
 
   const settings = useQuery({
     queryKey: ['setting', scope, scopeId],
@@ -253,12 +259,19 @@ export default function Automation() {
       })) as unknown as SettingRow[],
   });
   const rows = useMemo(() => settings.data ?? [], [settings.data]);
+  // Fresh settings arrived: they already have what was just saved.
+  const [seenRows, setSeenRows] = useState(settings.data);
+  if (seenRows !== settings.data) {
+    setSeenRows(settings.data);
+    if (!settings.isFetching && Object.keys(justSaved).length > 0) setJustSaved({});
+  }
   const byKey = useMemo(() => new Map(rows.map((r) => [r.key, r])), [rows]);
   const dirty = Object.keys(draft).length > 0;
   useUnsavedChanges(dirty);
 
   /** The value shown in a field: unsaved edit first, else the saved value. */
-  const current = (s: SettingRow) => (s.key in draft ? draft[s.key] : s.value);
+  const current = (s: SettingRow) =>
+    s.key in draft ? draft[s.key] : s.key in justSaved ? justSaved[s.key] : s.value;
   const effective = (key: string) => {
     const s = byKey.get(key);
     return s ? current(s) : undefined;
@@ -271,6 +284,8 @@ export default function Automation() {
   const changeScope = (v: string) => {
     if (dirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
     setDraft({});
+    setJustSaved({});
+    setSwitchState({});
     const [sc, id] = v.split(':');
     setParams(sc === 'Domain' ? {} : { scope: sc!, id: id! });
   };
@@ -287,13 +302,43 @@ export default function Automation() {
         p_reason: reason.trim() || undefined,
       });
       toast.success('Changes saved');
+      // Until the settings load again, show what was just saved rather than the old values.
+      setJustSaved((j) => ({
+        ...j,
+        ...Object.fromEntries(Object.entries(draft).filter(([, v]) => v !== null)),
+      }));
       setDraft({});
       setReason('');
-      await qc.invalidateQueries({ queryKey: ['setting'] });
+      refresh(qc, 'setting');
     } catch (e) {
       setErr(e);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * A switch saves at once: it only turns one thing on or off, and turning it back is as easy. The numbers, times
+   * and lists keep the Save changes bar, because they move when instructors are asked and reminded: the timeline
+   * above shows the new plan before it is saved, and a cohort change can carry a reason.
+   */
+  async function saveSwitch(key: string, value: boolean | null) {
+    setSwitchState((x) => ({ ...x, [key]: { state: 'saving', error: null } }));
+    try {
+      await rpc('set_settings_at', {
+        p_scope: scope,
+        p_scope_id: scopeId!,
+        p_values: { [key]: value } as never,
+      });
+      // "Use the value above" shows the value above once the settings load again.
+      if (value !== null) setJustSaved((j) => ({ ...j, [key]: value }));
+      setSwitchState((x) => ({ ...x, [key]: { state: 'saved', error: null } }));
+      refresh(qc, 'setting');
+    } catch (e) {
+      setSwitchState((x) => ({
+        ...x,
+        [key]: { state: 'error', error: e instanceof Error ? e.message : String(e) },
+      }));
     }
   }
 
@@ -314,8 +359,9 @@ export default function Automation() {
             value={current(s)}
             changed={k in draft}
             off={sw !== undefined && effective(sw) === false}
-            onChange={(v) => stage(k, v)}
-            onReset={() => stage(k, null)}
+            onChange={(v) => (s.type === 'bool' ? void saveSwitch(k, v as boolean) : stage(k, v))}
+            onReset={() => (s.type === 'bool' ? void saveSwitch(k, null) : stage(k, null))}
+            saveStatus={switchState[k]}
           />
         );
       });
@@ -549,6 +595,7 @@ function SettingField({
   off,
   onChange,
   onReset,
+  saveStatus,
 }: {
   s: SettingRow;
   scope: Scope;
@@ -558,6 +605,8 @@ function SettingField({
   off?: boolean;
   onChange: (v: unknown) => void;
   onReset: () => void;
+  /** A switch that saved by itself: Saving, Saved or why not. */
+  saveStatus?: SaveStatus;
 }) {
   const [text, setText] = useState(toText(s, value));
   const [touched, setTouched] = useState(false);
@@ -630,6 +679,7 @@ function SettingField({
     return (
       <div className="md:col-span-2">
         <Switch label={s.label} checked={on} onChange={(v) => onChange(v)} hint={hint} />
+        {saveStatus && <SaveState className="mt-1 ml-12" status={saveStatus} />}
       </div>
     );
   }

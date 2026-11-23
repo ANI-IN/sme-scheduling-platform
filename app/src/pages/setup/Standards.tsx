@@ -61,6 +61,7 @@ import {
   UpdateCohortsDialog,
   classTimeText,
 } from './standardParts';
+import { refresh } from '@/lib/live';
 
 type Break = { after_position: number; weeks: number };
 
@@ -295,7 +296,8 @@ function StandardForm({
       toast.success(
         standard ? 'Standard schedule saved' : `Standard schedule ${name.trim()} added`,
       );
-      await qc.invalidateQueries();
+      // The page opens the saved schedule from the list, so only that list is waited for.
+      await qc.invalidateQueries({ queryKey: ['standard_schedule'] });
       onSaved?.(r.id);
     } catch (e) {
       setErr(e);
@@ -515,7 +517,7 @@ function StandardDrawer({
     try {
       await rpc('archive_standard_schedule', { p_id: s.id, p_archived: !archived });
       toast.success(archived ? `${s.name} restored` : `${s.name} archived`);
-      await qc.invalidateQueries();
+      refresh(qc, 'standard_schedule');
     } catch (e) {
       setErr(e);
     }
@@ -568,7 +570,7 @@ function StandardDrawer({
                       try {
                         await fn();
                         if (ok) toast.success(ok);
-                        await qc.invalidateQueries();
+                        refresh(qc, 'standard_schedule');
                       } catch (e) {
                         setErr(e);
                       }

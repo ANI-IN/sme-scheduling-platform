@@ -7,6 +7,9 @@ import { useConfirm } from '@/components/Confirm';
 import { DeleteButton } from '@/components/Lifecycle';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import { useAutosave } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { useMe, useTeam, type TeamMember } from '@/lib/data';
 import { isEmail } from '@/lib/validation';
 import { cleanUsername, usernameProblem } from '@/lib/discord';
@@ -137,7 +140,9 @@ export default function Team() {
       )}
       {editing && (
         <MemberDrawer
-          member={editing === 'new' ? null : editing}
+          member={
+            editing === 'new' ? null : ((data ?? []).find((x) => x.id === editing.id) ?? editing)
+          }
           onClose={() => setEditing(null)}
         />
       )}
@@ -165,6 +170,48 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
     discord_username: usernameProblem(f.discord_username),
   });
 
+  // Name, job title, the daily summary and In use save as they change (C15).
+  const pickBasic = (x: typeof f) => ({
+    name: x.name.trim(),
+    job_title: x.job_title.trim(),
+    receives_digest: x.receives_digest,
+    digest_channel: x.digest_channel,
+    active: x.active,
+  });
+  const auto = useAutosave({
+    enabled: !!member,
+    value: pickBasic(f),
+    stored: pickBasic({
+      ...f,
+      name: member?.name ?? '',
+      job_title: member?.job_title ?? '',
+      receives_digest: member?.receives_digest ?? true,
+      digest_channel: member?.digest_channel ?? 'Discord',
+      active: member?.active ?? true,
+    }),
+    version: member?.version,
+    instant: ['receives_digest', 'digest_channel', 'active'],
+    valid: !!f.name.trim(),
+    onReload: (x) => setF((cur) => ({ ...cur, ...x })),
+    save: async (x, version) => {
+      const [row] = check(
+        await supabase
+          .from('team_member')
+          .update({ ...x, job_title: x.job_title || null, version })
+          .eq('id', member!.id)
+          .select(),
+      );
+      refresh(qc, 'team_member');
+      return row?.version;
+    },
+  });
+  // The email and Discord username keep a Save button: the email is how this person signs in and where alerts
+  // go, and a new Discord username starts a Discord check, so a half typed address must never be stored.
+  const contactChanged =
+    !!member &&
+    (f.email.trim() !== member.email ||
+      cleanUsername(f.discord_username) !== (member.discord_username ?? ''));
+
   async function save(another = false) {
     setErr(null);
     if (!v.submit()) return;
@@ -177,25 +224,31 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
         discord_username: cleanUsername(f.discord_username) || null,
       };
       if (member) {
-        check(
+        const [saved] = check(
           await supabase
             .from('team_member')
-            .update({ ...row, is_placeholder: false, version: member.version })
+            .update({
+              email: row.email,
+              discord_username: row.discord_username,
+              is_placeholder: false,
+              version: auto.version,
+            })
             .eq('id', member.id)
             .select(),
         );
+        if (saved) auto.adoptVersion(saved.version);
       } else {
         check(await supabase.from('team_member').insert(row));
       }
-      toast.success(member ? 'Changes saved' : `${row.name} added`);
-      await qc.invalidateQueries();
+      toast.success(member ? 'Email and Discord saved' : `${row.name} added`);
+      refresh(qc, 'team_member');
       if (another) {
         // Save and add another: an empty form for the next person (decision 259).
         setF({ ...f, name: '', email: '', discord_username: '', job_title: '' });
         v.reset();
         return;
       }
-      onClose();
+      if (!member) onClose();
     } catch (e) {
       setErr(e);
       toast.error(member ? 'The changes were not saved' : 'The team member was not added');
@@ -216,17 +269,26 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
       }
       footer={
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => void save()} loading={saving}>
-            {member ? 'Save changes' : 'Add team member'}
-          </Button>
-          {!member && (
-            <Button variant="secondary" onClick={() => void save(true)} loading={saving}>
-              Save and add another
-            </Button>
+          {member ? (
+            <>
+              <Button variant="secondary" onClick={onClose}>
+                Done
+              </Button>
+              <SaveState status={auto.status} waiting={auto.dirty} />
+            </>
+          ) : (
+            <>
+              <Button onClick={() => void save()} loading={saving}>
+                Add team member
+              </Button>
+              <Button variant="secondary" onClick={() => void save(true)} loading={saving}>
+                Save and add another
+              </Button>
+              <Button variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+            </>
           )}
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
           {member && isAdmin && (
             <Button
               variant="ghost"
@@ -234,7 +296,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
               onClick={async () => {
                 try {
                   await rpc('send_test_alert', { p_team_member_id: member.id });
-                  await poke();
+                  void poke();
                   toast.success('Test alert sent');
                 } catch (e) {
                   setErr(e);
@@ -251,7 +313,7 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
         <Field label="Name" required error={v.show('name')}>
           <Input
             value={f.name}
-            onBlur={v.touch('name')}
+            onBlur={() => (v.touch('name')(), auto.flush())}
             onChange={(e) => setF({ ...f, name: e.target.value })}
           />
         </Field>
@@ -274,6 +336,11 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
             autoComplete="off"
           />
         </Field>
+        {contactChanged && (
+          <Button variant="secondary" onClick={() => void save()} loading={saving}>
+            Save email and Discord
+          </Button>
+        )}
         {member?.discord_username && (
           <div className="flex flex-wrap items-center gap-2">
             <DiscordStatus status={member.discord_status} problem={member.discord_problem} />
@@ -284,9 +351,9 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
               onClick={async () => {
                 try {
                   await rpc('check_discord', { p_kind: 'team', p_id: member.id });
-                  await poke();
+                  void poke();
                   toast.success('Checking Discord. This takes up to a minute.');
-                  await qc.invalidateQueries({ queryKey: ['team_member'] });
+                  refresh(qc, 'team_member');
                 } catch (e) {
                   setErr(e);
                 }
@@ -300,7 +367,11 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
           label="Job title"
           hint="Optional. Shown only; what someone does comes from where they are assigned."
         >
-          <Input value={f.job_title} onChange={(e) => setF({ ...f, job_title: e.target.value })} />
+          <Input
+            value={f.job_title}
+            onBlur={auto.flush}
+            onChange={(e) => setF({ ...f, job_title: e.target.value })}
+          />
         </Field>
         <div className="space-y-2 rounded-md border border-border p-3">
           <Checkbox
@@ -392,7 +463,7 @@ function AccessSection({ member, onDone }: { member: TeamMember; onDone: () => v
                 p_has_access: removed,
               });
               toast.success(removed ? 'Access given back' : 'Access removed');
-              await qc.invalidateQueries();
+              refresh(qc, 'team_member', 'domain_team', 'module_operations', 'module');
               onDone();
             } catch (e) {
               setErr(e);
