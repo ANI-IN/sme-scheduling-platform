@@ -26,6 +26,7 @@ export const messageName: Record<string, string> = {
   M19: 'note that their proposed time is accepted',
   M20: 'note that the time stays',
   M22: 'welcome message',
+  M23: 'message from the team',
   T0: 'test alert',
   T1: 'alert that requests have started',
   T2: 'confirmation alert',

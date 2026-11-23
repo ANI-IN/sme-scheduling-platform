@@ -158,3 +158,26 @@ test('an instructor can have a time zone, and quiet hours for instructors are of
   }).toPass({ timeout: 15_000 });
   await expect(sw).toHaveAttribute('aria-checked', 'false');
 });
+
+// Decision 337: someone on the team writes to one instructor from their record.
+test('Contact instructor sends a message to their channel and email, kept in Activity history', async ({
+  page,
+}) => {
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.getByLabel('Show test instructors').check();
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor C' }).first().click();
+  const dlg = page.getByRole('dialog');
+  await ready(page);
+  await dlg.getByLabel('Message to Test Instructor C').fill('Can you share your slides by Friday?');
+  await dlg.getByRole('button', { name: 'Send message' }).click();
+  await expect(
+    page.getByText('Message sent to Test Instructor C by Discord and email'),
+  ).toBeVisible();
+  const m = await one<{ n: number }>(
+    `select count(*)::int n from public.message m join public.instructor i on i.id = m.instructor_id
+      where i.full_name = 'Test Instructor C' and m.template_id = 'M23' and m.body_text like '%share your slides by Friday%'`,
+  );
+  expect(m.n).toBe(2);
+  await expect(dlg.getByLabel('Message to Test Instructor C')).toHaveValue('');
+});

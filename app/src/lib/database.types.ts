@@ -1520,6 +1520,9 @@ isOneToOne: false
 "connection_status":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"contact_instructor":
+{ Args: { "p_instructor_id": string,"p_text": string }; Returns: Json
+                           },
 "copy_domain_settings":
 { Args: { "p_from_domain_id": string,"p_to_domain_id": string }; Returns: Json
                            },

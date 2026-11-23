@@ -918,6 +918,10 @@ export function InstructorDrawer({
           </Group>
         )}
 
+        {instructor && instructor.status !== 'Archived' && (
+          <ContactInstructor id={instructor.id} name={instructor.full_name} />
+        )}
+
         {instructor && (
           <Group title="Availability">
             <div className="text-sm">
@@ -1148,3 +1152,39 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
 }
 
 export type { Instructor };
+
+/** Write to one instructor by hand (decision 337): their own channel and email, kept in Activity history. */
+function ContactInstructor({ id, name }: { id: string; name: string }) {
+  const [text, setText] = useState('');
+  const [err, setErr] = useState<unknown>(null);
+  return (
+    <Group
+      title="Contact instructor"
+      description={`Write to ${name} yourself. It goes to their own Discord channel and by email, and Activity history keeps it.`}
+    >
+      <Field label={`Message to ${name}`}>
+        <Textarea value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} />
+      </Field>
+      <div>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!text.trim()}
+          onClick={async () => {
+            setErr(null);
+            try {
+              await rpc('contact_instructor', { p_instructor_id: id, p_text: text });
+              toast.success(`Message sent to ${name} by Discord and email`);
+              setText('');
+            } catch (e) {
+              setErr(e);
+            }
+          }}
+        >
+          <Send className="h-3.5 w-3.5" aria-hidden /> Send message
+        </Button>
+      </div>
+      <ErrorText error={err} />
+    </Group>
+  );
+}
