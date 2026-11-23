@@ -97,6 +97,10 @@ test('a Discord account held by another instructor: Release from them, then it i
 test('each domain lists only channels of its own approved server, and says when there is none', async ({
   page,
 }) => {
+  // Fullstack loses its approved servers; Backend keeps them.
+  await sql(
+    `delete from public.discord_server_domain where domain_id = (select id from public.domain where name = 'Fullstack')`,
+  );
   await page.goto('/setup/instructors');
   await ready(page);
   await page.getByLabel('Show test instructors').check();
@@ -108,4 +112,12 @@ test('each domain lists only channels of its own approved server, and says when 
       'No Discord server is approved for Fullstack yet. An admin chooses and approves it on Setup, Domains.',
     ),
   ).toBeVisible();
+  await expect(
+    dlg.getByRole('combobox', { name: 'Channel of Test Instructor E in Fullstack' }),
+  ).toHaveCount(0);
+  await expect(
+    dlg
+      .getByRole('combobox', { name: 'Channel of Test Instructor E in Backend' })
+      .locator('option', { hasText: '#test-instructor-a' }),
+  ).toHaveCount(1);
 });

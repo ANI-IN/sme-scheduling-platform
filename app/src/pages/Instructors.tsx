@@ -745,7 +745,7 @@ export function InstructorDrawer({
               {(domains.data ?? []).map((d) => (
                 <div key={d.id} className="space-y-1">
                   <div className="text-xs text-muted-foreground">{d.name}</div>
-                  {/* Any server the bot is in, the domain's own server first (decision 263). */}
+                  {/* Only servers approved for this domain, its own server first (decisions 263 and 331). */}
                   {approved.data && !(approved.data.get(d.id) ?? []).length ? (
                     <p className="text-sm text-muted-foreground">
                       No Discord server is approved for {d.name} yet. An admin chooses and approves
