@@ -62,10 +62,10 @@ The alert channel is the Discord channel where the team is tagged about this dom
 
 ## People for the domain
 
-- **Escalation contacts** are told when an urgent problem is not fixed in time. Press **Add an escalation contact**.
-- The **Default operations team** handles class tasks, failed messages and written replies for every module, unless a module has its own operations team. Press **Add a person**.
+- **Escalation contacts** are told when an urgent problem is not fixed in time. Click **Add an escalation contact**.
+- The **Default operations team** handles class tasks, failed messages and written replies for every module, unless a module has its own operations team. Click **Add a person**.
 
-People are chosen from the [Team](/setup/team) page.
+Type part of a name to search, then tick one or more people: the list stays open, so you can tick several in a row, or press **Add all shown**. Each person shows as a chip; press the cross on a chip to remove them. People are chosen from the [Team](/setup/team) page.
 
 ## Status and testing
 

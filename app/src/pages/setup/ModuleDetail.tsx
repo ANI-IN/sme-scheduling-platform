@@ -295,13 +295,15 @@ export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
         selected={m.module_owner.map((o) => o.team_member_id)}
         addLabel="Add an owner"
         emptyText="No owner yet. A module needs at least one owner before requests can start."
-        onAdd={(id) =>
+        onAdd={(ids) =>
           run(
             async () =>
               check(
-                await supabase.from('module_owner').insert({ module_id: m.id, team_member_id: id }),
+                await supabase
+                  .from('module_owner')
+                  .insert(ids.map((id) => ({ module_id: m.id, team_member_id: id }))),
               ),
-            'Owner added',
+            ids.length === 1 ? 'Owner added' : `${ids.length} owners added`,
           )
         }
         onRemove={async (id) => {
@@ -364,7 +366,16 @@ function ForCohort({
 }
 
 /** Operations team for the module, and for a cohort when it differs. Empty means the domain default. */
-function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
+export function OperationsTeam({
+  module: m,
+  run,
+  moduleOnly,
+}: {
+  module: ModuleRow;
+  run: Run;
+  /** Only the module's own team, without the cohorts (the new module flow). */
+  moduleOnly?: boolean;
+}) {
   const team = useTeam();
   const qc = useQueryClient();
   const removePart = useRemovePart();
@@ -386,13 +397,13 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
       ),
   });
   const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
-  const picker = (cohortId: string | null) => (
+  const picker = (cohortId: string | null, cohortName?: string) => (
     <PeoplePicker
       people={(team.data ?? []).filter((t) => !t.access_removed_at)}
       selected={(rows.data ?? [])
         .filter((r) => r.cohort_id === cohortId)
         .map((r) => r.team_member_id)}
-      addLabel="Add a person"
+      addLabel={cohortName ? `Add a person for ${cohortName}` : 'Add a person'}
       emptyText={
         cohortId
           ? 'Same as the module.'
@@ -401,15 +412,19 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
               'nobody yet'
             }.`
       }
-      onAdd={(id) =>
+      onAdd={(ids) =>
         run(
           async () =>
             check(
               await supabase
                 .from('module_operations')
-                .insert({ module_id: m.id, cohort_id: cohortId, team_member_id: id }),
+                .insert(
+                  ids.map((id) => ({ module_id: m.id, cohort_id: cohortId, team_member_id: id })),
+                ),
             ),
-          'Added to the operations team',
+          ids.length === 1
+            ? 'Added to the operations team'
+            : `${ids.length} people added to the operations team`,
         )
       }
       onRemove={async (id) => {
@@ -440,7 +455,7 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
       >
         {picker(null)}
       </Section>
-      {(cohorts.data ?? []).length > 0 && (
+      {!moduleOnly && (cohorts.data ?? []).length > 0 && (
         <Section
           title="Different people for a cohort"
           description="Only when a cohort has its own operations team for this module."
@@ -449,7 +464,7 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
             {(cohorts.data ?? []).map((c) => (
               <div key={c.id}>
                 <div className="mb-1 text-sm font-medium">{c.name}</div>
-                {picker(c.id)}
+                {picker(c.id, c.name)}
               </div>
             ))}
           </div>

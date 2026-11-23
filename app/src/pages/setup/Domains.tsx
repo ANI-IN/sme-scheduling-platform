@@ -306,15 +306,17 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
   const who = (id: string) => (team.data ?? []).find((t) => t.id === id)?.name ?? 'this person';
   const roleName = (r: string) => (r === 'Escalation' ? 'escalation contacts' : 'operations team');
   const role = (r: 'Escalation' | 'Operations') => ({
-    onAdd: (id: string) =>
+    onAdd: (ids: string[]) =>
       run(
         async () =>
           check(
             await supabase
               .from('domain_team')
-              .insert({ domain_id: domain.id, team_member_id: id, role: r }),
+              .insert(ids.map((id) => ({ domain_id: domain.id, team_member_id: id, role: r }))),
           ),
-        `${who(id)} added to the ${roleName(r)}`,
+        ids.length === 1
+          ? `${who(ids[0]!)} added to the ${roleName(r)}`
+          : `${ids.length} people added to the ${roleName(r)}`,
       ),
     onRemove: async (id: string) => {
       if (
