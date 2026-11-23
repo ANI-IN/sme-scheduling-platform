@@ -286,15 +286,19 @@ test('two people edit the same module: the second is asked to reload', async ({ 
   const m = await backendModule('Concurrency');
   const a = await browser.newPage();
   const b = await browser.newPage();
+  // The second person does not hear live updates (as when their connection drops), so their page still has the
+  // version they opened. With live updates their page would show the first change before they type.
+  await b.routeWebSocket(/\/realtime\//, () => {});
   for (const p of [a, b]) {
     await p.goto(`/setup/modules/${m.id}`);
     await ready(p);
   }
+  // The name saves by itself when the field is left.
   await a.getByLabel('Name').first().fill('Concurrency A');
-  await a.getByRole('button', { name: 'Save changes' }).first().click();
-  await expect(a.getByText(/saved/i).first()).toBeVisible();
+  await a.getByLabel('Name').first().blur();
+  await expect(a.getByText('Saved', { exact: true })).toBeVisible();
   await b.getByLabel('Name').first().fill('Concurrency B');
-  await b.getByRole('button', { name: 'Save changes' }).first().click();
+  await b.getByLabel('Name').first().blur();
   await expect(b.getByText(/Someone else saved this after you opened it/)).toBeVisible();
   const now = await backendModule('Concurrency A');
   expect(now.id).toBe(m.id);

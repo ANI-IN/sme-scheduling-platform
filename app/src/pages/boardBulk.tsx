@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { poke, rpc } from '@/lib/rpc';
+import { rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import {
@@ -17,6 +17,7 @@ import {
   Select,
   SkeletonRows,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Problem = { code: string; level: string; text: string; new?: boolean };
 type Result = {
@@ -95,11 +96,8 @@ export function BulkChangeDialog({
       onSaved?.();
       onClose();
       qc.removeQueries({ queryKey: ['bulk_preview'] });
-      const others = {
-        predicate: (q: { queryKey: readonly unknown[] }) => q.queryKey[0] !== 'bulk_preview',
-      };
-      await qc.invalidateQueries(others);
-      void poke().then(() => qc.invalidateQueries(others));
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {

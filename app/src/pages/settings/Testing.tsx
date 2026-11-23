@@ -34,6 +34,7 @@ import {
   Section,
   Select,
 } from '@/components/ui';
+import { refreshAll } from '@/lib/live';
 
 /** What the automatic check reports, in plain words. */
 const RESULT_LABEL: Record<string, string> = {
@@ -100,9 +101,9 @@ function TestingBody({ domain }: { domain: Domain }) {
     try {
       const r = await fn();
       if (r && typeof r === 'object' && !Array.isArray(r)) setResult(r as Record<string, unknown>);
-      await poke();
+      void poke();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      refreshAll(qc);
     } catch (e) {
       setErr(e);
     }

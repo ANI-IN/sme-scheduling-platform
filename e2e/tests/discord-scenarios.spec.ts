@@ -132,7 +132,8 @@ test('an instructor: the app finds the username, a channel is chosen by search',
   await ready(page);
   await expect(dlg.getByText('Preferred contact')).toHaveCount(0);
   await dlg.getByLabel('Discord username').fill('@E2E.Instructor.F');
-  await dlg.getByRole('button', { name: 'Save changes' }).click();
+  // The Discord username keeps its own Save button; the other details save by themselves.
+  await dlg.getByRole('button', { name: 'Save email and Discord' }).click();
   const row = page.locator('tbody tr').filter({ hasText: 'Test Instructor F' }).first();
   await expect(row.getByText('Checking Discord')).toBeVisible();
   const i = await one<{ id: string; u: string }>(
@@ -177,7 +178,7 @@ test('a username nobody has: the app says what to check, and Check Discord tries
   const dlg = page.getByRole('dialog');
   await ready(page);
   await dlg.getByLabel('Discord username').fill('nobody.here');
-  await dlg.getByRole('button', { name: 'Save changes' }).click();
+  await dlg.getByRole('button', { name: 'Save email and Discord' }).click();
   const row = page.locator('tbody tr').filter({ hasText: 'Test Instructor E' }).first();
   await expect(row.getByText('Checking Discord')).toBeVisible();
   await answer('discord_member', { searches: [{ server_id: SERVER, status: 200, body: [] }] });
@@ -211,7 +212,8 @@ test('a domain alert channel comes from the list; Discord checks are in Activity
   await dlg
     .getByRole('combobox', { name: 'Alert channel' })
     .selectOption({ label: '#backend-alerts' });
-  await dlg.getByRole('button', { name: 'Save changes' }).click();
+  // The alert channel saves as soon as it is chosen.
+  await expect(dlg.getByText('Saved', { exact: true })).toBeVisible();
   await expect
     .poll(
       async () =>

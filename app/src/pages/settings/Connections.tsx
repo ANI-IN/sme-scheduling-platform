@@ -23,6 +23,7 @@ import {
   Section,
   SkeletonRows,
 } from '@/components/ui';
+import { refresh } from '@/lib/live';
 
 type Config = NonNullable<ReturnType<typeof useSystem>['data']>['config'];
 
@@ -83,8 +84,8 @@ function SendTest({ channel }: { channel: 'Discord' | 'Email' }) {
               ? 'Test sent to the admin alert channel. It arrives within a minute.'
               : 'Test email sent to your own address. It arrives within a minute.',
           );
-          await poke();
-          await qc.invalidateQueries({ queryKey: ['message', 'connection'] });
+          void poke().then(() => refresh(qc, 'message'));
+          refresh(qc, 'message');
         } catch (e) {
           toast.error(e instanceof Error ? e.message : String(e));
         } finally {
@@ -280,6 +281,7 @@ function ConfigForm({ config }: { config: Config }) {
           {!isAdmin && (
             <p className="mt-4 text-sm text-muted-foreground">Only an admin can change these.</p>
           )}
+          {/* Keeps its Save button (C15): addresses and links the automation uses for everyone at once. */}
           <Button
             className="mt-4"
             disabled={!dirty || !isAdmin}
@@ -288,7 +290,7 @@ function ConfigForm({ config }: { config: Config }) {
               try {
                 await rpc('set_app_config', { p_config: { ...cfg, version: config.version } });
                 toast.success('Connection settings saved');
-                await qc.invalidateQueries();
+                refresh(qc, 'app_config', 'domain');
               } catch (e) {
                 setErr(e);
               }

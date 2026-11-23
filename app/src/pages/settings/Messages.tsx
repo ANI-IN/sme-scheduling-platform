@@ -19,6 +19,7 @@ import {
   Textarea,
   cn,
 } from '@/components/ui';
+import { refresh } from '@/lib/live';
 
 type Template = {
   template_id: string;
@@ -142,14 +143,14 @@ function Editor({ domainId, t }: { domainId: string; t: Template }) {
     return () => clearTimeout(h);
   }, [domainId, t.template_id, subject, body]);
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['message_template'] });
+  const reload = () => refresh(qc, 'message_template');
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
     setErr(null);
     try {
       await fn();
       toast.success(ok);
-      await refresh();
+      reload();
     } catch (e) {
       setErr(e);
     } finally {
@@ -215,6 +216,7 @@ function Editor({ domainId, t }: { domainId: string; t: Template }) {
       </div>
       <ErrorText error={err} />
       <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* Keeps Save changes (C15): this text goes to people, so it is saved after the preview is read. */}
         <Button
           loading={busy}
           disabled={!dirty || (preview?.problems.length ?? 0) > 0}
@@ -244,7 +246,7 @@ function Editor({ domainId, t }: { domainId: string; t: Template }) {
                 p_subject: subject,
                 p_body: body,
               });
-              await poke();
+              void poke();
             }, 'Test message sent to the alert channel')
           }
         >

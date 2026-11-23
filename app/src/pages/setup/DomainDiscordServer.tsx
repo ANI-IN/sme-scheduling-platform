@@ -11,6 +11,7 @@ import { ServerStatus } from '@/components/Discord';
 import { useRun } from '@/pages/ClassDrawer';
 import { useServerDomains } from '@/pages/settings/DiscordServers';
 import { Badge, Button, ErrorText, Field, Notice, Select } from '@/components/ui';
+import { refresh } from '@/lib/live';
 
 type Domain = {
   id: string;
@@ -41,12 +42,7 @@ export function DomainDiscordServer({ domain }: { domain: Domain }) {
       )
     : [];
   const invite = botInviteUrl();
-  const refresh = async () => {
-    await qc.invalidateQueries({ queryKey: ['domain'] });
-    await qc.invalidateQueries({ queryKey: ['discord_server'] });
-    await qc.invalidateQueries({ queryKey: ['discord_server_domain'] });
-    await qc.invalidateQueries({ queryKey: ['discord_channel'] });
-  };
+  const reload = () => refresh(qc, 'domain', 'discord_server');
 
   if (servers.isLoading || serverDomains.isLoading) return null;
   return (
@@ -64,7 +60,7 @@ export function DomainDiscordServer({ domain }: { domain: Domain }) {
                   p_domain_id: domain.id,
                   p_server_id: (e.target.value || null) as string,
                 });
-                await refresh();
+                reload();
               }, 'Server saved. Checking it now.')
             }
           >
@@ -134,7 +130,7 @@ export function DomainDiscordServer({ domain }: { domain: Domain }) {
                       p_access: 'Approved',
                       p_domain_ids: [...domainsOf(s.id), domain.id],
                     });
-                    await refresh();
+                    reload();
                   }, `${s.name} approved for ${domain.name}`)
                 }
               >

@@ -44,6 +44,7 @@ import {
 } from '@/components/ui';
 import { useInstructorContext } from '../Instructors';
 import { useFormErrors } from '@/lib/useFormErrors';
+import { refresh } from '@/lib/live';
 
 export type ModuleRow = NonNullable<ReturnType<typeof useModules>['data']>[number];
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -204,7 +205,7 @@ export function PatternEditor({
                             `Class time removed. ${later}`,
                           )
                         )
-                          await qc.invalidateQueries();
+                          refresh(qc, standard ? 'standard_schedule' : 'module');
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -256,6 +257,7 @@ export function PatternEditor({
             className="w-24"
           />
         </Field>
+        {/* Keeps its button (C15): a class time is four fields that only make sense together. */}
         <Button
           variant="secondary"
           onClick={async () => {
@@ -442,6 +444,7 @@ export function RankingEditor({
           Add
         </Button>
         {footer}
+        {/* Keeps Review and save (C15): a new order changes who is asked next, so it shows the effect first. */}
         <Button
           disabled={!dirty}
           onClick={async () => {
@@ -515,7 +518,7 @@ export function RankingEditor({
                     });
                     toast.success('Instructor order saved');
                     setImpact(null);
-                    await qc.invalidateQueries();
+                    refresh(qc, 'module', 'request');
                   } catch (e) {
                     setErr(e);
                     setImpact(null);

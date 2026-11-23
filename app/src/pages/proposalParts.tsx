@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import { DrawerGroup } from '@/components/DrawerGroup';
@@ -19,6 +19,7 @@ import {
   SkeletonRows,
   Textarea,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Proposed = { class_id: string; title: string; from: string; to: string; changed: boolean };
 type Preview = {
@@ -96,8 +97,8 @@ export function ProposalGroup({ weekId }: { weekId: string }) {
           : 'Proposed time rejected: the instructor is told',
       );
       setRejecting(false);
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {

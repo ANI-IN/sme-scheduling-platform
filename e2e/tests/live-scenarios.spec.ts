@@ -1,5 +1,6 @@
 // Final round (decision 271): Home, the task list and Activity history update by themselves, and a button
-// updates the list and the counts at once.
+// updates the list and the counts at once. Release 3, C15: every page updates by itself, and small edits save by
+// themselves.
 import { expect, loadDemoData, ready, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'default' });
@@ -58,4 +59,39 @@ test('Activity history shows a new entry without reloading the page', async ({ p
        (select id from public.domain where name = 'Backend'))`,
   );
   await expect(page.getByText(/E2E live history entry/).first()).toBeVisible({ timeout: 45_000 });
+});
+
+test('a module renamed somewhere else shows on its page without reloading', async ({ page }) => {
+  const [m] = await sql<{ id: string; name: string }>(
+    `select m.id, m.name from public.module m join public.domain d on d.id = m.domain_id
+      where d.name = 'Backend' order by m.rotation_order limit 1`,
+  );
+  await page.goto(`/setup/modules/${m!.id}`);
+  await ready(page);
+  await expect(page.getByLabel('Name').first()).toHaveValue(m!.name);
+  await sql(`update public.module set name = $2 where id = $1`, [m!.id, 'E2E live module name']);
+  // Live updates, or the 60 second check if Realtime is not connected.
+  await expect(page.getByRole('heading', { name: 'E2E live module name' })).toBeVisible({
+    timeout: 75_000,
+  });
+  // The form has no unsaved edits, so it shows the new name too.
+  await expect(page.getByLabel('Name').first()).toHaveValue('E2E live module name');
+});
+
+test('notes on an instructor save by themselves, with a Saved mark', async ({ page }) => {
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.locator('tbody tr').first().click();
+  const dlg = page.getByRole('dialog');
+  await ready(page);
+  await dlg.getByLabel('Notes').fill('E2E note saved by itself');
+  await expect(dlg.getByText('Saved', { exact: true })).toBeVisible();
+  const [row] = await sql<{ n: number }>(
+    `select count(*)::int n from public.instructor where notes = 'E2E note saved by itself'`,
+  );
+  expect(row!.n).toBe(1);
+  // No Save button for it: Done just closes the drawer.
+  await expect(dlg.getByRole('button', { name: 'Save changes' })).toHaveCount(0);
+  await dlg.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(dlg).toHaveCount(0);
 });

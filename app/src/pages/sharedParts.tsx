@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { timesChoice, withoutGuest } from '@/lib/share';
 import { useConfirm } from '@/components/Confirm';
@@ -22,6 +22,7 @@ import {
   Select,
   SkeletonRows,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Week = {
   id: string;
@@ -138,8 +139,8 @@ export function ShareDialog({
       }
       toast.success(`Class shared with ${r.saved} other class week${r.saved === 1 ? '' : 's'}`);
       onClose();
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {
@@ -329,8 +330,8 @@ export function SharedClassGroup({ week }: { week: Week }) {
           ? 'No longer shared: its instructor order is being asked'
           : 'No longer shared: its instructor order is asked when asking starts',
       );
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     }

@@ -22,6 +22,7 @@ import {
 import { InstructorDrawer } from '../Instructors';
 import { PatternEditor, RankingEditor, dayLabel, type ModuleRow } from './moduleParts';
 import { Owners } from './ModuleDetail';
+import { refresh } from '@/lib/live';
 
 const STEPS = [
   'Module details',
@@ -48,7 +49,7 @@ export default function ModuleNew() {
     try {
       await fn();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      refresh(qc, 'module', 'module_operations', 'domain_team');
     } catch (e) {
       setErr(e);
     }
@@ -254,7 +255,8 @@ function DetailsStep({
                     .eq('id', m.id)
                     .select(),
                 );
-                await qc.invalidateQueries();
+                // The next step reads the module from the list, so only that list is waited for.
+                await qc.invalidateQueries({ queryKey: ['module'] });
                 onSaved(m.id);
               } else {
                 const created = check(
@@ -269,7 +271,7 @@ function DetailsStep({
                     .select()
                     .single(),
                 )!;
-                await qc.invalidateQueries();
+                await qc.invalidateQueries({ queryKey: ['module'] });
                 onSaved(created.id);
               }
             } catch (e) {
