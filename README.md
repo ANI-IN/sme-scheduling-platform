@@ -368,9 +368,8 @@ and read the last file that defines it; docs/DECISIONS.md explains why each rule
   within seconds of any queued message or Discord check, so the app itself never calls n8n (decision 334).
 - `sme-run-log-purge` keeps the clock's run log to the last 7 days, every night at 21:15 UTC (decision 333).
 - Typed replies show in the app within about 10 minutes.
-- The clock has been on since 22 November 2026, 17:36 UTC. Until 23 November 2026, 17:36 UTC, WF1 (every hour) and
-  WF4 (every 6 minutes) keep their own n8n schedule triggers as a safety net. After that, the owner's plan is to switch
-  those two schedule triggers off, so WF1 runs only if someone runs it and WF4 runs on pokes.
+- The clock has been on since 22 November 2026, 17:36 UTC. Since 23 November 2026, 12:48 UTC (owner), WF1 is
+  unpublished (the database's hourly job does its work) and WF4 runs on pokes plus a safety run every 15 minutes.
 - `npm run clock -w scripts -- status` shows the clock, its jobs, whether the poke key is in Vault (yes or no only) and
   the n8n runs this month. `off` switches it off at once; then turn the schedule triggers of WF1 and WF4 back on and
   publish both again.
