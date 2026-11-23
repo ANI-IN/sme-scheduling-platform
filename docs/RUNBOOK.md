@@ -44,7 +44,7 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 | No daily system summary this morning | n8n is down, WF3 is not published, or no admin alert channel is chosen | Open n8n, **Executions**. Check WF3 is published and its Config node. Choose the admin alert channel on **Settings, Connections**. |
 | The automatic check on Connections is old | The database clock is off, or the Supabase project is paused | The clock runs the automatic check every hour (job `sme-engine-hourly`). Run `npm run clock -w scripts -- status`. If the clock is off, switch it on, or turn WF1's schedule trigger back on in n8n and publish WF1 as a stopgap. A free Supabase project pauses after a week without use: restore it in the Supabase dashboard. |
 | Messages stay waiting to send | Messages are paused, the clock cannot poke WF4, WF4 is not published, or the Supabase key in n8n is wrong | Check for the red paused bar first. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go. Run WF4 by hand in n8n and check its **Executions**. Check the n8n credential `Supabase Sandbox` (the internal name of the Production Supabase key). |
-| Buttons in the app do not send at once | `VITE_N8N_POKE_URL` or `VITE_N8N_POKE_KEY` is wrong in the hosting settings | Messages still go out at the database clock's next poke (it checks every 2 minutes). Fix the hosting variables and deploy again. |
+| Messages take more than a minute to leave | The database could not poke WF4 (n8n down or the poke key in Vault wrong) | Messages still go out at WF4's safety run every 15 minutes. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go. Since decision 334 the app never calls n8n itself; the Vercel variables VITE_N8N_POKE_URL and VITE_N8N_POKE_KEY are not used. |
 | A typed reply does not show in Needs your attention | No conversation is open, reply reading slowed down, or the reply went elsewhere | WF4 reads replies about every 10 minutes while the app sent that instructor something in the last 3 days (every 20 minutes above 8,000 n8n runs in the month, and only when WF4 runs for other work above 9,300). Email replies count only when sent to the +scheduling reply address; Discord replies only in the instructor's own channel. Run WF4 by hand in n8n to read at once. |
 | A task says a Discord message was not delivered | The bot cannot post in the instructor's channel, or the channel was deleted | The task says exactly what to fix. Give the bot's role access to the channel, or choose a new channel for the instructor on **Setup, Instructors**. The email was still sent. |
 | A task says an email bounced | Wrong email address | Fix it on **Setup, Instructors**. Discord is still used meanwhile. |
@@ -55,6 +55,16 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 | Requests do not start for a class week | Setup is not finished (no owner, nobody can be asked, and so on) | **Needs your attention** says why. Fix it and asking starts at the next automatic check. |
 | "Needs an instructor" | Everyone in the instructor order said no, did not reply or cannot be asked | Phone people, then open the class week and press **Assign and confirm instructor** or **Record a phone or chat confirmation**. Or add instructors to the module's instructor order: asking starts again by itself. |
 | A written reply shows in Needs your attention | An instructor wrote instead of pressing a button | Read it and decide. Press **Reply** to answer them in their channel and by email. |
+
+## When a service is down
+
+| Down | What still works | What to do |
+|---|---|---|
+| Discord | Everything in the app; email copies of every instructor message still go | Nothing. Discord messages that failed show **Message failed** with **Send again**; press it when Discord is back. |
+| Gmail (sending) | Everything in the app; Discord copies still go | Nothing. Failed emails show **Message failed**; press **Send again** when Gmail is back. Gmail allows about 2,000 messages a day on Workspace (500 on a free account). |
+| n8n | The app, the database clock and every rule | Messages and Discord checks wait (shown as waiting, never lost). When n8n is back, WF4 sends them at its next run; nothing is sent twice. If it lasts hours, press **Pause all messages** so nothing out of date goes when it comes back, then check the waiting list before turning messages back on. |
+| Supabase | Nothing: the app cannot load | Check status.supabase.com. A free project pauses after a week without use: restore it in the dashboard. Nothing needs replaying afterwards. |
+| Vercel (the app) | The database, the clock and n8n keep sending and reading answers | Instructors can still answer (the answer page is served by n8n). Roll back to the previous deployment if a deploy caused it (below). |
 
 ## After an outage
 
@@ -92,6 +102,9 @@ backups when the whole team depends on the app.
    ```
 
 ### The database clock (Release 3, M1)
+
+The clock's run log keeps the last 7 days: job `sme-run-log-purge` deletes older runs every night at 21:15 UTC
+(decision 333).
 
 The clock has been on since 22 November 2026, 17:36 UTC (decision 281). `pg_cron` in the database runs the automatic
 check itself (job `sme-engine-hourly`, at minute 30 of every hour), and the job `sme-clock` (every 2 minutes) pokes
