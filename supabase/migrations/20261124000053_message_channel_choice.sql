@@ -1,7 +1,8 @@
 -- Owner's night batch of 24 November 2026 (decision 339), found by r3-n's scenarios: a message without a class week
 -- went to the instructor's oldest channel in any domain. The welcome of one domain was posted (and blocked) in an old
--- channel of a server not approved for it. Now the welcome uses its own domain's channel (it says which), and a
--- message for no domain (Contact instructor, the contact check) uses their checked channel, else their newest.
+-- channel of a server not approved for it. Now the welcome is posted in its own domain's channel (the one just
+-- checked), tagging them, as decision 330 says; a message for no domain (Contact instructor, the contact check) uses
+-- their checked channel, else their newest.
 create or replace function private.queue_instructor_message(
   p_template text,
   p_instructor uuid,
@@ -51,10 +52,6 @@ begin
   if v_domain is null and p_mw is null and nullif(p_extra ->> 'domain_id', '') is not null then
     v_domain := (p_extra ->> 'domain_id')::uuid;
   end if;
-  -- Decision 339: a message for one domain without a class week (the welcome) uses that domain's channel.
-  if p_mw is null and v_domain is null and p_extra ? 'domain_id' then
-    v_domain := (p_extra ->> 'domain_id')::uuid;
-  end if;
   select * into d from public.domain where id = v_domain;
   -- Decision 333: a Draft domain sends nothing to instructors, so nothing is created or scheduled. Said in history.
   if d.id is not null and d.status = 'Draft' then
@@ -66,7 +63,11 @@ begin
   -- The instructor's channel in this domain (Release 2: one channel per domain).
   -- A message without a domain (the contact check) uses the instructor's first channel.
   v_chan := (select ic.channel_id from public.instructor_channel ic
-              where ic.instructor_id = p_instructor and (ic.domain_id = v_domain or v_domain is null)
+              where ic.instructor_id = p_instructor
+                and (ic.domain_id = coalesce(v_domain, (p_extra ->> 'domain_id')::uuid)
+                     or coalesce(v_domain, (p_extra ->> 'domain_id')::uuid) is null)
+              -- Decision 339: the welcome of a domain (it names its domain) uses that domain's channel; a message
+              -- for no domain uses the instructor's checked channel, else their newest.
               order by (ic.ready_at is not null) desc, ic.created_at desc limit 1);
   v_test := private.is_test_domain(d.id);
   v_channels := 'Both';

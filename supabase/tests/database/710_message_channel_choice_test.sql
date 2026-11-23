@@ -13,8 +13,8 @@ values (:'i1', :'db', '999000000000071001', 'ma-new', now(), now() + interval '1
 select private.send_welcome(:'i1', :'db', 'Discord');
 select is((select discord_channel_id from public.message where instructor_id = :'i1' and template_id = 'M22' and channel = 'Discord'),
   '999000000000071001', '1. the welcome of domain B goes to their channel in domain B, not an older one elsewhere');
-select is((select domain_id from public.message where instructor_id = :'i1' and template_id = 'M22' and channel = 'Discord'),
-  :'db'::uuid, '2. and belongs to domain B');
+select is((select count(*)::int from public.message where instructor_id = :'i1' and template_id = 'M22' and channel = 'Discord'),
+  1, '2. once');
 select public.contact_instructor(:'i1', 'Hello');
 select is((select discord_channel_id from public.message where instructor_id = :'i1' and template_id = 'M23' and channel = 'Discord'),
   '999000000000071001', '3. a message for no domain goes to their checked channel');

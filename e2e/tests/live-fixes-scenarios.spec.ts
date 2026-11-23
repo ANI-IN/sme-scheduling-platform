@@ -163,6 +163,23 @@ test('an instructor can have a time zone, and quiet hours for instructors are of
 test('Contact instructor sends a message to their channel and email, kept in Activity history', async ({
   page,
 }) => {
+  // Test Instructor C gets a Discord account and a checked channel, as a real instructor has.
+  await sql(
+    `update public.instructor set discord_username = 'e2e.instructor.c', version = version where full_name = 'Test Instructor C'`,
+  );
+  await sql(
+    `delete from public.action_queue where action = 'discord_member' and status = 'Queued'`,
+  );
+  await sql(
+    `update public.instructor set discord_user_id = '900000000000000095', discord_status = 'Found', version = version
+      where full_name = 'Test Instructor C'`,
+  );
+  await sql(
+    `insert into public.instructor_channel (instructor_id, domain_id, channel_id, channel_name, ready_at)
+     select i.id, d.id, ch.id, ch.name, now() from public.instructor i, public.domain d, public.discord_channel ch
+      where i.full_name = 'Test Instructor C' and d.name = 'Backend' and ch.name = 'test-instructor-c'
+     on conflict (instructor_id, domain_id) do update set channel_id = excluded.channel_id, ready_at = excluded.ready_at`,
+  );
   await page.goto('/setup/instructors');
   await ready(page);
   await page.getByLabel('Show test instructors').check();
