@@ -4,7 +4,7 @@
 // a confirmed class week are "Not updated" with the reason), and a cohort that starts fully custom. The rules behind
 // each step are covered in depth by the database tests 390 and 400.
 import type { Locator, Page } from '@playwright/test';
-import { a11y, expect, loadDemoData, noDashes, ready, sql, test } from './fixtures.ts';
+import { a11y, expect, loadDemoData, noDashes, ready, setFilter, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => loadDemoData());
@@ -72,7 +72,7 @@ async function openTrack(page: Page) {
 async function openFirstWeek(page: Page, cohort: string) {
   await page.goto('/classes');
   await ready(page);
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: cohort });
+  await setFilter(page, 'Cohort', [cohort]);
   await ready(page);
   await page
     .getByRole('button', { name: /^Open Database Design, week of/ })

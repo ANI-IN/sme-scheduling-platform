@@ -2,7 +2,7 @@
 // for a class week sends a later start from the answer page (the same database call n8n makes for the page); Ops
 // sees it on the class week, checked, and accepts it: the class moves and the instructor is confirmed. The rules
 // behind each step are covered in depth by the database test 430.
-import { a11y, expect, loadDemoData, noDashes, ready, sql, test } from './fixtures.ts';
+import { a11y, expect, loadDemoData, noDashes, ready, setFilter, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => loadDemoData());
@@ -52,7 +52,7 @@ test('the person being asked proposes a later start; Ops accepts it and they are
 
   await page.goto('/classes');
   await ready(page);
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: w.cohort });
+  await setFilter(page, 'Cohort', [w.cohort]);
   await ready(page);
   await page
     .getByRole('button', { name: `Open ${w.module}, week of ${monthDay(w.start)}`, exact: true })
