@@ -11,12 +11,13 @@ import { SaveState } from '@/components/SaveState';
 import { instructorStatusLabel } from '@/lib/labels';
 import { useBlockedMessages, useDomains, useInstructors, type Instructor } from '@/lib/data';
 import { BlockedMessages } from '@/components/BlockedMessages';
+import { InstructorChannel } from '@/components/InstructorChannel';
 import { useDomain } from '@/lib/domain';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
 import { isEmail } from '@/lib/validation';
 import { cleanUsername, usernameProblem } from '@/lib/discord';
-import { ChannelPicker, DiscordStatus } from '@/components/Discord';
+import { DiscordStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { DeleteButton } from '@/components/Lifecycle';
@@ -777,33 +778,19 @@ export function InstructorDrawer({
             <div className="space-y-2">
               <p className="text-sm font-medium">Their channel in each domain</p>
               {(domains.data ?? []).map((d) => (
-                <div key={d.id} className="space-y-1">
-                  <div className="text-xs text-muted-foreground">{d.name}</div>
-                  {/* Any server the bot is in, the domain's own server first (decision 263). */}
-                  <ChannelPicker
-                    serverId="all"
-                    preferServerId={d.discord_server_id}
-                    label={`Channel of ${instructor.full_name} in ${d.name}`}
-                    value={
-                      instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_id ??
-                      null
-                    }
-                    storedName={
-                      instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_name
-                    }
-                    onChange={(id) =>
-                      act(
-                        () =>
-                          rpc('set_instructor_channel', {
-                            p_instructor_id: instructor.id,
-                            p_domain_id: d.id,
-                            p_channel_id: id as string,
-                          }),
-                        id ? 'Channel saved' : 'Channel removed: they get direct messages instead',
-                      )
-                    }
-                  />
-                </div>
+                // Choose, paste or take the suggested channel; it is checked in Discord before it is saved (decision 330).
+                <InstructorChannel
+                  key={d.id}
+                  person={instructor}
+                  domain={d}
+                  takenIds={
+                    new Set(
+                      all
+                        .filter((o) => o.id !== instructor.id)
+                        .flatMap((o) => o.instructor_channel.filter((c) => c.domain_id === d.id).map((c) => c.channel_id)),
+                    )
+                  }
+                />
               ))}
             </div>
           ) : (

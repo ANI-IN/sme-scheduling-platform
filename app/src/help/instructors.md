@@ -23,14 +23,19 @@ If it shows **Not found on Discord**, check the spelling and that they joined th
 
 ![An instructor's Discord username and channel](/help/instructor-discord.png)
 
-1. Open the instructor again after you add them.
-2. Under **Their channel in each domain**, choose their own channel. Type part of the name to find it quickly. The channel is saved as soon as you choose it.
+1. Open the instructor again after you add them. Their Discord username must be found first (**Discord found**).
+2. Under **Their channel in each domain**, do one of these:
+   - choose their own channel from the list (type part of the name to find it);
+   - paste the channel's link (in Discord, right click the channel and choose **Copy Link**) or its ID, then press **Check and use**;
+   - press **Use #name** next to **Suggested**: the app suggests the channel in the domain's server named after them, for example #victor or #victor-palmer.
+3. The app checks the channel in Discord, usually in a few seconds: the server is approved for the domain, the bot can post there (View Channels, Send Messages, Embed Links, Read Message History), and the instructor is in the server and can see the channel.
+4. If all is right, the channel is saved and shows **Channel ready**. If not, it is not saved, and the app says exactly what to fix, for example **Give Victor Palmer access to #victor**. Fix it in Discord, then choose the channel again.
 
-Requests and reminders go to their channel, tagging them, and always by email too. Without a channel in a domain, they get a direct message on Discord instead. The username is all the app needs to find them.
+Nobody needs to create a channel or an invite in the app. From then on every request, reminder and confirmation for that domain goes to their channel, tagging them, and always by email too. Without a channel in a domain, they get a direct message on Discord instead. A channel chosen before these checks shows **Not checked yet** with a button to check it.
 
 ## The welcome message
 
-When you add an instructor, they get a short welcome by email. When you first choose their channel in a domain, they get one there on Discord too. It says they are set up to receive class requests from SME Scheduling, and that they answer with the buttons in each message. It is never sent twice to the same person for the same domain and channel. [Activity history](/activity) shows **Welcome message sent**, or that it was blocked and why. You can change the text on [Message templates](/settings/messages) and switch it off on [Automation](/settings/automation).
+When you add an instructor, they get a short welcome by email. When their channel in a domain is first ready, they get one there on Discord too, tagging them. It says they are set up to receive class requests from SME Scheduling, and that they answer with the buttons in each message. It is never sent twice to the same person for the same domain and channel. [Activity history](/activity) shows **Welcome message sent**, or that it was blocked and why. You can change the text on [Message templates](/settings/messages) and switch it off on [Automation](/settings/automation).
 
 ## Check their contact details (optional)
 

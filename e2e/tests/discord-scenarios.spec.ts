@@ -160,12 +160,94 @@ test('an instructor: the app finds the username, a channel is chosen by search',
   await dlg
     .getByRole('combobox', { name: 'Channel of Test Instructor F in Backend' })
     .selectOption({ label: 'E2E Backend server: 1-1 / #test-instructor-f' });
-  await expect(page.getByText('Channel saved')).toBeVisible();
+  // Decision 330: the channel is checked in Discord first, and saved only once it passes.
+  await expect(dlg.getByText(/Checking #test-instructor-f in Discord, usually a few seconds/)).toBeVisible();
+  await answer('discord_channel', channelAnswer('test-instructor-f', '900000000000000011', '900000000000000099', true));
+  await expect(dlg.getByText('Channel ready')).toBeVisible({ timeout: 15_000 });
   const ch = await one<{ c: string; n: string }>(
     `select channel_id c, channel_name n from public.instructor_channel where instructor_id = $1`,
     [i.id],
   );
   expect(ch).toEqual({ c: '900000000000000011', n: 'test-instructor-f' });
+});
+
+/**
+ * What the automation reads from Discord for a channel check (decision 330): the channel, the roles, the bot and the
+ * instructor. The bot's role may do all four things; the instructor's role may see the channel only if canSee.
+ */
+function channelAnswer(name: string, id: string, userId: string, canSee: boolean) {
+  return {
+    channel: {
+      status: 200,
+      body: {
+        id,
+        name,
+        permission_overwrites: canSee
+          ? [{ id: '900000000000000202', type: 0, allow: '66560', deny: '0' }]
+          : [],
+      },
+    },
+    roles: {
+      status: 200,
+      body: [
+        { id: SERVER, permissions: '0' },
+        { id: '900000000000000201', permissions: '84992' },
+        { id: '900000000000000202', permissions: '0' },
+      ],
+    },
+    bot: { status: 200, body: { user: { id: '900000000000000098' }, roles: ['900000000000000201'] } },
+    member: { status: 200, body: { user: { id: userId }, roles: ['900000000000000202'] } },
+  };
+}
+
+test('a pasted link is checked first; a channel they cannot see is not saved; the suggested one is, with one welcome', async ({
+  page,
+}) => {
+  await sql(
+    `update public.instructor set discord_username = 'e2e.instructor.e', discord_user_id = '900000000000000097',
+            discord_status = 'Found', version = version where full_name = 'Test Instructor E'`,
+  );
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.getByLabel('Show test instructors').check();
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor E' }).first().click();
+  const dlg = page.getByRole('dialog');
+  await ready(page);
+  // The channel named after them is suggested.
+  await expect(dlg.getByText('Suggested:')).toBeVisible();
+  await expect(dlg.getByRole('button', { name: 'Use #test-instructor-e' })).toBeVisible();
+  // Something that is not a link is refused before anything is sent.
+  await dlg.getByLabel('Or paste a channel link or ID').fill('#test-instructor-e');
+  await expect(dlg.getByText(/That is not a channel link or ID/)).toBeVisible();
+  await expect(dlg.getByRole('button', { name: 'Check and use' })).toBeDisabled();
+  // A real link: checked in Discord, and they cannot see the channel, so it is not saved.
+  await dlg
+    .getByLabel('Or paste a channel link or ID')
+    .fill(`https://discord.com/channels/${SERVER}/900000000000000012`);
+  await dlg.getByRole('button', { name: 'Check and use' }).click();
+  await expect(dlg.getByText(/Checking #test-instructor-e in Discord/)).toBeVisible();
+  await answer('discord_channel', channelAnswer('test-instructor-e', '900000000000000012', '900000000000000097', false));
+  await expect(dlg.getByText('#test-instructor-e was not saved as their channel')).toBeVisible({ timeout: 15_000 });
+  await expect(
+    dlg.getByText('Give Test Instructor E access to #test-instructor-e (View Channels), then choose the channel again.'),
+  ).toBeVisible();
+  const none = await one<{ n: number }>(
+    `select count(*)::int n from public.instructor_channel ic join public.instructor i on i.id = ic.instructor_id
+      where i.full_name = 'Test Instructor E'`,
+  );
+  expect(none.n).toBe(0);
+  // After the fix in Discord: take the suggestion, it passes, and one welcome tags them in the channel.
+  await dlg.getByRole('button', { name: 'Use #test-instructor-e' }).click();
+  await answer('discord_channel', channelAnswer('test-instructor-e', '900000000000000012', '900000000000000097', true));
+  await expect(dlg.getByText('Channel ready')).toBeVisible({ timeout: 15_000 });
+  const w = await one<{ n: number; c: string }>(
+    `select count(*)::int n, min(m.discord_channel_id) c from public.message m join public.instructor i on i.id = m.instructor_id
+      where i.full_name = 'Test Instructor E' and m.template_id = 'M22' and m.channel = 'Discord' and m.status <> 'Cancelled'`,
+  );
+  expect(w).toEqual({ n: 1, c: '900000000000000012' });
+  // The suggestion is gone once the channel is ready. A second check of the same channel sends no second welcome
+  // (database test 620, check 23).
+  await expect(dlg.getByRole('button', { name: 'Use #test-instructor-e' })).toHaveCount(0);
 });
 
 test('a username nobody has: the app says what to check, and Check Discord tries again', async ({

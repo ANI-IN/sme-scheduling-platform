@@ -681,16 +681,28 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"instructor_channel": {
+                },"channel_check": {
                   Row: {
-                    "channel_id": string,"channel_name": string | null,"created_at": string,"domain_id": string,"instructor_id": string,"updated_at": string,"updated_by": string | null,"version": number
+                    "action_id": string | null,"channel_id": string,"channel_name": string | null,"checked_at": string | null,"created_at": string,"created_by": string | null,"domain_id": string,"id": string,"instructor_id": string,"problems": (string)[],"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "channel_id": string,"channel_name"?: string | null,"created_at"?: string,"domain_id": string,"instructor_id": string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "action_id"?: string | null,"channel_id": string,"channel_name"?: string | null,"checked_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"domain_id": string,"id"?: string,"instructor_id": string,"problems"?: (string)[],"status"?: string
                   }
                   Update: {
-                    "channel_id"?: string,"channel_name"?: string | null,"created_at"?: string,"domain_id"?: string,"instructor_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "action_id"?: string | null,"channel_id"?: string,"channel_name"?: string | null,"checked_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"domain_id"?: string,"id"?: string,"instructor_id"?: string,"problems"?: (string)[],"status"?: string
+                  }
+                  Relationships: []
+                },"instructor_channel": {
+                  Row: {
+                    "channel_id": string,"channel_name": string | null,"created_at": string,"domain_id": string,"instructor_id": string,"ready_at": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel_id": string,"channel_name"?: string | null,"created_at"?: string,"domain_id": string,"instructor_id": string,"ready_at"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                  }
+                  Update: {
+                    "channel_id"?: string,"channel_name"?: string | null,"created_at"?: string,"domain_id"?: string,"instructor_id"?: string,"ready_at"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1782,6 +1794,9 @@ isOneToOne: false
                            },
 "set_domain_status":
 { Args: { "p_domain_id": string,"p_status": string }; Returns: undefined
+                           },
+"check_instructor_channel":
+{ Args: { "p_channel": string,"p_domain_id": string,"p_instructor_id": string }; Returns: Json
                            },
 "set_instructor_channel":
 { Args: { "p_channel_id": string,"p_domain_id": string,"p_instructor_id": string }; Returns: undefined
