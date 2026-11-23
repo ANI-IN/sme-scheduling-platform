@@ -92,12 +92,19 @@ test('the board opens at this week, and Earlier still shows the weeks before', a
   await expect(rows.first()).toHaveAttribute('aria-current', 'date');
 });
 
-test('the Legend explains every badge in one sentence each', async ({ page }) => {
+// Release 3, C14: the Legend shows by default; Hide legend is remembered per person.
+test('the Legend shows at first and explains every badge in one sentence each', async ({
+  page,
+}) => {
   await page.goto('/board');
   await ready(page);
-  await page.getByRole('button', { name: 'Legend', exact: true }).click();
   const legend = page.getByRole('region', { name: 'Legend' });
   await expect(legend.getByRole('heading', { level: 2, name: 'Legend' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hide legend', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Show legend', exact: true })).toHaveCount(0);
   for (const label of [
     'Answer due soon',
     'Help request open',
@@ -120,6 +127,32 @@ test('the Legend explains every badge in one sentence each', async ({ page }) =>
   await expect(legend.locator('dd')).toHaveCount(terms);
   await a11y(page, 'board legend');
   await noDashes(page, 'board legend');
+});
+
+test('Hide legend is remembered after a reload, and Show legend brings it back', async ({
+  page,
+}) => {
+  await page.goto('/board');
+  await ready(page);
+  const legend = page.getByRole('region', { name: 'Legend' });
+  await expect(legend).toBeVisible();
+  await page.getByRole('button', { name: 'Hide legend', exact: true }).click();
+  await expect(legend).toHaveCount(0);
+  const show = page.getByRole('button', { name: 'Show legend', exact: true });
+  await expect(show).toHaveAttribute('aria-expanded', 'false');
+  await page.reload();
+  await ready(page);
+  await expect(legend).toHaveCount(0);
+  await expect(show).toBeVisible();
+  await show.click();
+  await expect(legend).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hide legend', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await page.reload();
+  await ready(page);
+  await expect(legend).toBeVisible();
 });
 
 test('cohorts without a standard schedule are grouped as No standard schedule', async ({

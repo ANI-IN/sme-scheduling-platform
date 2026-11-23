@@ -11,11 +11,24 @@ import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
 import { useInstructors, useWeeks } from '@/lib/data';
+import { asRegion, REGIONS } from '@/lib/region';
+import {
+  applyFilters,
+  filtersKey,
+  fixedOptions,
+  hasChoices,
+  optionsFrom,
+  type FilterField,
+  type Getters,
+} from '@/lib/filters';
+import { useRememberedFilters } from '@/lib/useFilters';
 import { RegionBadge } from '@/components/ClassTime';
+import { FilterBar } from '@/components/FilterBar';
 import {
   Badge,
   Button,
   Checkbox,
+  Empty,
   ErrorText,
   PageHeader,
   Select,
@@ -43,6 +56,20 @@ import {
 
 /** The group of cohorts that follow no standard schedule. */
 export const NO_STANDARD_GROUP = 'No standard schedule';
+/**
+ * The fields of the board's filter bar, in order (Release 3, C14). "track" is the standard schedule a cohort follows,
+ * labelled Standard schedule; "badge" is a badge or problem code of a class week, such as clash or message_failed.
+ */
+export const BOARD_FILTERS = [
+  'cohort',
+  'track',
+  'module',
+  'region',
+  'status',
+  'instructor',
+  'badge',
+] as const;
+const NO_COHORT = 'No cohort';
 
 type Problem = { code: string; level: 'Block' | 'Warning' | 'Information'; text: string };
 type Cell = {
@@ -103,6 +130,8 @@ type Prefs = {
   weeks: number;
   onlyProblems: boolean;
   compare?: boolean;
+  /** False after Hide legend. Saved views from before the Legend was shown by default have nothing, so it shows. */
+  legend?: boolean;
 };
 
 /** Filters remembered per person on this device. */
@@ -140,7 +169,13 @@ export default function Board() {
   const [menu, setMenu] = useState<{ kind: 'break' | 'holiday' | 'merge'; cohort?: string } | null>(
     null,
   );
-  const [legend, setLegend] = useState(false);
+  const legend = prefs.legend !== false;
+  // Cohort, standard schedule, module, region, status, instructor and badge: remembered per person and domain.
+  const [filters, setFilters] = useRememberedFilters(
+    filtersKey('board', auth.account?.member?.email),
+    domain?.id,
+    BOARD_FILTERS,
+  );
   // Bulk actions (M12b, decision 314): select several class weeks, then one action with one combined preview.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -166,8 +201,29 @@ export default function Board() {
     [instructors.data],
   );
   const b = board.data;
+  // What each filter reads from a cohort column, and from a class week (through its cohort for the first three).
+  const cohortGetters = useMemo<Getters<CohortCol>>(
+    () => ({
+      cohort: (c) => c.name,
+      track: (c) => c.standard ?? NO_STANDARD_GROUP,
+      region: (c) => asRegion(c.region),
+    }),
+    [],
+  );
+  const cellGetters = useMemo<Getters<Cell>>(() => {
+    const cohortOf = new Map((b?.cohorts ?? []).map((c) => [c.id, c] as const));
+    return {
+      cohort: (c) => c.cohort ?? NO_COHORT,
+      track: (c) => cohortOf.get(c.cohort_id ?? '')?.standard ?? NO_STANDARD_GROUP,
+      module: (c) => c.module,
+      region: (c) => asRegion(cohortOf.get(c.cohort_id ?? '')?.region),
+      status: (c) => STATUS[c.status].word,
+      instructor: (c) => c.instructor ?? NO_INSTRUCTOR,
+      badge: (c) => [...c.badges, ...c.problems.map((p) => p.code)],
+    };
+  }, [b]);
   const cells = useMemo(() => {
-    const all = b?.weeks ?? [];
+    const all = applyFilters(b?.weeks ?? [], filters, cellGetters);
     return all.filter(
       (c) =>
         (!prefs.onlyProblems ||
@@ -179,7 +235,7 @@ export default function Board() {
           c.problems.some((p) => p.code === decision) ||
           c.status.toLowerCase().replace(/ /g, '_') === decision),
     );
-  }, [b, prefs.onlyProblems, decision]);
+  }, [b, prefs.onlyProblems, decision, filters, cellGetters]);
   const rows = useMemo(
     () => Array.from({ length: prefs.weeks }, (_, i) => start.plus({ weeks: i })),
     [start, prefs.weeks],
@@ -201,15 +257,16 @@ export default function Board() {
         DateTime.fromISO(x.starts_on) < row.plus({ weeks: 1 }) &&
         DateTime.fromISO(x.starts_on).plus({ weeks: x.weeks }) > row,
     );
-  // Tracks: the cohorts of one standard schedule, which can be folded away together.
+  // Tracks: the cohorts of one standard schedule, which can be folded away together. The cohort, standard schedule
+  // and region filters also leave out the columns of the other cohorts.
   const tracks = useMemo(() => {
     const m = new Map<string, CohortCol[]>();
-    for (const c of b?.cohorts ?? []) {
+    for (const c of applyFilters(b?.cohorts ?? [], filters, cohortGetters)) {
       const k = c.standard ?? NO_STANDARD_GROUP;
       m.set(k, [...(m.get(k) ?? []), c]);
     }
     return [...m.entries()];
-  }, [b]);
+  }, [b, filters, cohortGetters]);
   const visibleCohorts = tracks.flatMap(([t, cs]) => (collapsed.has(t) ? [] : cs));
   const health = (cohort: string) => {
     const mine = (b?.weeks ?? []).filter(
@@ -283,12 +340,49 @@ export default function Board() {
 
   const decisions = Object.entries(b?.decisions ?? {}).filter(([, n]) => n > 0);
 
+  const allWeeks = b?.weeks ?? [];
+  const filterFields: FilterField[] = [
+    {
+      key: 'cohort',
+      label: 'Cohort',
+      // Every cohort column, and No cohort when a class week has none.
+      options: optionsFrom(
+        [...(b?.cohorts ?? []).map((c) => c.name), ...allWeeks.map((c) => c.cohort ?? NO_COHORT)],
+        (n) => n,
+      ),
+    },
+    {
+      key: 'track',
+      label: 'Standard schedule',
+      options: optionsFrom(b?.cohorts ?? [], cohortGetters.track!),
+    },
+    { key: 'module', label: 'Module', options: optionsFrom(allWeeks, cellGetters.module!) },
+    { key: 'region', label: 'Region', options: fixedOptions(REGIONS) },
+    {
+      key: 'status',
+      label: 'Status',
+      options: fixedOptions((Object.keys(STATUS) as Status[]).map((s) => STATUS[s].word)),
+    },
+    {
+      key: 'instructor',
+      label: 'Instructor',
+      options: optionsFrom(allWeeks, cellGetters.instructor!),
+    },
+    {
+      key: 'badge',
+      label: 'Badge',
+      options: optionsFrom(allWeeks, cellGetters.badge!, decisionLabel),
+    },
+  ];
+  // With a filter on and nothing left, say so instead of an empty grid.
+  const filtered = hasChoices(filters);
+
   // What is shown, as a spreadsheet, and the download in Activity history like every other one.
   const download = () => {
     void rpc('log_export', {
       p_what: 'Schedule board',
       p_rows: cells.length,
-      p_filters: { from, to, only_problems: prefs.onlyProblems, decision },
+      p_filters: { from, to, only_problems: prefs.onlyProblems, decision, ...filters },
       p_domain_id: domain?.id,
     }).catch(() => {});
     downloadCsv(
@@ -375,8 +469,14 @@ export default function Board() {
           checked={!!prefs.compare}
           onChange={(v) => setPrefs({ compare: v })}
         />
-        <Button size="sm" variant="ghost" aria-expanded={legend} onClick={() => setLegend(!legend)}>
-          Legend
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={legend}
+          aria-controls={legend ? 'board-legend-section' : undefined}
+          onClick={() => setPrefs({ legend: !legend })}
+        >
+          {legend ? 'Hide legend' : 'Show legend'}
         </Button>
         <Button size="sm" variant="secondary" disabled={cells.length === 0} onClick={download}>
           <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
@@ -444,6 +544,8 @@ export default function Board() {
         </section>
       )}
 
+      <FilterBar fields={filterFields} value={filters} onChange={setFilters} />
+
       {legend && <Legend />}
 
       <section aria-label="Needs a decision" className="mb-4">
@@ -478,6 +580,17 @@ export default function Board() {
         <ErrorText error={board.error} />
       ) : !b || b.weeks.length === 0 ? (
         <p className="text-sm text-muted-foreground">No class weeks in these weeks.</p>
+      ) : filtered && cells.length === 0 ? (
+        <Empty
+          title="No class weeks match these filters"
+          action={
+            <Button variant="secondary" onClick={() => setFilters({})}>
+              Clear all filters
+            </Button>
+          }
+        >
+          Remove a filter above, or show other weeks with Earlier and Later.
+        </Empty>
       ) : prefs.view === 'list' ? (
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
@@ -757,7 +870,11 @@ export default function Board() {
 /** Every status and badge the board and its side panel can show, each with one sentence. */
 function Legend() {
   return (
-    <section aria-labelledby="board-legend" className="mb-4 rounded-md border border-border p-3">
+    <section
+      id="board-legend-section"
+      aria-labelledby="board-legend"
+      className="mb-4 rounded-md border border-border p-3"
+    >
       <h2 id="board-legend" className="text-sm font-semibold">
         Legend
       </h2>

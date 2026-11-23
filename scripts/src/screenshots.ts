@@ -109,7 +109,14 @@ export const SHOTS: Shot[] = [
   { name: 'board', path: '/board' },
   { name: 'board-by-instructor', path: '/board', act: click(/^by instructor$/i) },
   { name: 'board-list', path: '/board', act: click(/^list$/i) },
-  { name: 'board-legend', path: '/board', act: click(/^legend$/i) },
+  // The Legend shows by default (Release 3, C14); this picture is scrolled to it.
+  {
+    name: 'board-legend',
+    path: '/board',
+    act: async (p) => p.getByRole('region', { name: 'Legend' }).scrollIntoViewIfNeeded(),
+  },
+  { name: 'board-filter-list', path: '/board', act: click(/^badge/i) },
+  { name: 'classes-filter-list', path: '/classes', act: click(/^cohort/i) },
   { name: 'board-side-panel', path: '/board', act: click(/^Open /) },
   { name: 'board-select', path: '/board', act: selectTwo },
   { name: 'board-bulk-move', path: '/board', act: steps(selectTwo, click(/^move$/i)) },
