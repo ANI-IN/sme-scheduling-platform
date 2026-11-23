@@ -32,7 +32,7 @@ import {
 type Scope = 'Domain' | 'Cohort';
 
 /** The main choices shown first; everything else is under "More options". */
-const ASKING = ['outreach_days', 'default_outreach_mode'];
+const ASKING = ['outreach_days', 'default_outreach_mode', 'welcome_message'];
 const REMINDER_PARTS: { title: string; keys: string[] }[] = [
   {
     title: 'While we wait for an answer',
@@ -342,8 +342,9 @@ export default function Automation() {
     }
   }
 
-  // The daily summary covers every cohort a person helps with, so it is set for the domain only.
-  const DOMAIN_ONLY = new Set(['daily_summary']);
+  // The daily summary covers every cohort a person helps with, and the welcome message goes once per domain, so
+  // both are set for the domain only.
+  const DOMAIN_ONLY = new Set(['daily_summary', 'welcome_message']);
   const fields = (keys: string[]) =>
     keys
       .filter((k) => scope === 'Domain' || !DOMAIN_ONLY.has(k))
@@ -414,7 +415,7 @@ export default function Automation() {
               <Timeline get={effective} />
               <Section
                 title="Asking instructors"
-                description="When we start asking, and how quickly we move on to the next instructor."
+                description="When we start asking, how quickly we move on to the next instructor, and the welcome message for new instructors."
               >
                 <div className="mb-5 grid gap-3 sm:grid-cols-3">
                   {PRESETS.map((p) => (

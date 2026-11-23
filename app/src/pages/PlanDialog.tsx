@@ -454,7 +454,7 @@ export function PlanDialog({ domain, onClose }: { domain: Domain; onClose: () =>
           </Button>
           {active.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Add a module that is in use first (Setup, Modules).
+              Make a module live first (Setup, Modules).
             </p>
           )}
         </div>

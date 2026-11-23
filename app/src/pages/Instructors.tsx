@@ -10,6 +10,7 @@ import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
 import { instructorStatusLabel } from '@/lib/labels';
 import { useDomains, useInstructors, type Instructor } from '@/lib/data';
+import { useDomain } from '@/lib/domain';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
 import { isEmail } from '@/lib/validation';
@@ -143,7 +144,6 @@ export default function Instructors() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, q, status, show, teachesIn, showTest, ctx.data],
   );
-  const unchecked = (data ?? []).filter(isUnchecked).length;
 
   return (
     <div>
@@ -152,20 +152,6 @@ export default function Instructors() {
           <Plus className="h-4 w-4" aria-hidden /> Add instructor
         </Button>
       </PageHeader>
-      {unchecked > 0 && show !== 'unchecked' && (
-        <div className="mb-4">
-          <Notice tone="warning">
-            {unchecked} instructor{unchecked === 1 ? ' has' : 's have'} not had their contact
-            details checked. They are not asked once a domain is live.{' '}
-            <button
-              className="font-medium underline underline-offset-2"
-              onClick={() => set('show', 'unchecked')}
-            >
-              Show them
-            </button>
-          </Notice>
-        </div>
-      )}
       <Toolbar>
         <Input
           placeholder="Search by name or email"
@@ -318,11 +304,8 @@ function StatusBadges({ i }: { i: InstructorRow }) {
   return (
     <div className="flex flex-wrap gap-1">
       {i.status !== 'Active' && <Badge>{instructorStatusLabel(i.status)}</Badge>}
-      {i.verified_at ? (
-        <Badge tone="success">Contact checked</Badge>
-      ) : (
-        <Badge tone="warning">Not checked yet</Badge>
-      )}
+      {/* Information only: instructors are asked whether or not their contact details were checked. */}
+      {i.verified_at && <Badge tone="success">Contact checked</Badge>}
       {i.is_test && <Badge tone="accent">Test instructor</Badge>}
       {i.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
       {i.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
@@ -371,6 +354,7 @@ export function InstructorDrawer({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const domains = useDomains();
+  const { domain } = useDomain();
   const [f, setF] = useState({
     full_name: instructor?.full_name ?? '',
     primary_email: instructor?.primary_email ?? '',
@@ -510,6 +494,17 @@ export function InstructorDrawer({
       } else {
         const created = check(await supabase.from('instructor').insert(row).select().single())!;
         id = created.id;
+        // A short welcome by email (once per instructor), with the rules of the domain being worked in.
+        try {
+          const welcome = (await rpc('send_welcome_message', {
+            p_instructor_id: created.id,
+            p_domain_id: domain?.id,
+          })) as unknown as string;
+          if (welcome.startsWith('blocked: '))
+            toast.message(`Welcome message not sent: ${welcome.slice('blocked: '.length)}`);
+        } catch {
+          // The instructor is saved either way; Activity history shows whether a welcome went.
+        }
       }
       const current = instructor?.instructor_email.filter((e) => !e.is_primary) ?? [];
       const wanted = extras.map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -519,7 +514,7 @@ export function InstructorDrawer({
         check(await supabase.from('instructor_email').insert({ instructor_id: id!, email: e }));
       toast.success(
         contactChanged
-          ? 'Saved. The contact details changed, so send a new contact check.'
+          ? 'Saved. The contact details changed, so the contact check was cleared.'
           : instructor
             ? 'Email and Discord saved'
             : 'Instructor added',
@@ -818,20 +813,21 @@ export function InstructorDrawer({
         {instructor && (
           <Group
             title="Contact check"
-            description="A short message on Discord and by email that they confirm with one tap. Only checked instructors are asked in a live domain."
+            description="Optional. A short message on Discord and by email that they confirm with one tap. Instructors are asked whether or not they are checked."
           >
             <div className="flex flex-wrap items-center gap-2">
               {instructor.verified_at ? (
                 <Badge tone="success">Checked {fmtLocal(instructor.verified_at)}</Badge>
               ) : (
-                <Badge tone="warning">Not checked yet</Badge>
+                <Badge>Not checked</Badge>
               )}
               {instructor.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
               {instructor.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
             </div>
             {contactChanged && (
               <Notice tone="warning">
-                Saving new email or Discord details removes the check, so send a new one afterwards.
+                Saving new email or Discord details clears the check. You can send a new one if you
+                like.
               </Notice>
             )}
             <div className="flex flex-wrap gap-2">

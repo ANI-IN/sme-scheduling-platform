@@ -24,6 +24,7 @@ import { DEFAULT_CLASS_TIMES, classTimeText } from '@/lib/classTimes';
 import { PatternEditor, RankingEditor, type ModuleRow } from './moduleParts';
 import { OperationsTeam, Owners } from './ModuleDetail';
 import { refresh } from '@/lib/live';
+import { useMinInstructors } from './Modules';
 
 const STEPS = [
   'Module details',
@@ -33,7 +34,7 @@ const STEPS = [
   'Review and save',
 ];
 
-/** Guided setup for a new module. The module is saved as "not in use" until the last step. */
+/** Guided setup for a new module. The module is saved as a Draft until the last step. */
 export default function ModuleNew() {
   const { domain, domains } = useDomain();
   const navigate = useNavigate();
@@ -154,10 +155,10 @@ export default function ModuleNew() {
               .eq('id', m.id)
               .select(),
           ),
-        'Module saved and in use',
+        'Module saved and live',
       );
     } else {
-      toast.success('Module saved as not in use');
+      toast.success('Module saved as a draft');
     }
     if (another) {
       // Save and add another: start the wizard again for the next module (decision 259).
@@ -197,7 +198,7 @@ function DetailsStep({
   return (
     <Section
       title="Module details"
-      description="Saved as not in use until you finish, so it is not planned or used for requests yet."
+      description="Saved as a draft until you finish, so it is not planned and nobody is asked yet."
     >
       <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
         <Field label="Name" required error={v.show('name')}>
@@ -358,6 +359,7 @@ function Review({
   const team = useTeam();
   const instructors = useInstructors();
   const settings = useSettings(m.domain_id);
+  const minActive = useMinInstructors(m.domain_id);
   const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   const byId = new Map((instructors.data ?? []).map((i) => [i.id, i]));
   const order = [...m.module_ranking]
@@ -366,8 +368,8 @@ function Review({
   const required = [
     { ok: m.class_pattern_item.length > 0, text: 'At least one class time' },
     {
-      ok: order.some((i) => i?.status === 'Active'),
-      text: 'At least one instructor in use in the order',
+      ok: order.filter((i) => i?.status === 'Active').length >= minActive,
+      text: `At least ${minActive} instructor${minActive === 1 ? '' : 's'} in use in the order`,
     },
     { ok: m.module_owner.length > 0, text: 'At least one owner' },
   ];
@@ -459,19 +461,19 @@ function Review({
       </Section>
       {!ready && (
         <Notice tone="warning">
-          Finish the required items to start using this module. You can also save it now and finish
-          later.
+          Finish the required items to make this module live. You can also save it as a draft now
+          and finish later.
         </Notice>
       )}
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={() => onFinish(false)}>
-          Save as not in use
+          Save as draft
         </Button>
         <Button variant="secondary" disabled={!ready} onClick={() => onFinish(true, true)}>
           Save and add another
         </Button>
         <Button disabled={!ready} onClick={() => onFinish(true)}>
-          Save and start using
+          Save and make live
         </Button>
       </div>
     </div>

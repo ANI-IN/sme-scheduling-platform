@@ -22,6 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { rpc } from '@/lib/rpc';
 import { reorderA11y } from '@/lib/reorder';
+import { moduleStatusLabel } from '@/lib/labels';
 import { useDomain } from '@/lib/domain';
 import {
   useCohortScheduleStatus,
@@ -341,7 +342,7 @@ function StandardForm({
                         {idx + 1}.
                       </span>
                       <span className="font-medium">{m?.name ?? 'A module that was removed'}</span>
-                      {m && m.status !== 'Active' && <Badge>Not in use</Badge>}
+                      {m && m.status !== 'Active' && <Badge>{moduleStatusLabel(m.status)}</Badge>}
                       <button
                         type="button"
                         className="ml-auto text-muted-foreground hover:text-danger-strong"

@@ -238,10 +238,10 @@ function DetailsForm({ module: m }: { module: ModuleRow }) {
           </Field>
           <Field
             label="Status"
-            hint="Modules that are not in use are skipped when planning and asking."
+            hint="Draft while you set it up: it is skipped when planning and nobody is asked. Live: instructors are asked."
           >
             <Select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
-              {['Active', 'Inactive'].map((s) => (
+              {['Inactive', 'Active'].map((s) => (
                 <option key={s} value={s}>
                   {MODULE_STATUS[s]?.label}
                 </option>

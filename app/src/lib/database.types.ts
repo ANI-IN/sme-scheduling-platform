@@ -1753,6 +1753,9 @@ isOneToOne: false
 "send_test_message":
 { Args: { "p_instructor_id": string }; Returns: Json
                            },
+"send_welcome_message":
+{ Args: { "p_domain_id"?: string,"p_instructor_id": string }; Returns: string
+                           },
 "set_admin":
 { Args: { "p_admin": boolean,"p_team_member_id": string }; Returns: Json
                            },

@@ -34,16 +34,19 @@ keywords: glossary, words, meaning, definition, terms, status
 - **Cohort:** one group of students going through the modules, for example a weekend cohort.
 - **Cohort holiday:** a day off for one cohort only. Its classes on that day show as a problem to fix.
 - **Combined cohort:** the cohort two or more cohorts continue as after a merge.
-- **Contact check:** a short message that proves an instructor's Discord and email work.
+- **Contact check:** an optional short message that proves an instructor's Discord and email work. Instructors are asked whether or not they are checked.
 - **Custom:** a cohort planned from a standard schedule, with class weeks changed for it alone. Custom (2 changes) means two class weeks.
 - **Daily summary:** one message each morning with a team member's open tasks.
 - **Domain:** a program area such as Backend, with its own modules, people and settings.
+- **Draft (module):** a module being set up. It is skipped when planning and nobody is asked.
 - **Escalation contacts:** people told when an urgent problem is not fixed in time.
 - **Fully custom:** a cohort that was not planned from a standard schedule.
 - **Instructor order:** the order instructors are asked for a module.
 - **Needs a decision:** the counts of problems at the top of the Schedule board.
 - **No standard schedule:** the board's group of cohorts that do not follow a standard schedule.
-- **Not in use:** kept, but not used for planning or asking.
+- **Live (module):** a module whose instructors are asked.
+- **Not in use:** an instructor or team member that is kept, but not used for planning or asking.
+- **Ready (module):** a module with class times, an owner and at least 1 instructor in use in its instructor order.
 - **Operations team:** the people who handle class tasks, failed messages and written replies.
 - **Owner:** the person responsible for a module.
 - **Pause all messages:** stop every message to instructors at once.
@@ -63,3 +66,4 @@ keywords: glossary, words, meaning, definition, terms, status
 - **Testing:** a domain whose messages go only to the testing channel and testing email.
 - **Very close to the class:** the last days before a class, when replies are expected fastest (3 by default).
 - **Warning:** something unusual but allowed. You can go ahead after you say why. The reason is kept in Activity history.
+- **Welcome message:** a short message a new instructor gets once by email, and once on Discord in each domain.

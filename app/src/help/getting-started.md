@@ -44,7 +44,7 @@ While a domain still misses something, Home shows **Set up** and the domain's na
 
 - Add at least one module.
 - Add class times to every module.
-- Set the instructor order of every module.
+- Put at least 1 instructor in the instructor order of every module (the number is a setting).
 - Choose an owner for every module.
 - Choose the operations team.
 - Choose escalation contacts.

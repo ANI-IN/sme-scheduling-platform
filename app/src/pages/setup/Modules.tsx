@@ -5,13 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useSettingsMap, useTeam } from '@/lib/data';
+import { moduleStatusLabel } from '@/lib/labels';
 import {
   Badge,
   Button,
   Checkbox,
   Empty,
   ErrorText,
-  Notice,
   PageHeader,
   SkeletonRows,
   tableWrap,
@@ -22,28 +22,36 @@ import {
 } from '@/components/ui';
 import type { ModuleRow } from './moduleParts';
 
+/** Draft (being set up, nobody is asked), Live (instructors are asked) or Archived (glossary). */
 export const MODULE_STATUS: Record<string, { label: string; tone: 'success' | 'neutral' }> = {
-  Active: { label: 'In use', tone: 'success' },
-  Inactive: { label: 'Not in use', tone: 'neutral' },
-  Archived: { label: 'Archived', tone: 'neutral' },
+  Active: { label: moduleStatusLabel('Active'), tone: 'success' },
+  Inactive: { label: moduleStatusLabel('Inactive'), tone: 'neutral' },
+  Archived: { label: moduleStatusLabel('Archived'), tone: 'neutral' },
 };
 
-/** Problems with a module's setup, in plain words. Contact checks are summarised once per page instead. */
+/** How many instructors in use a module needs in its instructor order to be Ready (a setting, 1 by default). */
+export function useMinInstructors(domainId: string | undefined) {
+  const settings = useSettingsMap(domainId);
+  return Number(settings.data?.min_active_instructors ?? 1);
+}
+
+/**
+ * Problems with a module's setup, in plain words. A module is Ready with class times, an owner and at least the
+ * set number of instructors in use in its instructor order. The contact check is optional, so it is not one.
+ */
 export function useModuleWarnings(domainId: string | undefined) {
   const instructors = useInstructors();
-  const settings = useSettingsMap(domainId);
-  const minActive = Number(settings.data?.min_active_instructors ?? 2);
+  const minActive = useMinInstructors(domainId);
   const byId = new Map((instructors.data ?? []).map((i) => [i.id, i]));
   return (m: ModuleRow): string[] => {
-    const ranked = [...m.module_ranking]
+    const ranked = m.module_ranking
       .filter((r) => !r.cohort_id)
-      .sort((a, b) => a.rank - b.rank)
       .map((r) => byId.get(r.instructor_id));
     const active = ranked.filter((i) => i?.status === 'Active').length;
     const w: string[] = [];
     if (!m.class_pattern_item.some((p) => !p.cohort_id)) w.push('No class times');
-    if (active < minActive) w.push(`Needs ${minActive} instructors, has ${active}`);
-    if (ranked[0] && ranked[0].status !== 'Active') w.push('Primary instructor is not in use');
+    if (active < minActive)
+      w.push(`Needs ${minActive} instructor${minActive === 1 ? '' : 's'}, has ${active}`);
     if (m.module_owner.length === 0) w.push('No owner');
     return w;
   };
@@ -72,14 +80,7 @@ export default function Modules() {
   const archivedCount = (modules.data ?? []).filter((m) => m.status === 'Archived').length;
   const shown = (modules.data ?? []).filter((m) => showArchived || m.status !== 'Archived');
 
-  // One summary instead of the same warning on every module.
-  const ranked = new Set(
-    (modules.data ?? []).flatMap((m) => m.module_ranking.map((r) => r.instructor_id)),
-  );
-  const unchecked = [...ranked].filter((id) => {
-    const i = status.get(id);
-    return i && i.status === 'Active' && !i.verified_at && !i.is_test;
-  }).length;
+  const minActive = useMinInstructors(domain?.id);
 
   return (
     <div>
@@ -97,19 +98,12 @@ export default function Modules() {
           </Button>
         )}
       </PageHeader>
-      {unchecked > 0 && (
-        <div className="mb-4">
-          <Notice tone="warning">
-            {unchecked} instructor{unchecked === 1 ? ' has' : 's have'} not had their contact
-            details checked yet, so they will not be asked once the domain is live.{' '}
-            <Link
-              to="/setup/instructors?show=unchecked"
-              className="font-medium underline underline-offset-2"
-            >
-              Review instructors
-            </Link>
-          </Notice>
-        </div>
+      {domain && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          A module is <strong>Draft</strong> while you set it up and nobody is asked. It is{' '}
+          <strong>Live</strong> when instructors are asked. It is Ready with class times, an owner
+          and at least {minActive} instructor{minActive === 1 ? '' : 's'} in its instructor order.
+        </p>
       )}
       <ErrorText error={modules.error} />
       {archivedCount > 0 && (

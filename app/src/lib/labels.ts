@@ -12,6 +12,7 @@ export const attentionTypeLabel: Record<string, string> = {
   TimeProposal: 'Proposed time to check',
   CheckInNoReply: 'No answer to reminder before class',
   ThinBench: 'Few instructors available',
+  // Not raised any more (the contact check is optional); kept for tasks from before.
   UnverifiedInRanking: 'Contact details not checked',
   OwnerCheckIn: 'Question for the owner',
   Other: 'Other',
@@ -52,3 +53,10 @@ export const historyCategories = [
 /** An instructor's status in the team's words (glossary: "In use", "Not in use", "Archived"). */
 export const instructorStatusLabel = (s: string | null | undefined) =>
   s === 'Active' ? 'In use' : s === 'Inactive' ? 'Not in use' : (s ?? '');
+
+/**
+ * A module's status in the team's words (glossary: "Draft", "Live", "Archived"). The database keeps its own values:
+ * Active is Live (instructors are asked) and Inactive is Draft (being set up, nobody is asked).
+ */
+export const moduleStatusLabel = (s: string | null | undefined) =>
+  s === 'Active' ? 'Live' : s === 'Inactive' ? 'Draft' : (s ?? '');
