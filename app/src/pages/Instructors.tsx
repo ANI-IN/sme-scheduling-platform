@@ -6,7 +6,8 @@ import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { instructorStatusLabel } from '@/lib/labels';
-import { useDomains, useInstructors, type Instructor } from '@/lib/data';
+import { useBlockedMessages, useDomains, useInstructors, type Instructor } from '@/lib/data';
+import { BlockedMessages } from '@/components/BlockedMessages';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
 import { isEmail } from '@/lib/validation';
@@ -417,6 +418,7 @@ export function InstructorDrawer({
     (instructor.primary_email !== f.primary_email.trim().toLowerCase() ||
       (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
   const refresh = () => qc.invalidateQueries();
+  const blocked = useBlockedMessages({ instructorId: instructor?.id });
 
   async function save(another = false) {
     setErr(null);
@@ -458,7 +460,8 @@ export function InstructorDrawer({
             ? 'Changes saved'
             : 'Instructor added',
       );
-      await refresh();
+      // The list refreshes in the background, so Save closes at once (decision 329).
+      void refresh();
       if (another) {
         // Save and add another: an empty form for the next person (decision 259).
         setF({
@@ -488,9 +491,9 @@ export function InstructorDrawer({
     setErr(null);
     try {
       await fn();
-      await poke();
+      void poke();
       toast.success(ok);
-      await refresh();
+      void refresh();
     } catch (e) {
       setErr(e);
     }
@@ -511,12 +514,12 @@ export function InstructorDrawer({
       setDeact(res.bookings);
       return;
     }
-    await poke();
+    void poke();
     toast.success(
       `${instructor.full_name} is now ${status === 'Inactive' ? 'not in use' : 'archived'}`,
     );
     setDeact(null);
-    await refresh();
+    void refresh();
   }
 
   return (
@@ -555,6 +558,7 @@ export function InstructorDrawer({
       }
     >
       <div className="space-y-5">
+        {blocked.data && <BlockedMessages messages={blocked.data} />}
         {dup && (
           <Notice tone="warning">
             An instructor with this email or Discord username already exists: {dup.full_name}. Edit
@@ -678,7 +682,7 @@ export function InstructorDrawer({
                   onClick={() =>
                     act(
                       () => rpc('check_discord', { p_kind: 'instructor', p_id: instructor.id }),
-                      'Checking Discord. This takes up to a minute.',
+                      'Checking Discord, usually a few seconds. The result shows here by itself.',
                     )
                   }
                 >

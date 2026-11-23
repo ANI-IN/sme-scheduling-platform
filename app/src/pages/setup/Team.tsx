@@ -285,7 +285,9 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
                 try {
                   await rpc('check_discord', { p_kind: 'team', p_id: member.id });
                   await poke();
-                  toast.success('Checking Discord. This takes up to a minute.');
+                  toast.success(
+                    'Checking Discord, usually a few seconds. The result shows here by itself.',
+                  );
                   await qc.invalidateQueries({ queryKey: ['team_member'] });
                 } catch (e) {
                   setErr(e);

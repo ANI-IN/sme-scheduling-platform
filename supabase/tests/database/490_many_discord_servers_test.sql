@@ -39,16 +39,18 @@ select private.queue_team_message('T9', :'dom', 'alert', null, '{}', 'MS check',
 select is((select discord_channel_id || ' ' || status from public.message where unique_key = 'ms-alert-1:Discord'),
   '999000000000049101 Pending', '4. the domain''s alert goes to its channel in server A');
 select public.start_asking_now(:'mw');
-select is((select discord_channel_id || ' ' || status from public.message
+-- Sent now, or held until the instructor's quiet hours end (it depends on the time the test runs): either way queued.
+select is((select discord_channel_id || ' ' || (status in ('Pending', 'Scheduled'))::text from public.message
             where module_week_id = :'mw' and instructor_id = :'i1' and channel = 'Discord' and discord_channel_id is not null
-            order by created_at limit 1), '999000000000049102 Pending',
+            order by created_at limit 1), '999000000000049102 true',
   '5. the first instructor is asked in their channel in server B');
 select ok(exists (select 1 from public.message where module_week_id = :'mw' and instructor_id = :'i1' and channel = 'Email'
                    and status <> 'Cancelled'), '6. and by email, as every instructor is');
 select public.skip_to_next(:'mw');
-select is((select discord_channel_id || ' ' || status from public.message
+-- Sent now, or held until the instructor's quiet hours end (it depends on the time the test runs): either way queued.
+select is((select discord_channel_id || ' ' || (status in ('Pending', 'Scheduled'))::text from public.message
             where module_week_id = :'mw' and instructor_id = :'i2' and channel = 'Discord' and discord_channel_id is not null
-            order by created_at limit 1), '999000000000049103 Pending',
+            order by created_at limit 1), '999000000000049103 true',
   '7. the next instructor is asked in their channel in server C');
 select is((select count(*)::int from public.message m where m.domain_id = :'dom' and m.status = 'Cancelled'
             and m.discord_channel_id in ('999000000000049101', '999000000000049102', '999000000000049103')), 0,

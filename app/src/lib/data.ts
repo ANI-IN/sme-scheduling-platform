@@ -1,13 +1,15 @@
 // Shared queries. Every screen reads the latest data from the database; realtime events
 // invalidate these caches so changes from n8n or teammates show up immediately.
 import { useQuery } from '@tanstack/react-query';
+import { DateTime } from 'luxon';
+import { currentBlocked } from './blocked';
 import { supabase, type Tables } from './supabase';
 import { check, fetchAll, rpc } from './rpc';
 import { useAuth } from './auth';
 
 /** While the automation is checking Discord for someone, look again every few seconds. */
 const whileChecking = (q: { state: { data?: { discord_status: string | null }[] } }) =>
-  q.state.data?.some((r) => r.discord_status === 'Checking') ? 5000 : false;
+  q.state.data?.some((r) => r.discord_status === 'Checking') ? 2000 : false;
 
 export type Domain = Tables<'domain'>;
 export type Module = Tables<'module'>;
@@ -49,6 +51,28 @@ export const useInstructors = () =>
           .select('*, instructor_email(*), instructor_unavailability(*), instructor_channel(*)')
           .order('full_name'),
       ),
+  });
+
+/** Messages a beta rule stopped in the last 14 days that nothing later replaced (decision 329). */
+export const useBlockedMessages = (by: { instructorId?: string; domainId?: string }) =>
+  useQuery({
+    queryKey: ['message', 'blocked', by.instructorId ?? null, by.domainId ?? null],
+    enabled: !!(by.instructorId || by.domainId),
+    refetchInterval: 15000,
+    queryFn: async () => {
+      let q = supabase
+        .from('message')
+        .select(
+          'id, created_at, status, blocked, direction, template_id, channel, instructor_id, team_member_id, module_week_id, recipient_label, last_error',
+        )
+        .eq('direction', 'Outbound')
+        .gte('created_at', DateTime.now().minus({ days: 14 }).toISO()!)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (by.instructorId) q = q.eq('instructor_id', by.instructorId);
+      if (by.domainId) q = q.eq('domain_id', by.domainId);
+      return currentBlocked(check(await q));
+    },
   });
 
 /** A domain's cohorts. Archived ones are left out unless asked for (the domain page lists them). */

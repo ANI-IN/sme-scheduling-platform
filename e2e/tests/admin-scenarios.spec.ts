@@ -239,3 +239,56 @@ test('Setup, Domains: a normal user sees only the servers approved for the domai
   ).toBeVisible();
   await a11y(page, 'domain without a discord server');
 });
+
+// Owner's urgent list of 23 November 2026 (decision 329): a message a beta rule stops is never silent, and once the
+// person is on the beta list, Send again delivers it.
+test('a blocked message shows on the instructor with the reason, and goes out after the beta list allows it', async ({
+  page,
+}) => {
+  await sql(
+    `update public.app_config set message_recipients = 'Test instructors and signed in colleagues',
+            recipient_email_domains = '{example.com}', beta_list_may_receive = true where id = 1`,
+  );
+  const [i] = await sql<{ id: string; email: string }>(
+    `update public.instructor set is_test = false, version = version where full_name = 'Test Instructor E'
+     returning id, primary_email email`,
+  );
+  await sql(`delete from public.beta_access where email = $1`, [i!.email]);
+  await sql(
+    `insert into public.message (audience, template_id, channel, status, unique_key, recipient_label, to_address,
+       instructor_id, subject, body_text)
+     values ('Instructor', 'M1', 'Email', 'Pending', 'e2e-blocked-1', 'Test Instructor E', $1, $2, 'Test', 'Test')`,
+    [i!.email, i!.id],
+  );
+  const [m] = await sql<{ status: string; blocked: boolean }>(
+    `select status, blocked from public.message where unique_key = 'e2e-blocked-1'`,
+  );
+  expect(m).toEqual({ status: 'Cancelled', blocked: true });
+
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor E' }).first().click();
+  const dlg = page.getByRole('dialog');
+  await expect(dlg.getByText('A message was not sent')).toBeVisible();
+  await expect(
+    dlg.getByText(/Not sent: during the beta, messages go only to test instructors/),
+  ).toBeVisible();
+  await a11y(page, 'blocked message notice');
+  await noDashes(page, 'blocked message notice');
+
+  // An admin puts their email on the beta list; Send again delivers it.
+  await sql(`insert into public.beta_access (email) values ($1) on conflict do nothing`, [
+    i!.email,
+  ]);
+  await dlg.getByRole('button', { name: 'Send again' }).click();
+  await expect(dlg.getByText('A message was not sent')).toHaveCount(0);
+  const [again] = await sql<{ n: number }>(
+    `select count(*)::int n from public.message where unique_key like 'e2e-blocked-1:resend:%'
+        and status in ('Pending', 'Scheduled', 'Sending', 'Sent') and not blocked`,
+  );
+  expect(again!.n).toBe(1);
+  const [h] = await sql<{ n: number }>(
+    `select count(*)::int n from public.history_event where action like 'Sent again after it was blocked:%'`,
+  );
+  expect(h!.n).toBeGreaterThan(0);
+});

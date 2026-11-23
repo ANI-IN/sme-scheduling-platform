@@ -700,8 +700,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        740,
-        1500
+        440,
+        -300
       ],
       "parameters": {
         "method": "POST",

@@ -23,7 +23,7 @@ import { rpc } from '@/lib/rpc';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
-import { useInstructors, useWeeks } from '@/lib/data';
+import { useBlockedMessages, useInstructors, useWeeks } from '@/lib/data';
 import { RegionBadge } from '@/components/ClassTime';
 import {
   Badge,
@@ -136,6 +136,7 @@ export const BADGE: Record<string, string> = {
   shared_class: 'Shared class',
   answer_due_soon: 'Answer due soon',
   message_failed: 'Message failed',
+  message_blocked: 'Message not sent',
   help_open: 'Help request open',
   tasks_overdue: 'Class tasks overdue',
   moved: 'Moved',
@@ -144,7 +145,13 @@ export const BADGE: Record<string, string> = {
   ambiguous_time: 'Daylight saving',
   needs_instructor: 'Needs instructor',
 };
-const SERIOUS = new Set(['clash', 'unavailable', 'message_failed', 'needs_instructor']);
+const SERIOUS = new Set([
+  'clash',
+  'unavailable',
+  'message_failed',
+  'message_blocked',
+  'needs_instructor',
+]);
 
 function StatusChip({ status }: { status: Status }) {
   const s = STATUS[status];
@@ -222,7 +229,23 @@ export default function Board() {
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
-  const b = board.data;
+  // Messages a beta rule stopped show on their class week (decision 329); the board data comes from the database.
+  const blockedMsgs = useBlockedMessages({ domainId: domain?.id });
+  const blockedWeeks = useMemo(
+    () => new Set((blockedMsgs.data ?? []).map((m) => m.module_week_id).filter(Boolean)),
+    [blockedMsgs.data],
+  );
+  const b = useMemo(() => {
+    const raw = board.data;
+    if (!raw || blockedWeeks.size === 0) return raw;
+    const weeks = raw.weeks.map((c) =>
+      blockedWeeks.has(c.id) && !c.badges.includes('message_blocked')
+        ? { ...c, badges: [...c.badges, 'message_blocked'] }
+        : c,
+    );
+    const n = weeks.filter((c) => c.badges.includes('message_blocked')).length;
+    return { ...raw, weeks, decisions: { ...raw.decisions, ...(n ? { message_blocked: n } : {}) } };
+  }, [board.data, blockedWeeks]);
   const cells = useMemo(() => {
     const all = b?.weeks ?? [];
     return all.filter(
@@ -516,6 +539,11 @@ export default function Board() {
           <Badge>
             <Pause className="h-3.5 w-3.5" aria-hidden /> Break
           </Badge>
+          <Badge tone="danger">Message not sent</Badge>
+          <span className="text-xs text-muted-foreground">
+            Message not sent: a beta rule stopped it. Open the class week to see why and send it
+            again.
+          </span>
         </section>
       )}
 

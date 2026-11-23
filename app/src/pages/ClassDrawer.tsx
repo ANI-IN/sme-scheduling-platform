@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
 import { useNameBook, type WeekRow } from '@/lib/data';
+import { currentBlocked } from '@/lib/blocked';
+import { BlockedMessages } from '@/components/BlockedMessages';
 import { discordNames } from '@/lib/discordNames';
 import { messageTitle, plain } from '@/lib/plain';
 import { describeHistory } from '@/lib/historyText';
@@ -182,6 +184,7 @@ export function ClassDrawer({
       }
     >
       <div className="space-y-6 text-sm">
+        {timeline.data && <BlockedMessages messages={currentBlocked(timeline.data.messages)} />}
         <div className="flex flex-wrap gap-2">
           <Badge tone={state.tone}>{state.short}</Badge>
           {week.at_risk && state.kind !== 'At risk' && <Badge tone="danger">At risk</Badge>}
