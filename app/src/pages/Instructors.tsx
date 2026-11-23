@@ -409,13 +409,14 @@ export function InstructorDrawer({
     !!instructor &&
     (instructor.primary_email !== f.primary_email.trim().toLowerCase() ||
       (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
-  // Name, phone, notes, classes a month and Test instructor save as they change (C15).
+  // Name, phone, notes, classes a month, time zone and Test instructor save as they change (C15).
   const basic = (x: typeof f) => ({
     full_name: x.full_name.trim(),
     phone: x.phone.trim() || null,
     notes: x.notes.trim() || null,
     is_test: x.is_test,
     monthly_class_limit: x.monthly_class_limit ? Number(x.monthly_class_limit) : null,
+    time_zone: x.time_zone || null,
   });
   const auto = useAutosave({
     enabled: !!instructor,
@@ -426,6 +427,7 @@ export function InstructorDrawer({
       notes: instructor?.notes ?? null,
       is_test: instructor?.is_test ?? false,
       monthly_class_limit: instructor?.monthly_class_limit ?? null,
+      time_zone: instructor?.time_zone ?? null,
     },
     version: instructor?.version,
     instant: ['is_test'],
@@ -438,6 +440,7 @@ export function InstructorDrawer({
         notes: x.notes ?? '',
         is_test: x.is_test,
         monthly_class_limit: x.monthly_class_limit ? String(x.monthly_class_limit) : '',
+        time_zone: x.time_zone ?? '',
       })),
     save: async (x, version) => {
       const [row] = check(
