@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import { Globe2, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
@@ -29,6 +30,7 @@ import {
   Field,
   Input,
   Modal,
+  Notice,
   PageHeader,
   Section,
   Select,
@@ -275,14 +277,41 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
     try {
       await fn();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      // The lists reload in the background, so the panel answers at once.
+      void qc.invalidateQueries();
     } catch (e) {
       setErr(e);
     }
   }
 
+  // Owner, 23 November 2026 (decision 331): what a status needs is said right here, with where to fix it, and the
+  // status does not change until it is all there.
+  const [statusProblems, setStatusProblems] = useState<{
+    status: string;
+    items: { text: string; link: string }[];
+  } | null>(null);
+  const [statusErr, setStatusErr] = useState<unknown>(null);
+  useEffect(() => {
+    void rpc('request_channel_refresh', { p_domain_id: domain.id }).catch(() => {});
+  }, [domain.id]);
+
   async function setStatus(status: string) {
     if (status === domain.status) return;
+    setStatusErr(null);
+    setStatusProblems(null);
+    try {
+      const items = (await rpc('domain_status_problems', {
+        p_domain_id: domain.id,
+        p_status: status,
+      })) as unknown as { text: string; link: string }[];
+      if (items.length > 0) {
+        setStatusProblems({ status, items });
+        return;
+      }
+    } catch (e) {
+      setStatusErr(e);
+      return;
+    }
     const leavingTest = domain.status === 'Test' && status !== 'Test';
     if (status === 'Live' || leavingTest) {
       const ok = await confirm({
@@ -296,10 +325,13 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
       });
       if (!ok) return;
     }
-    await run(
-      () => rpc('set_domain_status', { p_domain_id: domain.id, p_status: status }),
-      `Status: ${statusLabel[status]}`,
-    );
+    try {
+      await rpc('set_domain_status', { p_domain_id: domain.id, p_status: status });
+      toast.success(`Status: ${statusLabel[status]}`);
+      void qc.invalidateQueries({ queryKey: ['domain'] });
+    } catch (e) {
+      setStatusErr(e);
+    }
   }
 
   const removePart = useRemovePart();
@@ -357,6 +389,44 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
               </option>
             ))}
           </Select>
+          {statusProblems && (
+            <div className="mt-3">
+              <Notice tone="warning">
+                <p className="font-medium">
+                  {domain.name} cannot be {statusLabel[statusProblems.status]?.toLowerCase()} yet.
+                  It needs:
+                </p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {statusProblems.items.map((x) => (
+                    <li key={x.text}>
+                      {x.text}{' '}
+                      {x.link.startsWith('/setup/domains') ? (
+                        <button
+                          type="button"
+                          className="underline"
+                          onClick={() =>
+                            document
+                              .getElementById(`domain-${x.link.split('#')[1] ?? 'details'}`)
+                              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                        >
+                          Show me
+                        </button>
+                      ) : (
+                        <Link className="underline" to={x.link}>
+                          Fix this
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1">
+                  The status stays {statusLabel[domain.status]?.toLowerCase()} until then.
+                </p>
+              </Notice>
+            </div>
+          )}
+          <ErrorText error={statusErr} />
           <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
             {Object.entries(STATUS_HELP).map(([k, t]) => (
               <li key={k}>
@@ -365,54 +435,59 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
             ))}
           </ul>
         </Section>
-        <Section title="Details">
-          <div className="space-y-4">
-            <Field label="Name" required error={v.show('name')}>
-              <Input
-                value={name}
-                onBlur={v.touch('name')}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </Field>
-            <DomainDiscordServer domain={domain} />
-            <Field
-              label="Alert channel"
-              hint="The Discord channel where the team is tagged about this domain."
-            >
-              <ChannelPicker
-                serverId={domain.discord_server_id}
+        <div id="domain-testing">
+          <TestingTargets domain={domain} />
+        </div>
+        <div id="domain-details">
+          <Section title="Details">
+            <div className="space-y-4">
+              <Field label="Name" required error={v.show('name')}>
+                <Input
+                  value={name}
+                  onBlur={v.touch('name')}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <DomainDiscordServer domain={domain} />
+              <Field
                 label="Alert channel"
-                value={alert || null}
-                noneLabel="No alert channel"
-                onChange={(id) => setAlert(id ?? '')}
-              />
-            </Field>
-            <Button
-              variant="secondary"
-              disabled={name === domain.name && alert === (domain.alert_discord_channel_id ?? '')}
-              onClick={() =>
-                v.submit() &&
-                run(
-                  async () =>
-                    check(
-                      await supabase
-                        .from('domain')
-                        .update({
-                          name: name.trim(),
-                          alert_discord_channel_id: alert || null,
-                          version: domain.version,
-                        })
-                        .eq('id', domain.id)
-                        .select(),
-                    ),
-                  'Changes saved',
-                )
-              }
-            >
-              Save changes
-            </Button>
-          </div>
-        </Section>
+                hint="The Discord channel where the team is tagged about this domain."
+              >
+                <ChannelPicker
+                  serverId={domain.discord_server_id}
+                  label="Alert channel"
+                  value={alert || null}
+                  noneLabel="No alert channel"
+                  onChange={(id) => setAlert(id ?? '')}
+                />
+              </Field>
+              <Button
+                variant="secondary"
+                disabled={name === domain.name && alert === (domain.alert_discord_channel_id ?? '')}
+                onClick={() =>
+                  v.submit() &&
+                  run(
+                    async () =>
+                      check(
+                        await supabase
+                          .from('domain')
+                          .update({
+                            name: name.trim(),
+                            alert_discord_channel_id: alert || null,
+                            version: domain.version,
+                          })
+                          .eq('id', domain.id)
+                          .select(),
+                      ),
+                    'Changes saved',
+                  )
+                }
+              >
+                Save changes
+              </Button>
+            </div>
+          </Section>
+        </div>
         <Section
           title="Escalation contacts"
           description="Gets told when an urgent problem is not fixed in time."
@@ -898,6 +973,66 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
         )}
       </div>
       <ErrorText error={err} />
+    </Section>
+  );
+}
+
+/** Where this domain's messages go while it is in Testing: chosen right in the domain panel (decision 331). */
+function TestingTargets({ domain }: { domain: Domain }) {
+  const qc = useQueryClient();
+  const [chan, setChan] = useState<string | null>(null);
+  const [mail, setMail] = useState<string | null>(null);
+  const [err, setErr] = useState<unknown>(null);
+  const shownChan = chan ?? domain.test_discord_channel_id ?? null;
+  const shownMail = mail ?? domain.test_email ?? '';
+  const changed =
+    shownChan !== (domain.test_discord_channel_id ?? null) ||
+    shownMail !== (domain.test_email ?? '');
+  const badMail = !!shownMail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(shownMail.trim());
+  return (
+    <Section
+      title="Testing"
+      description="While the domain is in Testing, every message goes only to this channel and this email. Both are needed to start testing."
+    >
+      <div className="space-y-3">
+        <ChannelPicker
+          serverId={domain.discord_server_id ?? 'all'}
+          preferServerId={domain.discord_server_id}
+          label={`Testing channel of ${domain.name}`}
+          value={shownChan}
+          noneLabel="No testing channel"
+          onChange={(id) => setChan(id)}
+        />
+        <Field label="Testing email" error={badMail ? 'Enter a valid email address.' : undefined}>
+          <Input value={shownMail} onChange={(e) => setMail(e.target.value)} className="w-72" />
+        </Field>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!changed || badMail}
+            onClick={async () => {
+              setErr(null);
+              try {
+                await rpc('set_test_targets', {
+                  p_domain_id: domain.id,
+                  p_test_discord_channel_id: shownChan as string,
+                  p_test_email: shownMail.trim(),
+                });
+                toast.success('Testing channel and email saved');
+                setChan(null);
+                setMail(null);
+                void qc.invalidateQueries({ queryKey: ['domain'] });
+              } catch (e) {
+                setErr(e);
+              }
+            }}
+          >
+            Save testing channel and email
+          </Button>
+        </div>
+        <ErrorText error={err} />
+      </div>
     </Section>
   );
 }

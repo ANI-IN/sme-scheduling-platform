@@ -128,13 +128,43 @@ export function AppShell() {
     // A unique name per mount: removing a channel is asynchronous, and reusing the same name before it
     // is gone makes Supabase refuse new listeners ("cannot add postgres_changes callbacks").
     const ch = supabase.channel(`live-${Math.random().toString(36).slice(2)}`);
-    for (const table of liveTables) {
-      ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        void qc.invalidateQueries();
+    // Owner, 23 November 2026: one save changes several rows at once (the record, Activity history, messages), and
+    // reloading every screen for each of them made pages jump. A burst of changes now gives one reload, about 400 ms
+    // after the last change (at most every 2 seconds), and a hidden tab waits until it is shown again.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let first = 0;
+    let pending = false;
+    const flush = () => {
+      timer = null;
+      first = 0;
+      if (document.visibilityState === 'hidden') {
+        pending = true;
+        return;
+      }
+      void qc.invalidateQueries({
+        predicate: (q) => !String(q.queryKey[0] ?? '').endsWith('_preview'),
       });
+    };
+    const schedule = () => {
+      const now = Date.now();
+      if (!first) first = now;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(flush, now - first > 1600 ? 0 : 400);
+    };
+    const onShow = () => {
+      if (document.visibilityState === 'visible' && pending) {
+        pending = false;
+        flush();
+      }
+    };
+    document.addEventListener('visibilitychange', onShow);
+    for (const table of liveTables) {
+      ch.on('postgres_changes', { event: '*', schema: 'public', table }, schedule);
     }
     ch.subscribe();
     return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onShow);
       void supabase.removeChannel(ch);
     };
   }, [qc]);

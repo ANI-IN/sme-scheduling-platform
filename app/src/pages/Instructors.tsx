@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -298,7 +298,9 @@ export default function Instructors() {
       )}
       {editing && (
         <InstructorDrawer
-          instructor={editing === 'new' ? null : editing}
+          instructor={
+            editing === 'new' ? null : ((data ?? []).find((i) => i.id === editing.id) ?? editing)
+          }
           all={data ?? []}
           ranked={editing === 'new' ? [] : (ctx.data?.ranked.get(editing.id) ?? [])}
           upcoming={editing === 'new' ? [] : (ctx.data?.upcoming.get(editing.id) ?? [])}
@@ -419,6 +421,33 @@ export function InstructorDrawer({
       (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
   const refresh = () => qc.invalidateQueries();
   const blocked = useBlockedMessages({ instructorId: instructor?.id });
+  // New Discord channels come in by themselves (decision 331).
+  useEffect(() => {
+    if (instructor?.id) void rpc('request_channel_refresh', {}).catch(() => {});
+  }, [instructor?.id]);
+  const [channelErr, setChannelErr] = useState<Record<string, unknown>>({});
+  // Each domain lists only channels of the Discord servers approved for it (decision 331).
+  const approved = useQuery({
+    queryKey: ['discord_server_domain', 'approved'],
+    queryFn: async () => {
+      const [links, servers] = await Promise.all([
+        supabase.from('discord_server_domain').select('server_id, domain_id'),
+        supabase.from('discord_server').select('id, access, archived_at'),
+      ]);
+      const ok = new Set(
+        check(servers)
+          .filter((x) => x.access === 'Approved' && !x.archived_at)
+          .map((x) => x.id),
+      );
+      const by = new Map<string, string[]>();
+      for (const l of check(links))
+        if (ok.has(l.server_id)) by.set(l.domain_id, [...(by.get(l.domain_id) ?? []), l.server_id]);
+      return by;
+    },
+  });
+  const holder = instructor?.discord_held_by
+    ? all.find((o) => o.id === instructor.discord_held_by)
+    : undefined;
 
   async function save(another = false) {
     setErr(null);
@@ -674,11 +703,30 @@ export function InstructorDrawer({
                 status={instructor.discord_status}
                 problem={instructor.discord_problem}
               />
+              {holder && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: `Release the Discord account from ${holder.full_name}?`,
+                      body: `This Discord account is linked to ${holder.full_name}. Release it only if ${holder.full_name} is an old record of the same person or a mistake. ${holder.full_name} then gets requests by email only, until their own Discord account is checked.`,
+                      confirmLabel: `Release from ${holder.full_name}`,
+                    });
+                    if (ok)
+                      await act(
+                        () => rpc('release_discord_account', { p_instructor_id: instructor.id }),
+                        `Released from ${holder.full_name}. Checking Discord again.`,
+                      );
+                  }}
+                >
+                  Release from {holder.full_name}
+                </Button>
+              )}
               {instructor.discord_username && (
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={instructor.discord_status === 'Checking'}
                   onClick={() =>
                     act(
                       () => rpc('check_discord', { p_kind: 'instructor', p_id: instructor.id }),
@@ -698,29 +746,52 @@ export function InstructorDrawer({
                 <div key={d.id} className="space-y-1">
                   <div className="text-xs text-muted-foreground">{d.name}</div>
                   {/* Any server the bot is in, the domain's own server first (decision 263). */}
-                  <ChannelPicker
-                    serverId="all"
-                    preferServerId={d.discord_server_id}
-                    label={`Channel of ${instructor.full_name} in ${d.name}`}
-                    value={
-                      instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_id ??
-                      null
-                    }
-                    storedName={
-                      instructor.instructor_channel.find((c) => c.domain_id === d.id)?.channel_name
-                    }
-                    onChange={(id) =>
-                      act(
-                        () =>
-                          rpc('set_instructor_channel', {
+                  {approved.data && !(approved.data.get(d.id) ?? []).length ? (
+                    <p className="text-sm text-muted-foreground">
+                      No Discord server is approved for {d.name} yet. An admin chooses and approves
+                      it on{' '}
+                      <a className="underline" href="/setup/domains">
+                        Setup, Domains
+                      </a>
+                      .
+                    </p>
+                  ) : (
+                    <ChannelPicker
+                      serverId="all"
+                      onlyServerIds={approved.data?.get(d.id)}
+                      preferServerId={d.discord_server_id}
+                      label={`Channel of ${instructor.full_name} in ${d.name}`}
+                      value={
+                        instructor.instructor_channel.find((c) => c.domain_id === d.id)
+                          ?.channel_id ?? null
+                      }
+                      storedName={
+                        instructor.instructor_channel.find((c) => c.domain_id === d.id)
+                          ?.channel_name
+                      }
+                      onChange={async (id) => {
+                        setChannelErr((x) => ({ ...x, [d.id]: null }));
+                        try {
+                          await rpc('set_instructor_channel', {
                             p_instructor_id: instructor.id,
                             p_domain_id: d.id,
                             p_channel_id: id as string,
-                          }),
-                        id ? 'Channel saved' : 'Channel removed: they get direct messages instead',
-                      )
-                    }
-                  />
+                          });
+                          void poke();
+                          toast.success(
+                            id
+                              ? 'Channel saved'
+                              : 'Channel removed: they get direct messages instead',
+                          );
+                          void refresh();
+                        } catch (e) {
+                          // Said right under this domain's channel, with what to do (decision 331).
+                          setChannelErr((x) => ({ ...x, [d.id]: e }));
+                        }
+                      }}
+                    />
+                  )}
+                  <ErrorText error={channelErr[d.id] ?? null} />
                 </div>
               ))}
             </div>

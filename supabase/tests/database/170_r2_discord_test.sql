@@ -118,7 +118,7 @@ select tests.claim();
 select tests.answer('discord_member', '{"searches": [{"server_id": "111111111111111111", "status": 200, "body": [
   {"user": {"id": "555555555555555552", "username": "maya.k2"}}]}]}');
 select is((select discord_status from public.instructor where id = :'ravi'), 'Problem', '10. an account already used by another instructor is refused');
-select ok((select discord_problem from public.instructor where id = :'ravi') like '%already used by Maya Keane%', '10. and the other person is named');
+select ok((select discord_problem from public.instructor where id = :'ravi') like '%already linked to Maya Keane%', '10. and the other person is named');
 
 -- =============================================================== 11. changing or removing the username
 update public.instructor set discord_username = 'maya.new' where id = :'maya';

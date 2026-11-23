@@ -280,7 +280,6 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
             <Button
               size="sm"
               variant="outline"
-              disabled={member.discord_status === 'Checking'}
               onClick={async () => {
                 try {
                   await rpc('check_discord', { p_kind: 'team', p_id: member.id });

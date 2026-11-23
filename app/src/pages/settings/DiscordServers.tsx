@@ -243,7 +243,7 @@ export function DiscordServers() {
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={!d.discord_server_id || d.discord_status === 'Checking'}
+                    disabled={!d.discord_server_id}
                     onClick={() =>
                       run(async () => {
                         await rpc('check_discord', { p_kind: 'server', p_id: d.id });
@@ -470,7 +470,7 @@ function ServerList() {
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={s.status === 'Checking' || s.access !== 'Approved'}
+                          disabled={s.access !== 'Approved'}
                           onClick={() =>
                             run(
                               () => rpc('check_discord_server', { p_server_id: s.id }),

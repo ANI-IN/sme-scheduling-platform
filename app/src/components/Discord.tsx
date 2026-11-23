@@ -65,6 +65,8 @@ export function useDiscordChannels(serverId: string | null | undefined) {
   return useQuery({
     queryKey: ['discord_channel', serverId],
     enabled: !!serverId,
+    // New and renamed channels come in by themselves while a list is on screen (decision 331).
+    refetchInterval: 10_000,
     queryFn: async (): Promise<Channel[]> => {
       let q = supabase
         .from('discord_channel')
@@ -100,6 +102,7 @@ export function ChannelPicker({
   noneLabel = 'No channel (direct message instead)',
   storedName,
   preferServerId,
+  onlyServerIds,
 }: {
   serverId: string | null | undefined;
   value: string | null;
@@ -111,26 +114,30 @@ export function ChannelPicker({
   storedName?: string | null;
   /** With serverId 'all': the channels of this server come first (the domain's own server). */
   preferServerId?: string | null;
+  /** With serverId 'all': only channels of these servers (the servers approved for the domain, decision 331). */
+  onlyServerIds?: readonly string[];
 }) {
   const channels = useDiscordChannels(serverId);
   const [q, setQ] = useState('');
   const list = useMemo(() => {
-    const all = [...(channels.data ?? [])].sort(
-      (a, b) =>
-        Number(!!preferServerId && a.server_id !== preferServerId) -
-          Number(!!preferServerId && b.server_id !== preferServerId) ||
-        (a.server ?? '').localeCompare(b.server ?? '') ||
-        Number(!INSTRUCTOR_CATEGORY.test(a.category ?? '')) -
-          Number(!INSTRUCTOR_CATEGORY.test(b.category ?? '')) ||
-        (a.category ?? '').localeCompare(b.category ?? '') ||
-        a.position - b.position,
-    );
+    const all = [...(channels.data ?? [])]
+      .filter((c) => !onlyServerIds || onlyServerIds.includes(c.server_id ?? ''))
+      .sort(
+        (a, b) =>
+          Number(!!preferServerId && a.server_id !== preferServerId) -
+            Number(!!preferServerId && b.server_id !== preferServerId) ||
+          (a.server ?? '').localeCompare(b.server ?? '') ||
+          Number(!INSTRUCTOR_CATEGORY.test(a.category ?? '')) -
+            Number(!INSTRUCTOR_CATEGORY.test(b.category ?? '')) ||
+          (a.category ?? '').localeCompare(b.category ?? '') ||
+          a.position - b.position,
+      );
     const t = q.trim().toLowerCase().replace(/^#/, '');
     const hit = t ? all.filter((c) => channelLabel(c).toLowerCase().includes(t)) : all;
     // Keep the chosen channel visible even when it does not match the search.
     const chosen = all.find((c) => c.id === value);
     return chosen && !hit.includes(chosen) ? [chosen, ...hit] : hit;
-  }, [channels.data, q, value, preferServerId]);
+  }, [channels.data, q, value, preferServerId, onlyServerIds]);
 
   if (!serverId)
     return (

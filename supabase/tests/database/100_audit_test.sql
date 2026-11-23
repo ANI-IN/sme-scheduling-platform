@@ -55,6 +55,14 @@ select tests.as_postgres();
 -- Release 3 M2: removing access, Pause all messages and Reset are for admins (decision 286).
 insert into public.team_member (name, email, is_admin) values ('Ops', 'ops@example.com', true)
   on conflict ((lower(email))) do update set is_admin = true;
+-- Going live needs an approved server that is ready and an alert channel (decision 331).
+insert into public.discord_server (id, name, status, access) values ('999000000000010001', 'Audit server', 'Ready', 'Approved')
+  on conflict (id) do update set status = 'Ready', access = 'Approved';
+insert into public.discord_server_domain (server_id, domain_id) values ('999000000000010001', :'dom') on conflict do nothing;
+insert into public.discord_channel (id, server_id, name, bot_can_post) values ('999000000000010101', '999000000000010001', 'audit-alerts', true)
+  on conflict (id) do nothing;
+update public.domain set discord_server_id = '999000000000010001', discord_status = 'Ready', alert_discord_channel_id = '999000000000010101'
+ where id = :'dom';
 select tests.login_as('ops@example.com');
 select public.set_domain_status(:'dom', 'Live');
 select ok(exists (select 1 from public.history_event where action = 'Went live' and domain_id = :'dom'::uuid), 'going live is recorded');

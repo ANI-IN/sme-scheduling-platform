@@ -669,14 +669,14 @@ isOneToOne: false
                   ]
                 },"instructor": {
                   Row: {
-                    "created_at": string,"discord_channel_id": string | null,"discord_channel_link": string | null,"discord_checked_at": string | null,"discord_failed_at": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"discord_user_id": string | null,"discord_username": string | null,"email_bounced_at": string | null,"full_name": string,"id": string,"is_test": boolean,"last_response_at": string | null,"monthly_class_limit": number | null,"notes": string | null,"phone": string | null,"preferred_contact": string,"primary_email": string,"status": string,"updated_at": string,"updated_by": string | null,"verified_at": string | null,"version": number
+                    "created_at": string,"discord_channel_id": string | null,"discord_channel_link": string | null,"discord_checked_at": string | null,"discord_failed_at": string | null,"discord_held_by": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"discord_user_id": string | null,"discord_username": string | null,"email_bounced_at": string | null,"full_name": string,"id": string,"is_test": boolean,"last_response_at": string | null,"monthly_class_limit": number | null,"notes": string | null,"phone": string | null,"preferred_contact": string,"primary_email": string,"status": string,"updated_at": string,"updated_by": string | null,"verified_at": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_checked_at"?: string | null,"discord_failed_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email_bounced_at"?: string | null,"full_name": string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email": string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
+                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_checked_at"?: string | null,"discord_failed_at"?: string | null,"discord_held_by"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email_bounced_at"?: string | null,"full_name": string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email": string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_checked_at"?: string | null,"discord_failed_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email_bounced_at"?: string | null,"full_name"?: string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email"?: string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
+                    "created_at"?: string,"discord_channel_id"?: string | null,"discord_channel_link"?: string | null,"discord_checked_at"?: string | null,"discord_failed_at"?: string | null,"discord_held_by"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"discord_user_id"?: string | null,"discord_username"?: string | null,"email_bounced_at"?: string | null,"full_name"?: string,"id"?: string,"is_test"?: boolean,"last_response_at"?: string | null,"monthly_class_limit"?: number | null,"notes"?: string | null,"phone"?: string | null,"preferred_contact"?: string,"primary_email"?: string,"status"?: string,"updated_at"?: string,"updated_by"?: string | null,"verified_at"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -1746,6 +1746,15 @@ isOneToOne: false
                            },
 "send_test_message":
 { Args: { "p_instructor_id": string }; Returns: Json
+                           },
+"domain_status_problems":
+{ Args: { "p_domain_id": string,"p_status": string }; Returns: Json
+                           },
+"release_discord_account":
+{ Args: { "p_instructor_id": string }; Returns: Json
+                           },
+"request_channel_refresh":
+{ Args: { "p_domain_id"?: string }; Returns: Json
                            },
 "set_admin":
 { Args: { "p_admin": boolean,"p_team_member_id": string }; Returns: Json
