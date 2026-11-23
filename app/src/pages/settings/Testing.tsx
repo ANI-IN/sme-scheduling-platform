@@ -341,8 +341,8 @@ function TestingBody({ domain }: { domain: Domain }) {
           description={`Turn off testing for ${domain.name}. From the next automatic check, real instructors receive messages.`}
         >
           <Notice tone="warning">
-            Before going live: every instructor has had their contact details checked, the
-            instructor order is reviewed by each owner, and at least 8 weeks of classes are planned.
+            Before going live: each owner has reviewed the instructor order, and at least 8 weeks of
+            classes are planned. A contact check for each instructor is optional.
           </Notice>
           <Button
             variant="destructive"

@@ -39,7 +39,7 @@ npm run scan-text -w scripts
 | Reminder before class | Check in, check-in | The message a confirmed instructor gets before class |
 | Setup check | Readiness check | The check that a module has everything it needs before we ask instructors |
 | Contact details checked | Verified | The instructor answered a contact check message |
-| Contact check | Verification message | A message that confirms an instructor's Discord and email work |
+| Contact check | Verification message, verified, test message | An optional message that confirms an instructor's Discord and email work; instructors are asked whether or not they are checked |
 | Pause all messages | Kill switch | Stop every message from the app at once |
 | Practice clock | Test clock, simulated time | A pretend "now" for a domain in testing |
 | Automatic check | Hourly check, cron | The regular run that sends messages and moves requests on |
@@ -50,7 +50,11 @@ npm run scan-text -w scripts
 | Testing | Test mode | A domain whose messages go only to the testing channel and email |
 | Release instructor | Release booking | Tell a confirmed instructor they are no longer needed and ask others |
 | Download as spreadsheet | Export CSV | Save the list as a file |
-| Not in use | Inactive | A module, instructor or team member that is kept but not used |
+| Not in use | Inactive | An instructor or team member that is kept but not used |
+| Draft (module) | Inactive, not in use | A module being set up: it is skipped when planning and nobody is asked |
+| Live (module) | Active, in use | A module whose instructors are asked |
+| Ready (module) | | A module with class times, an owner and at least 1 instructor (a setting) in its instructor order |
+| Welcome message | M22 | The short message a new instructor gets once by email and once on Discord per domain |
 
 ## Class week statuses
 

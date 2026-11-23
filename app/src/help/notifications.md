@@ -20,7 +20,7 @@ With the default settings:
 5. **14 days before:** the module owner is asked if everything is ready.
 6. **10 and 2 days before:** **reminders before class**. The instructor answers **All set**, **Need help** or **Can't make it**.
 
-Instructors also get a message when a class time changes (they answer **Still works** or **Doesn't work**), when classes move for a break, when a class is cancelled, when they are released, about their proposed time, and the **contact check**. The exact days are on [Automation](/settings/automation) and can differ per cohort.
+Instructors also get a message when a class time changes (they answer **Still works** or **Doesn't work**), when classes move for a break, when a class is cancelled, when they are released, about their proposed time, the **welcome message** when they are added, and the **contact check** if you send one. The exact days are on [Automation](/settings/automation) and can differ per cohort.
 
 ## How a message reaches an instructor
 

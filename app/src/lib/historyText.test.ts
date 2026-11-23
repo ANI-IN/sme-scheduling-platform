@@ -77,6 +77,31 @@ describe('History in plain sentences', () => {
     expect(JSON.stringify(e)).not.toMatch(/[0-9a-f]{8}-|version/);
   });
 
+  it('says Draft and Live for a module status, never the stored values', () => {
+    const e = describeHistory(
+      {
+        ...base,
+        action: 'module changed',
+        entity_table: 'module',
+        before: { name: 'API Design', status: 'Inactive', version: 1 },
+        after: { name: 'API Design', status: 'Active', version: 2 },
+      },
+      book,
+    );
+    expect(e.sentence).toBe('Sienna changed status for module API Design from Draft to Live');
+    const details = historyDetails(
+      {
+        ...base,
+        action: 'module changed',
+        entity_table: 'module',
+        before: { name: 'API Design', status: 'Active' },
+        after: { name: 'API Design', status: 'Archived' },
+      },
+      book,
+    );
+    expect(details).toContainEqual({ label: 'Status', from: 'Live', to: 'Archived' });
+  });
+
   it('names messages instead of template codes', () => {
     const d = describeHistory(
       {

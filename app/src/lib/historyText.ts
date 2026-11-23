@@ -1,6 +1,7 @@
 // Turns a History entry into a plain sentence plus readable before → after changes, the plain list behind
 // "Show details" (historyDetails), and whether the app offers Undo (offersUndo). Ids and raw data are never shown.
 import { DateTime } from 'luxon';
+import { moduleStatusLabel } from './labels';
 import { messageName, plain, plainLabel } from './plain';
 
 /** "Discord (#alerts)" reads "Discord in #alerts"; "Email" reads "email". */
@@ -139,7 +140,7 @@ const FIELD: Record<string, string> = {
 
 const STATUS_WORD: Record<string, string> = { Test: 'Testing' };
 
-function value(v: unknown, book: NameBook, key?: string): string {
+function value(v: unknown, book: NameBook, key?: string, table?: string | null): string {
   if (v === null || v === undefined || v === '') return 'nothing';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (Array.isArray(v)) return v.map((x) => value(x, book)).join(', ') || 'nothing';
@@ -157,6 +158,8 @@ function value(v: unknown, book: NameBook, key?: string): string {
     const t = DateTime.fromISO(s.replace(' ', 'T'));
     if (t.isValid) return t.toLocal().toFormat('ccc LLL d, yyyy, h:mm a');
   }
+  // A module is Draft, Live or Archived (glossary); the database keeps Inactive and Active.
+  if (key === 'status' && table === 'module') return moduleStatusLabel(s);
   if (key === 'status') return STATUS_WORD[s] ?? s;
   if (key === 'role')
     return s === 'Escalation' || s === 'Lead'
@@ -256,8 +259,8 @@ function changesOf(e: HistoryLike, book: NameBook): Change[] {
     .filter((k) => !hidden(k) && JSON.stringify(b[k]) !== JSON.stringify(a[k]))
     .map((k) => ({
       label: FIELD[k] ?? k.replace(/_/g, ' '),
-      from: value(b[k], book, k),
-      to: value(a[k], book, k),
+      from: value(b[k], book, k, e.entity_table),
+      to: value(a[k], book, k, e.entity_table),
     }));
 }
 
@@ -612,12 +615,17 @@ function nameOf(o: Record<string, unknown>): string | undefined {
  * A value in plain words: "nothing" when empty, and undefined when it cannot be said without an id or raw
  * data (an id whose name is not known, a nested record with no name), so the line is left out.
  */
-function plainValue(k: string, v: unknown, book: NameBook): string | undefined {
+function plainValue(
+  k: string,
+  v: unknown,
+  book: NameBook,
+  table?: string | null,
+): string | undefined {
   if (v === null || v === undefined || v === '') return EMPTY;
   if (Array.isArray(v)) {
     if (v.length === 0) return EMPTY;
     const parts = v.map((x) =>
-      isRecord(x) ? nameOf(x) : isUuid(x) ? book.name(x) : plainValue(k, x, book),
+      isRecord(x) ? nameOf(x) : isUuid(x) ? book.name(x) : plainValue(k, x, book, table),
     );
     if (parts.some((p) => p === undefined)) return undefined;
     return parts.join(', ');
@@ -626,7 +634,7 @@ function plainValue(k: string, v: unknown, book: NameBook): string | undefined {
   if (isUuid(v)) return book.name(v);
   if (ID_KEY.test(k)) return undefined;
   if (k === 'key') return book.settingLabel(String(v));
-  return value(v, book, k);
+  return value(v, book, k, table);
 }
 
 function hiddenKey(k: string, row: Record<string, unknown>, table: string | null): boolean {
@@ -651,7 +659,7 @@ function fieldsOf(
       out.push(...fieldsOf(v, book, null, depth + 1));
       continue;
     }
-    const to = plainValue(k, v, book);
+    const to = plainValue(k, v, book, table);
     if (to === undefined || to === EMPTY) continue;
     out.push({ label: detailLabel(k), to });
   }
@@ -678,8 +686,8 @@ function diffOf(
       out.push(...diffOf(isRecord(bv) ? bv : {}, isRecord(av) ? av : {}, book, null, depth + 1));
       continue;
     }
-    const from = plainValue(k, bv, book);
-    const to = plainValue(k, av, book);
+    const from = plainValue(k, bv, book, table);
+    const to = plainValue(k, av, book, table);
     if (from === undefined || to === undefined || from === to) continue;
     out.push({ label: detailLabel(k), from, to });
   }

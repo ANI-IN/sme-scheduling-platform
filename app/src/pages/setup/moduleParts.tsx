@@ -381,7 +381,7 @@ export function RankingEditor({
           <ol className="space-y-1">
             {order.map((id, idx) => {
               const i = byId.get(id);
-              const greyed = !i || i.status !== 'Active' || !i.verified_at;
+              const greyed = !i || i.status !== 'Active';
               return (
                 <SortableRow key={id} id={id} label={i?.full_name ?? 'Unknown instructor'}>
                   <span className="w-32 text-xs text-muted-foreground">
@@ -391,9 +391,6 @@ export function RankingEditor({
                     {i?.full_name ?? 'Unknown'}
                   </span>
                   {i && i.status !== 'Active' && <Badge>{instructorStatusLabel(i.status)}</Badge>}
-                  {i && !i.verified_at && !i.is_test && (
-                    <Badge tone="warning">Not checked yet</Badge>
-                  )}
                   {i?.is_test && <Badge tone="accent">Test instructor</Badge>}
                   <span
                     className="ml-2 hidden truncate text-xs text-muted-foreground sm:inline"

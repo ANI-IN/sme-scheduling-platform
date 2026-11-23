@@ -30,7 +30,7 @@ Moving the clock also runs the automatic check. **Run the automatic check now** 
 
 ![A practice class that passed every stage](/help/practice-class.png)
 
-1. Make sure you have at least two test instructors with checked contact details. See [Instructors and the instructor order](/help/instructors).
+1. Make sure you have at least two test instructors. A contact check is not needed. See [Instructors and the instructor order](/help/instructors).
 2. Press **Run a practice class**.
 3. The app creates a practice class week and walks through every stage: asked, reminded, moved on, confirmed, reminders before class, a help request, a time change and a cancellation.
 4. You see a tick or a cross for each stage. Nothing is sent, and the practice class is removed afterwards.
@@ -39,7 +39,7 @@ If it says **Some stages did not work**, the list says what happened. Fix the se
 
 ## Go live
 
-1. Check that every instructor has had their contact details checked, each owner reviewed the instructor order, and at least 8 weeks of classes are planned.
+1. Check that each owner reviewed the instructor order and at least 8 weeks of classes are planned. A contact check for each instructor is optional.
 2. On [Testing](/settings/testing), press **Go live** and confirm.
 
 From the next automatic check, real instructors get messages. You can switch back to testing at any time on [Domains](/setup/domains). During the beta, who may receive messages is also limited on Settings, Admin. See [Admins, the beta list and the team](/help/admins-and-beta-list).

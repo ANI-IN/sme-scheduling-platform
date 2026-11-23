@@ -28,15 +28,19 @@ If it shows **Not found on Discord**, check the spelling and that they joined th
 
 Requests and reminders go to their channel, tagging them, and always by email too. Without a channel in a domain, they get a direct message on Discord instead. The username is all the app needs to find them.
 
-## Check their contact details
+## The welcome message
 
-Once a domain is live, the app only asks instructors whose contact details are checked.
+When you add an instructor, they get a short welcome by email. When you first choose their channel in a domain, they get one there on Discord too. It says they are set up to receive class requests from SME Scheduling, and that they answer with the buttons in each message. It is never sent twice to the same person for the same domain and channel. [Activity history](/activity) shows **Welcome message sent**, or that it was blocked and why. You can change the text on [Message templates](/settings/messages) and switch it off on [Automation](/settings/automation).
+
+## Check their contact details (optional)
+
+A contact check is optional. Instructors you add are asked whether or not their contact details are checked. Use it when you want to be sure their Discord and email work.
 
 1. Open the instructor and go to **Contact check**.
 2. Press **Send contact check**. They get a short message on Discord and by email with one button.
 3. When they press it, the list shows **Contact checked**.
 
-If you checked their details another way, for example on a call, press **Mark as checked**. Saving a new email or Discord username removes the check, so send a new one afterwards.
+If you checked their details another way, for example on a call, press **Mark as checked**. Saving a new email or Discord username clears the check. You can send a new one if you like.
 
 ## Test instructors
 

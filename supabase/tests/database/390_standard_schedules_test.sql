@@ -21,7 +21,7 @@ select throws_like(format($$ select public.save_standard_schedule(null, %L, 'swe
 select throws_like(format($$ select public.save_standard_schedule(%L, null, 'SWEs | DEs', array[%L, %L]::uuid[], '[{"after_position": 2, "weeks": 1}]') $$,
   :'sid', :'m1', :'m2'), 'A break goes between two modules%', '3. a break goes between two modules');
 select throws_like(format($$ select public.save_standard_schedule(%L, null, 'SWEs | DEs', array[%L]::uuid[]) $$, :'sid', :'other_mod'),
-  'Only active modules of this domain%', '4. a module of another domain cannot be in it');
+  'Only live modules of this domain%', '4. a module of another domain cannot be in it');
 select throws_like(format($$ select public.save_standard_schedule(%L, null, 'SWEs | DEs', array[%L, %L]::uuid[]) $$, :'sid', :'m1', :'m1'),
   'Each module can be in a standard schedule once.', '5. each module once');
 -- The standard's own class time for its second module; the first uses the module's own class times.

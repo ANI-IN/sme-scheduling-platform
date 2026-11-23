@@ -677,7 +677,6 @@ function QueueDialog({ weekIds, onDone }: { weekIds: string[]; onDone: () => voi
             />
             {order.includes(i.id) && <Badge tone="info">{order.indexOf(i.id) + 1}</Badge>}
             {i.full_name}
-            {!i.verified_at && <Badge tone="warning">Contact details not checked</Badge>}
           </label>
         ))}
       </div>
