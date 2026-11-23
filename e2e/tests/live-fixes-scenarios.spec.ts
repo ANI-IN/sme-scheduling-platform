@@ -121,3 +121,40 @@ test('each domain lists only channels of its own approved server, and says when 
       .locator('option', { hasText: '#test-instructor-a' }),
   ).toHaveCount(1);
 });
+
+// Owner, 23 November 2026 (decision 332): messages go at any hour; quiet hours are an optional domain setting, off.
+test('an instructor can have a time zone, and quiet hours for instructors are off', async ({
+  page,
+}) => {
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.getByLabel('Show test instructors').check();
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor D' }).first().click();
+  const dlg = page.getByRole('dialog');
+  await ready(page);
+  await dlg.getByRole('combobox', { name: 'Time zone (optional)' }).selectOption('India');
+  await dlg.getByRole('button', { name: 'Save changes' }).click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await one<{ tz: string | null }>(
+            `select time_zone tz from public.instructor where full_name = 'Test Instructor D'`,
+          )
+        ).tz,
+    )
+    .toBe('India');
+
+  await page.goto('/settings/automation');
+  await ready(page);
+  const sw = page.getByRole('switch', { name: 'Quiet hours for instructors' });
+  await expect(async () => {
+    if (!(await sw.isVisible())) {
+      const det = page.locator('details', { hasText: 'Show more options' }).first();
+      if (!(await det.evaluate((d) => (d as HTMLDetailsElement).open)))
+        await det.locator('summary').click();
+    }
+    await expect(sw).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+});

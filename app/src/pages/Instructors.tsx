@@ -378,6 +378,7 @@ export function InstructorDrawer({
     monthly_class_limit: instructor?.monthly_class_limit
       ? String(instructor.monthly_class_limit)
       : '',
+    time_zone: instructor?.time_zone ?? '',
   });
   const [extras, setExtras] = useState<string[]>(
     instructor?.instructor_email.filter((e) => !e.is_primary).map((e) => e.email) ?? [],
@@ -462,6 +463,7 @@ export function InstructorDrawer({
         notes: f.notes.trim() || null,
         is_test: f.is_test,
         monthly_class_limit: f.monthly_class_limit ? Number(f.monthly_class_limit) : null,
+        time_zone: f.time_zone || null,
       };
       let id = instructor?.id;
       if (instructor) {
@@ -501,6 +503,7 @@ export function InstructorDrawer({
           notes: '',
           is_test: f.is_test,
           monthly_class_limit: '',
+          time_zone: '',
         });
         setExtras([]);
         v.reset();
@@ -669,6 +672,20 @@ export function InstructorDrawer({
               onChange={(e) => setF({ ...f, monthly_class_limit: e.target.value })}
               className="w-28"
             />
+          </Field>
+          <Field
+            label="Time zone (optional)"
+            hint="Where they live. Messages go at any hour; this is used only if quiet hours for instructors are turned on for a domain."
+          >
+            <Select
+              value={f.time_zone}
+              onChange={(e) => setF({ ...f, time_zone: e.target.value })}
+              className="w-56"
+            >
+              <option value="">Not set</option>
+              <option value="India">India (IST)</option>
+              <option value="US">US Pacific (PT)</option>
+            </Select>
           </Field>
           <Field label="Notes">
             <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />

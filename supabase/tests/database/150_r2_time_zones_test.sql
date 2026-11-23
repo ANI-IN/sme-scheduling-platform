@@ -3,6 +3,8 @@
 -- US clocks move forward on Sun Mar 14, 2027 and back on Sun Nov 7, 2027.
 begin;
 \ir ../helpers/helpers.psql
+-- These checks are about quiet hours, which are off unless an admin turns them on (decision 332): on here.
+update public.setting_definition set default_value = 'true' where key = 'instructor_quiet_hours_on';
 select plan(29);
 
 select tests.scenario('TZ', 'Live', '2027-01-31', 3) as j \gset

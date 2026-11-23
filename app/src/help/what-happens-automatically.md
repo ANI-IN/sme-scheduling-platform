@@ -21,11 +21,15 @@ The exact days are on the Automation page and can differ per cohort.
 ## Close and very close to the class
 
 - **Close to the class** (10 days by default): problems are urgent and replies are expected faster.
-- **Very close to the class** (3 days by default): replies are expected fastest and quiet hours are shorter.
+- **Very close to the class** (3 days by default): replies are expected fastest.
 
 ## Quiet hours
 
-Instructors are not messaged at night, in the time zone of their class (US Pacific or India). Messages wait until the morning.
+Messages to instructors go as soon as they are ready, at any hour, wherever the instructor lives. The operations team decides who teaches, so the app does not hold messages for anyone's night.
+
+An admin can turn on **Quiet hours for instructors** for one domain, on [Automation](/settings/automation) under **More options**. It is off for every domain until someone turns it on. When it is on, messages wait until the quiet time ends, in the instructor's own time zone when it is set on their record, otherwise in the time zone of their class. Reminders and reply by times keep their usual length.
+
+Quiet hours for the team do not change.
 
 ## On the Instructor requests page
 

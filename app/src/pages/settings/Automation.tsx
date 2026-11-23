@@ -534,7 +534,7 @@ function Timeline({ get }: { get: (key: string) => unknown }) {
         </li>
         <li className="flex gap-2">
           <span className="w-16 shrink-0 font-semibold tabular-nums">{veryClose} days</span>
-          <span>Very close to the class: fastest replies, shorter quiet hours</span>
+          <span>Very close to the class: fastest replies</span>
         </li>
       </ol>
     </Section>

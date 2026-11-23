@@ -2,6 +2,8 @@
 -- (docs/reviews/*.md). The finding ID is at the start of each description.
 begin;
 \ir ../helpers/helpers.psql
+-- These checks are about quiet hours, which are off unless an admin turns them on (decision 332): on here.
+update public.setting_definition set default_value = 'true' where key = 'instructor_quiet_hours_on';
 select plan(41);
 
 select tests.scenario('RF', 'Live', '2027-01-31', 3) as j \gset

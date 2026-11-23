@@ -12,6 +12,7 @@ Each real person is added once and shared by every domain. The app never books o
 1. Open [Instructors](/setup/instructors) and press **Add instructor**.
 2. Under **Basic details**, enter the full name and email.
 3. If they prefer a limit, enter **Classes a month**. The app warns you before asking them for more, but you can still ask.
+   If you know where they live, choose their **Time zone** (India or US Pacific). It is optional and is used only when a domain has quiet hours for instructors turned on.
 4. Under **Discord**, type their **Discord username**, for example maya.k (without @).
 5. Press **Add instructor**. The app finds their Discord account by itself.
 6. Open the instructor again. When it shows **Discord found**, choose their channel under **Their channel in each domain**. Type part of the name to find it quickly. The channel is saved as soon as you choose it.

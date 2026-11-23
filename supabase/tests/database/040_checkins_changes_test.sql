@@ -4,6 +4,8 @@
 -- Live class Sun Jan 31 2027 9:00 AM PST = 17:00 UTC.
 begin;
 \ir ../helpers/helpers.psql
+-- These checks are about quiet hours, which are off unless an admin turns them on (decision 332): on here.
+update public.setting_definition set default_value = 'true' where key = 'instructor_quiet_hours_on';
 select plan(63);
 
 -- =============================================================== check-ins

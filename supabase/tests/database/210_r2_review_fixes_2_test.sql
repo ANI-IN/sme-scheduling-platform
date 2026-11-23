@@ -2,6 +2,8 @@
 -- test, or only a test that could not fail.
 begin;
 \ir ../helpers/helpers.psql
+-- These checks are about quiet hours, which are off unless an admin turns them on (decision 332): on here.
+update public.setting_definition set default_value = 'true' where key = 'instructor_quiet_hours_on';
 select plan(19);
 
 -- =============================================================== TST-2: "Can't make it" after the class started
@@ -95,9 +97,12 @@ update public.class_session set region = 'India' where module_week_id = :'imw';
 select tests.tick(:'idom', '2027-01-01 18:00+00');
 select ok(exists (select 1 from public.message where module_week_id = :'imw' and template_id = 'M1' and body_text like '%IST%'),
   'a request for an India class shows its time in India time (IST)');
-select ok(not exists (select 1 from public.message where module_week_id = :'imw' and template_id = 'M1'
-                      and (body_text like '%PST%' or body_text like '%PDT%')),
-  'and not in US Pacific time');
+-- Owner, 23 November 2026 (decision 332): every time in both zones, the class's own (India) first.
+select ok(exists (select 1 from public.message where module_week_id = :'imw' and template_id = 'M1'
+                    and body_text ~ 'IST \(Sun, Jan 31 · [0-9:]+ [AP]M to [0-9:]+ [AP]M P[SD]T\)')
+          and not exists (select 1 from public.message where module_week_id = :'imw' and template_id = 'M1'
+                    and body_text ~ 'P[SD]T \([^)]*IST\)'),
+  'with US Pacific time in brackets after it, never the other way round');
 
 -- =============================================================== TST-4: the automation gets the real answer links
 select tests.scenario('FT', 'Live', '2027-01-31', 2) as t \gset
