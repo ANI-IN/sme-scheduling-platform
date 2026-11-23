@@ -46,7 +46,7 @@
     },
     {
       "id": "d19f496f-f5d4-4f06-af8e-ae18328e3db8",
-      "name": "Every 6 minutes",
+      "name": "Every 15 minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -58,7 +58,7 @@
           "interval": [
             {
               "field": "minutes",
-              "minutesInterval": 6
+              "minutesInterval": 15
             }
           ]
         }
@@ -1669,7 +1669,7 @@
         ]
       ]
     },
-    "Every 6 minutes": {
+    "Every 15 minutes": {
       "main": [
         [
           {

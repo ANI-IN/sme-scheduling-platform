@@ -42,7 +42,7 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 | What you see | Likely cause | What to do |
 |---|---|---|
 | No daily system summary this morning | n8n is down, WF3 is not published, or no admin alert channel is chosen | Open n8n, **Executions**. Check WF3 is published and its Config node. Choose the admin alert channel on **Settings, Connections**. |
-| The automatic check on Connections is old | The database clock is off, or the Supabase project is paused | The clock runs the automatic check every hour (job `sme-engine-hourly`). Run `npm run clock -w scripts -- status`. If the clock is off, switch it on, or turn WF1's schedule trigger back on in n8n and publish WF1. A free Supabase project pauses after a week without use: restore it in the Supabase dashboard. |
+| The automatic check on Connections is old | The database clock is off, or the Supabase project is paused | The clock runs the automatic check every hour (job `sme-engine-hourly`). Run `npm run clock -w scripts -- status`. If the clock is off, switch it on, or turn WF1's schedule trigger back on in n8n and publish WF1 as a stopgap. A free Supabase project pauses after a week without use: restore it in the Supabase dashboard. |
 | Messages stay waiting to send | Messages are paused, the clock cannot poke WF4, WF4 is not published, or the Supabase key in n8n is wrong | Check for the red paused bar first. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go. Run WF4 by hand in n8n and check its **Executions**. Check the n8n credential `Supabase Sandbox` (the internal name of the Production Supabase key). |
 | Buttons in the app do not send at once | `VITE_N8N_POKE_URL` or `VITE_N8N_POKE_KEY` is wrong in the hosting settings | Messages still go out at the database clock's next poke (it checks every 2 minutes). Fix the hosting variables and deploy again. |
 | A typed reply does not show in Needs your attention | No conversation is open, reply reading slowed down, or the reply went elsewhere | WF4 reads replies about every 10 minutes while the app sent that instructor something in the last 3 days (every 20 minutes above 8,000 n8n runs in the month, and only when WF4 runs for other work above 9,300). Email replies count only when sent to the +scheduling reply address; Discord replies only in the instructor's own channel. Run WF4 by hand in n8n to read at once. |
@@ -98,10 +98,11 @@ check itself (job `sme-engine-hourly`, at minute 30 of every hour), and the job 
 WF4 only when there is work, and about every 10 minutes to read replies while a conversation is open (every 20
 minutes above 8,000 n8n runs in the month, none above 9,300). Typed replies show in the app within about 10 minutes.
 
-- **Before 23 November 2026, 17:36 UTC:** WF1 (every hour) and WF4 (every 6 minutes) keep their own n8n schedule
-  triggers as a safety net while the clock runs its first 24 hours.
-- **After that:** the owner's plan is to switch those two schedule triggers off, so WF1 runs only if someone runs it
-  and WF4 runs on pokes. WF2 (the answer pages), WF3 (daily at 09:00 IST) and WF5 (the error workflow) do not change.
+- **Since 23 November 2026, 12:48 UTC** (the owner, after the urgent fixes went live): WF1 is unpublished, with its
+  schedule trigger off, because the database's own hourly job does its work. WF4 runs on pokes (the database pokes it
+  within seconds for every queued message and Discord check, its clock every 2 minutes for other work) plus a safety
+  run every 15 minutes. WF2 (the answer pages), WF3 (daily at 09:00 IST) and WF5 (the error workflow) do not change.
+  After importing the base files again, switch WF1's trigger off and leave WF1 unpublished: the base file still has it.
 
 See the clock's state, the scheduled jobs, whether the poke key is in Vault (yes or no only), the last poke and n8n
 runs this month:
