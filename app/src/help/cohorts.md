@@ -64,8 +64,11 @@ For an extra, makeup or moved class:
 
 [Upcoming classes](/classes) lists every planned class, grouped by class week. Use the search and the module, cohort, region and status filters. Tick **Show past and cancelled** to see older class weeks. Select a row to open the class week.
 
+The **Instructor** column says **Confirmed** or **Waiting for an answer** with the name. Before anyone is asked, it names who is planned and the day asking starts, for example **Planned: Victor Palmer (Primary), asking starts Sat, Oct 31**.
+
 Tick class weeks to change them together:
 
+- **Start asking now:** asks the planned instructor of each ticked class week straight away. First you see who will be asked, and which class weeks are left as they are and why. Press **Start asking** to go ahead. Nobody is confirmed until they say yes.
 - **Choose who to ask:** tick instructors in the order they should be asked. **Use the instructor order** and **Use a chosen list** switch between the two.
 - **Pause requests** and **Resume requests**.
 - **Move by weeks** and **Cancel classes** open the same preview as on the Schedule board. See [The Schedule board](/help/schedule-board).

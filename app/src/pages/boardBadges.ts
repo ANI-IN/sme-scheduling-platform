@@ -32,7 +32,7 @@ const STATUS_LOOK: Record<Status, { icon: typeof Circle; text: string }> = {
   },
   'Not asked yet': {
     icon: Circle,
-    text: 'Nobody was asked yet, and the cell names the Primary instructor who is asked first.',
+    text: 'Nobody was asked yet, and the cell names who is planned first and the day asking starts.',
   },
   'Setup incomplete': {
     icon: Wrench,

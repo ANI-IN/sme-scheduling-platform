@@ -55,7 +55,7 @@ While a domain still misses something, Home shows **Set up** and the domain's na
 
 ![The journey of a class: planned, setup check, instructors asked, confirmed, reminders before class, taught](/help/class-journey.svg)
 
-1. **Planned.** You plan class weeks for a cohort. The Schedule board shows **Not asked yet** with the Primary instructor.
+1. **Planned.** You plan class weeks for a cohort. The Schedule board and Upcoming classes show **Not asked yet** with who is planned and the day asking starts, for example **Planned: Victor Palmer (Primary), asking starts Sat, Oct 31**.
 2. **Setup check.** About 45 days before, the app checks that the module has class times, an owner and instructors who can be asked. If something is missing, the class week shows **Setup incomplete**.
 3. **Instructors are asked.** About 30 days before, the app asks the Primary instructor and the class week shows **Waiting for an answer**. If they say no or do not reply in time, it asks Backup 1, then Backup 2, one at a time.
 4. **Confirmed.** The first instructor who says yes is **Confirmed**. If nobody is left to ask, the class week shows **Needs instructor** and your team gets a task.

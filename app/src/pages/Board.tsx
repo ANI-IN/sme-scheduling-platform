@@ -28,6 +28,8 @@ import { AddBreakDialog, AddCohortHolidayDialog } from './setup/breakParts';
 import { MergeCohortsDialog } from './setup/mergeParts';
 import { ShareDialog } from './sharedParts';
 import { BulkChangeDialog } from './boardBulk';
+import { StartAskingDialog, usePlanned } from './startAsking';
+import { plannedLine, type Planned } from '@/lib/planned';
 import {
   COHORT_BADGE,
   MARK,
@@ -60,7 +62,11 @@ type Cell = {
   guests: number;
   standard_position: number | null;
   customized: boolean;
+  /** Who is planned, for a class week nobody is confirmed or asked for (planned_instructors). */
+  planned?: Planned;
 };
+/** The statuses of a class week nobody is confirmed or asked for, which name who is planned instead. */
+const PLANNED_FOR: Status[] = ['Not asked yet', 'Paused', 'Setup incomplete', 'Needs instructor'];
 type CohortCol = {
   id: string;
   name: string;
@@ -144,7 +150,7 @@ export default function Board() {
   // Bulk actions (M12b, decision 314): select several class weeks, then one action with one combined preview.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const [bulk, setBulk] = useState<'move' | 'cancel' | 'break' | 'share' | null>(null);
+  const [bulk, setBulk] = useState<'move' | 'cancel' | 'break' | 'share' | 'ask' | null>(null);
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const from = start.toISODate()!;
@@ -165,7 +171,24 @@ export default function Board() {
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
-  const b = board.data;
+  const raw = board.data;
+  // Who is planned for the class weeks nobody is confirmed or asked for yet: the database's own next person.
+  const planned = usePlanned(
+    (raw?.weeks ?? []).filter((c) => !c.past && PLANNED_FOR.includes(c.status)).map((c) => c.id),
+  );
+  const b = useMemo(
+    () =>
+      raw && {
+        ...raw,
+        // The planned person is the cell's instructor, so By instructor and the download show them too.
+        weeks: raw.weeks.map((c) => {
+          const p = planned.data?.get(c.id);
+          if (!PLANNED_FOR.includes(c.status) || !p) return c;
+          return { ...c, instructor: p.planned?.name ?? c.instructor, planned: p };
+        }),
+      },
+    [raw, planned.data],
+  );
   const cells = useMemo(() => {
     const all = b?.weeks ?? [];
     return all.filter(
@@ -218,6 +241,17 @@ export default function Board() {
     return { confirmed: mine.filter((c) => c.status === 'Confirmed').length, total: mine.length };
   };
 
+  const regionOf = new Map((b?.cohorts ?? []).map((k) => [k.id, k.region]));
+  /** The instructor line of a cell: Confirmed, Waiting for an answer, or who is planned and from when. */
+  const who = (c: Cell): string | null => {
+    if (c.planned)
+      return plannedLine(c.planned, DateTime.now(), c.cohort_id ? regionOf.get(c.cohort_id) : null);
+    if (!c.instructor || PLANNED_FOR.includes(c.status)) return null;
+    if (c.status === 'Confirmed' || c.status === 'Waiting')
+      return `${STATUS[c.status].word}: ${c.instructor}`;
+    return c.instructor;
+  };
+
   const CellButton = ({ c }: { c: Cell }) => {
     const shown = c.badges.filter((x) => badgeLabel(x));
     const differs = prefs.compare && (c.customized || c.standard_position === null);
@@ -240,11 +274,7 @@ export default function Board() {
             </Badge>
           </div>
         )}
-        {c.instructor && (
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {c.status === 'Not asked yet' ? `Primary: ${c.instructor}` : c.instructor}
-          </div>
-        )}
+        {who(c) && <div className="mt-0.5 text-xs break-words text-muted-foreground">{who(c)}</div>}
         {shown.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {shown.slice(0, 3).map((x) => (
@@ -404,6 +434,14 @@ export default function Board() {
               ? 'Click class weeks to select them.'
               : `${selected.length} class week${selected.length === 1 ? '' : 's'} selected`}
           </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={selected.length === 0}
+            onClick={() => setBulk('ask')}
+          >
+            Start asking now
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -683,6 +721,18 @@ export default function Board() {
             setBulk(null);
             setSelected([]);
           }}
+        />
+      )}
+      {bulk === 'ask' && (
+        <StartAskingDialog
+          weeks={(b?.weeks ?? [])
+            .filter((c) => selected.includes(c.id))
+            .map((c) => ({
+              id: c.id,
+              label: `${c.module}${c.cohort ? `, ${c.cohort}` : ''}, week of ${DateTime.fromISO(c.week_start_date).toFormat('LLL d')}`,
+            }))}
+          onDone={() => setSelected([])}
+          onClose={() => setBulk(null)}
         />
       )}
       {bulk === 'break' && domain && (
