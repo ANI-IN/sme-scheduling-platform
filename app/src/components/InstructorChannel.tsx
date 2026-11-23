@@ -83,7 +83,7 @@ export function InstructorChannel({
   const found = person.discord_status === 'Found' && !!person.discord_user_id;
   const suggestion = useMemo(
     () =>
-      found && !(saved?.ready_at)
+      found && !saved?.ready_at
         ? suggestChannel(
             channels.data ?? [],
             { fullName: person.full_name, username: person.discord_username },
@@ -91,7 +91,15 @@ export function InstructorChannel({
             takenIds,
           )
         : undefined,
-    [found, saved?.ready_at, channels.data, person.full_name, person.discord_username, domain.discord_server_id, takenIds],
+    [
+      found,
+      saved?.ready_at,
+      channels.data,
+      person.full_name,
+      person.discord_username,
+      domain.discord_server_id,
+      takenIds,
+    ],
   );
 
   async function start(channel: string) {
@@ -129,7 +137,9 @@ export function InstructorChannel({
   const problemIsCurrent =
     status === 'Problem' &&
     !(saved?.ready_at && latest.data && saved.ready_at > latest.data.created_at) &&
-    !(latest.data?.problems.length === 1 && latest.data.problems[0] === 'Replaced by a newer check.');
+    !(
+      latest.data?.problems.length === 1 && latest.data.problems[0] === 'Replaced by a newer check.'
+    );
 
   return (
     <div className="space-y-2">
@@ -141,7 +151,12 @@ export function InstructorChannel({
           ) : (
             <>
               <Badge>Not checked yet</Badge>
-              <Button size="sm" variant="ghost" disabled={busy || !found} onClick={() => void start(saved.channel_id)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy || !found}
+                onClick={() => void start(saved.channel_id)}
+              >
                 Check #{saved.channel_name ?? 'channel'}
               </Button>
             </>
@@ -157,61 +172,76 @@ export function InstructorChannel({
         </p>
       ) : (
         <>
-      {/* Only servers approved for this domain, its own server first (decisions 263 and 331). */}
-      <ChannelPicker
-        serverId="all"
-        onlyServerIds={approvedServerIds}
-        preferServerId={domain.discord_server_id}
-        label={`Channel of ${person.full_name} in ${domain.name}`}
-        value={saved?.channel_id ?? null}
-        storedName={saved?.channel_name}
-        onChange={(id) => void (id ? start(id) : remove())}
-      />
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="min-w-0 flex-1 text-xs">
-          <span className="mb-1 block text-muted-foreground">Or paste a channel link or ID</span>
-          <Input
-            value={paste}
-            onChange={(e) => setPaste(e.target.value)}
-            placeholder="https://discord.com/channels/..."
-            aria-invalid={!!paste.trim() && !pasted}
+          {/* Only servers approved for this domain, its own server first (decisions 263 and 331). */}
+          <ChannelPicker
+            serverId="all"
+            onlyServerIds={approvedServerIds}
+            preferServerId={domain.discord_server_id}
+            label={`Channel of ${person.full_name} in ${domain.name}`}
+            value={saved?.channel_id ?? null}
+            storedName={saved?.channel_name}
+            onChange={(id) => void (id ? start(id) : remove())}
           />
-        </label>
-        <Button size="sm" variant="outline" disabled={!pasted || busy} onClick={() => void start(pasted!)}>
-          Check and use
-        </Button>
-      </div>
-      {!!paste.trim() && !pasted && (
-        <p className="text-xs text-danger-strong">
-          That is not a channel link or ID. In Discord, right click the channel and choose Copy Link.
-        </p>
-      )}
-      {suggestion && status !== 'Checking' && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span>
-            Suggested: <strong>#{suggestion.name}</strong>
-          </span>
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void start(suggestion.id)}>
-            Use #{suggestion.name}
-          </Button>
-        </div>
-      )}
-      {status === 'Checking' && (
-        <Notice tone="info">
-          Checking #{latest.data?.channel_name ?? 'the channel'} in Discord, usually a few seconds. The result shows
-          here by itself.
-        </Notice>
-      )}
-      {problemIsCurrent && (
-        <Notice tone="warning">
-          <p className="font-medium">#{latest.data?.channel_name ?? 'The channel'} was not saved as their channel</p>
-          <ul className="mt-1 list-disc space-y-1 pl-5">
-            {latest.data!.problems.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </Notice>
-      )}
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="min-w-0 flex-1 text-xs">
+              <span className="mb-1 block text-muted-foreground">
+                Or paste a channel link or ID
+              </span>
+              <Input
+                value={paste}
+                onChange={(e) => setPaste(e.target.value)}
+                placeholder="https://discord.com/channels/..."
+                aria-invalid={!!paste.trim() && !pasted}
+              />
+            </label>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!pasted || busy}
+              onClick={() => void start(pasted!)}
+            >
+              Check and use
+            </Button>
+          </div>
+          {!!paste.trim() && !pasted && (
+            <p className="text-xs text-danger-strong">
+              That is not a channel link or ID. In Discord, right click the channel and choose Copy
+              Link.
+            </p>
+          )}
+          {suggestion && status !== 'Checking' && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span>
+                Suggested: <strong>#{suggestion.name}</strong>
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void start(suggestion.id)}
+              >
+                Use #{suggestion.name}
+              </Button>
+            </div>
+          )}
+          {status === 'Checking' && (
+            <Notice tone="info">
+              Checking #{latest.data?.channel_name ?? 'the channel'} in Discord, usually a few
+              seconds. The result shows here by itself.
+            </Notice>
+          )}
+          {problemIsCurrent && (
+            <Notice tone="warning">
+              <p className="font-medium">
+                #{latest.data?.channel_name ?? 'The channel'} was not saved as their channel
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {latest.data!.problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </Notice>
+          )}
         </>
       )}
       <ErrorText error={err} />

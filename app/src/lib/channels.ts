@@ -31,7 +31,12 @@ export function channelNamesFor(person: { fullName: string; username?: string | 
   return [...new Set(names.map(squash).filter((n) => n.length >= 3))];
 }
 
-export type ChannelLite = { id: string; name: string; server_id: string; bot_can_post?: boolean | null };
+export type ChannelLite = {
+  id: string;
+  name: string;
+  server_id: string;
+  bot_can_post?: boolean | null;
+};
 
 /**
  * The channel in the domain's server whose name matches the person, best match first: the full name or username

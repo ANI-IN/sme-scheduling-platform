@@ -850,7 +850,11 @@ export function InstructorDrawer({
                     new Set(
                       all
                         .filter((o) => o.id !== instructor.id)
-                        .flatMap((o) => o.instructor_channel.filter((c) => c.domain_id === d.id).map((c) => c.channel_id)),
+                        .flatMap((o) =>
+                          o.instructor_channel
+                            .filter((c) => c.domain_id === d.id)
+                            .map((c) => c.channel_id),
+                        ),
                     )
                   }
                 />

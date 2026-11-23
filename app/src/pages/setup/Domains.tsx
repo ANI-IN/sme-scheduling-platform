@@ -457,31 +457,31 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
           <TestingTargets domain={domain} />
         </div>
         <div id="domain-details">
-        <Section title="Details">
-          <div className="space-y-4">
-            <Field label="Name" required error={v.show('name')}>
-              <Input
-                value={f.name}
-                onBlur={() => (v.touch('name')(), auto.flush())}
-                onChange={(e) => setF({ ...f, name: e.target.value })}
-              />
-            </Field>
-            <DomainDiscordServer domain={domain} />
-            <Field
-              label="Alert channel"
-              hint="The Discord channel where the team is tagged about this domain."
-            >
-              <ChannelPicker
-                serverId={domain.discord_server_id}
+          <Section title="Details">
+            <div className="space-y-4">
+              <Field label="Name" required error={v.show('name')}>
+                <Input
+                  value={f.name}
+                  onBlur={() => (v.touch('name')(), auto.flush())}
+                  onChange={(e) => setF({ ...f, name: e.target.value })}
+                />
+              </Field>
+              <DomainDiscordServer domain={domain} />
+              <Field
                 label="Alert channel"
-                value={f.alert || null}
-                noneLabel="No alert channel"
-                onChange={(id) => setF({ ...f, alert: id ?? '' })}
-              />
-            </Field>
-            <SaveState status={auto.status} waiting={auto.dirty} />
-          </div>
-        </Section>
+                hint="The Discord channel where the team is tagged about this domain."
+              >
+                <ChannelPicker
+                  serverId={domain.discord_server_id}
+                  label="Alert channel"
+                  value={f.alert || null}
+                  noneLabel="No alert channel"
+                  onChange={(id) => setF({ ...f, alert: id ?? '' })}
+                />
+              </Field>
+              <SaveState status={auto.status} waiting={auto.dirty} />
+            </div>
+          </Section>
         </div>
         <Section
           title="Escalation contacts"
