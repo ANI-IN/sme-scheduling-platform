@@ -27,7 +27,7 @@ If it shows **Not found on Discord**, check the spelling and that they joined th
 2. Under **Their channel in each domain**, do one of these:
    - choose their own channel from the list (type part of the name to find it);
    - paste the channel's link (in Discord, right click the channel and choose **Copy Link**) or its ID, then press **Check and use**;
-   - press **Use #name** next to **Suggested**: the app suggests the channel in the domain's server named after them, for example #victor or #victor-palmer.
+   - press **Use #name** next to **Suggested**: the app suggests the channel in the domain's server named after them, for example #victor.
 3. The app checks the channel in Discord, usually in a few seconds: the server is approved for the domain, the bot can post there (View Channels, Send Messages, Embed Links, Read Message History), and the instructor is in the server and can see the channel.
 4. If all is right, the channel is saved and shows **Channel ready**. If not, it is not saved, and the app says exactly what to fix, for example **Give Victor Palmer access to #victor**. Fix it in Discord, then choose the channel again.
 
