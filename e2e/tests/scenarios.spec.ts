@@ -4,7 +4,7 @@
 // person can do each one in the app and that the result lands in the database.
 import type { Locator, Page } from '@playwright/test';
 import { EMAIL, signInLink } from '../env.ts';
-import { expect, loadDemoData, ready, sql, test } from './fixtures.ts';
+import { expect, loadDemoData, ready, setFilter, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'default' });
 test.beforeAll(() => loadDemoData());
@@ -55,7 +55,7 @@ async function backendModule(name = 'Database Design') {
 async function openWeek(page: Page, cohort: string, has: RegExp) {
   await page.goto('/classes');
   await ready(page);
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: cohort });
+  await setFilter(page, 'Cohort', [cohort]);
   await ready(page);
   await page.locator('tbody tr').filter({ hasText: has }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -85,10 +85,9 @@ test('weekend and weekday cohorts run at the same time', async ({ page }) => {
 
   await page.goto('/classes');
   await ready(page);
-  const cohort = page.getByRole('combobox', { name: 'Cohort' });
-  await cohort.selectOption({ label: 'Weekday cohort' });
+  await setFilter(page, 'Cohort', ['Weekday cohort']);
   await expect(page.locator('tbody tr').first()).toContainText(/Tue/);
-  await cohort.selectOption({ label: 'Weekend cohort' });
+  await setFilter(page, 'Cohort', ['Weekend cohort']);
   await expect(page.locator('tbody tr').first()).toContainText(/Sat/);
 
   // Plan a third cohort in the same weeks from the app.
@@ -460,13 +459,13 @@ test('a US cohort and an India cohort: time zones, badges and the region filter'
   expect(r).toEqual({ cohort: 'India', classes: 'India', ist: '09:00' });
 
   // The region filter: India classes show IST only; US classes show PST or PDT and the India time.
-  await page.getByRole('combobox', { name: 'Region' }).selectOption('India');
+  await setFilter(page, 'Region', ['India']);
   await ready(page);
   const india = page.locator('tbody tr').filter({ hasText: 'E2E India' }).first();
   await expect(india).toContainText('IST');
   await expect(india).not.toContainText(/PST|PDT/);
   await expect(india.getByText('India', { exact: true })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Region' }).selectOption('US');
+  await setFilter(page, 'Region', ['US']);
   await ready(page);
   const us = page.locator('tbody tr').first();
   await expect(us).toContainText(/PST|PDT/);
@@ -546,7 +545,7 @@ test('an instructor busy in a US class cannot take an India class at the same mo
   await goAhead(page, 'Add anyway', 'E2E: this time on purpose', 8_000);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: 'E2E India' });
+  await setFilter(page, 'Cohort', ['E2E India']);
   await page.getByLabel('Search classes').fill('E2E same moment');
   await ready(page);
   await page.locator('tbody tr').first().click();

@@ -127,3 +127,21 @@ export async function sql<T = Record<string, unknown>>(q: string, params: unknow
     await c.end();
   }
 }
+
+/**
+ * Set one field of a page's filter bar (Upcoming classes, Schedule board) to exactly these choices, none to clear
+ * it, then close its list. The field's button is named by its visible text: "Cohort", or "Cohort (2)" with two chosen.
+ */
+export async function setFilter(page: Page, field: string, values: string[]) {
+  const bar = page.getByRole('group', { name: 'Filters' });
+  await bar.getByRole('button', { name: new RegExp(`^${field}( \\(\\d+\\))?$`) }).click();
+  const list = page.getByRole('dialog', { name: field, exact: true });
+  await expect(list).toBeVisible();
+  const clear = list.getByRole('button', { name: 'Clear', exact: true });
+  if (await clear.isEnabled()) await clear.click();
+  for (const v of values) await list.getByRole('checkbox', { name: v, exact: true }).check();
+  await page.keyboard.press('Escape');
+  await expect(list).toHaveCount(0);
+  const name = values.length ? `${field} (${values.length})` : field;
+  await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+}

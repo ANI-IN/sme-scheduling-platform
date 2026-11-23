@@ -245,8 +245,8 @@ const PICS: Pic[] = [
     file: 'classes-regions.png',
     path: '/classes',
     marks: [
-      (p) => p.getByRole('combobox', { name: 'Region' }),
-      (p) => p.getByRole('combobox', { name: 'Status' }),
+      (p) => p.getByRole('group', { name: 'Filters' }).getByRole('button', { name: /^Region/ }),
+      (p) => p.getByRole('group', { name: 'Filters' }).getByRole('button', { name: /^Status/ }),
       (p) => p.locator('tbody tr').first().locator('td').nth(1),
     ],
   },
@@ -319,14 +319,14 @@ const PICS: Pic[] = [
     marks: [
       button(/^by cohort$/i),
       (p) => p.getByRole('heading', { name: 'Needs a decision' }),
-      button(/^legend$/i),
+      button(/^hide legend$/i),
       button(/select class weeks/i),
     ],
   },
   {
     file: 'board-legend.png',
     path: '/board',
-    act: click(/^legend$/i),
+    // The Legend shows by default (Release 3, C14).
     clip: (p) => p.locator('section', { hasText: 'Badges on a class week' }).first(),
   },
   {

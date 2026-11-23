@@ -97,6 +97,25 @@ const OPENERS: { name: string; path: string; open: (page: Page) => Promise<void>
     open: (p) => p.locator('tbody tr').filter({ hasText: 'Confirmed' }).first().click(),
   },
   {
+    // Release 3, C13 and C14: the list of a filter, with its checkboxes (a search box when it is long).
+    name: 'cohort filter list on Upcoming classes',
+    path: '/classes',
+    open: (p) =>
+      p
+        .getByRole('group', { name: 'Filters' })
+        .getByRole('button', { name: /^Cohort/ })
+        .click(),
+  },
+  {
+    name: 'badge filter list on the board',
+    path: '/board',
+    open: (p) =>
+      p
+        .getByRole('group', { name: 'Filters' })
+        .getByRole('button', { name: /^Badge/ })
+        .click(),
+  },
+  {
     name: 'plan classes dialog',
     path: '/classes',
     open: (p) => p.getByRole('button', { name: 'Plan classes' }).click(),

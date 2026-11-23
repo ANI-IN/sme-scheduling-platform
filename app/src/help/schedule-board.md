@@ -1,8 +1,8 @@
 title: The Schedule board
-summary: Every cohort's class weeks at a glance: views, the Legend, Needs a decision, the side panel, changing several class weeks at once, and the download.
+summary: Every cohort's class weeks at a glance: views, filters, the Legend, Needs a decision, the side panel, changing several class weeks at once, and the download.
 order: 8
 group: Daily work
-keywords: schedule board, board, by cohort, by instructor, list, legend, badges, status, needs a decision, only problems, side panel, select class weeks, bulk, move, cancel, add a break, shared class, download, spreadsheet, compare to standard
+keywords: schedule board, board, by cohort, by instructor, list, filter, filters, clear all, cohort, standard schedule, track, module, region, instructor, badge, hide legend, show legend, legend, badges, status, needs a decision, only problems, side panel, select class weeks, bulk, move, cancel, add a break, shared class, download, spreadsheet, compare to standard
 ---
 
 Open the [Schedule board](/board). Each cell is one class week of a cohort. It shows the module, its status, its instructor and anything unusual about it. Select a cell to open the class week in the side panel, where every action is.
@@ -17,7 +17,24 @@ Choose a view at the top:
 - **By instructor:** one row per instructor, one column per week. On a phone, each instructor is a heading with their class weeks as cards underneath, in date order.
 - **List:** every class week in date order. On a phone, the board opens in this view.
 
-The board opens with this week as the first row, marked **This week**. Use **Earlier**, **This week** and **Later** to move through the weeks, and choose 4, 8, 12 or 26 weeks. Past weeks are shown for reference and can't be changed here. Your view and filters are remembered on this device.
+The board opens with this week as the first row, marked **This week**. Use **Earlier**, **This week** and **Later** to move through the weeks, and choose 4, 8, 12 or 26 weeks. Past weeks are shown for reference and can't be changed here. Your view, your filters and whether the Legend shows are remembered for you on this device.
+
+## Filters
+
+With many cohorts in a domain, use the filters under the buttons at the top to find class weeks fast: **Cohort**, **Standard schedule**, **Module**, **Region**, **Status**, **Instructor** and **Badge**.
+
+1. Press a filter. A list opens with a box to tick for each choice. A long list has a **Search** box at the top.
+2. Tick one or more choices, then press **Done**.
+3. The filter shows how many choices are ticked, for example **Cohort (2)**, and each choice shows under the filters.
+
+Choices in one filter add up, and different filters narrow down. For example, two cohorts and **Needs instructor** show the class weeks of either cohort that need an instructor.
+
+- **Standard schedule** shows the cohorts that follow the standard schedules you tick. **No standard schedule** shows the cohorts that follow none.
+- **Badge** shows the class weeks with any of the badges you tick, such as **Clash**, **Shared class** or **Message failed**.
+- **Instructor** uses the name on the cell. **No instructor yet** shows the class weeks with nobody named.
+- **Cohort**, **Standard schedule** and **Region** also hide the columns of the other cohorts in **By cohort**.
+
+Select a choice under the filters to remove it, press **Clear** in a filter's list to remove only its choices, or press **Clear all** to remove every filter. Your filters are remembered for you on this device, separately for each domain, so they are still there when you come back. They work together with **Only problems** and **Needs a decision**.
 
 ## Statuses
 
@@ -36,7 +53,7 @@ A week without classes during a cohort's break shows **Break** and the reason. A
 
 ## The Legend
 
-Press **Legend** to see every status and every badge the board, the cohort headers and the side panel can show, each with one sentence about what it means.
+The Legend shows above the board. It lists every status and every badge the board, the cohort headers and the side panel can show, each with one sentence about what it means. Press **Hide legend** to fold it away, and **Show legend** to see it again. The board remembers your choice.
 
 ![The Legend of the Schedule board](/help/board-legend.png)
 

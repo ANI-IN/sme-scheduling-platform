@@ -1,8 +1,8 @@
 title: Cohorts and planning classes
-summary: Add a cohort and its region, plan its class weeks, add one class, and change several class weeks at once on Upcoming classes.
+summary: Add a cohort and its region, plan its class weeks, add one class, filter Upcoming classes, and change several class weeks at once there.
 order: 6
 group: Setup
-keywords: cohort, new cohort, region, US, India, plan classes, upcoming classes, add one class, rename, archive, start date, class week, choose who to ask
+keywords: cohort, new cohort, region, US, India, plan classes, upcoming classes, add one class, rename, archive, start date, class week, choose who to ask, filter, filters, clear all, status, instructor, module
 ---
 
 A **cohort** is one group of students going through the modules, for example a weekend cohort and a weekday cohort. Several cohorts can run at the same time. A **class week** is the classes of one module taught by the same instructor. It starts on the day of its first class, whatever the weekday.
@@ -62,7 +62,23 @@ For an extra, makeup or moved class:
 
 ## Upcoming classes
 
-[Upcoming classes](/classes) lists every planned class, grouped by class week. Use the search and the module, cohort, region and status filters. Tick **Show past and cancelled** to see older class weeks. Select a row to open the class week.
+[Upcoming classes](/classes) lists every planned class, grouped by class week. Tick **Show past and cancelled** to see older class weeks. Select a row to open the class week.
+
+### Find class weeks fast
+
+Use **Search classes**, and the filters under it: **Cohort**, **Module**, **Region**, **Status** and **Instructor**.
+
+1. Press a filter. A list opens with a box to tick for each choice. A long list has a **Search** box at the top.
+2. Tick one or more choices, then press **Done**.
+3. The filter shows how many choices are ticked, for example **Cohort (2)**, and each choice shows under the filters.
+
+Choices in one filter add up, and different filters narrow down. For example, two cohorts and **Confirmed** show the confirmed class weeks of either cohort.
+
+- **Region** shows only the classes taught in that region.
+- **Status** uses the same words as the Schedule board. **At risk** shows every class week that may not have an instructor in time.
+- **Instructor** matches the confirmed instructor, or the person being asked now. **No instructor yet** shows the class weeks with neither.
+
+Select a choice under the filters to remove it, press **Clear** in a filter's list to remove only its choices, or press **Clear all** to remove every filter. Your filters are remembered for you on this device, separately for each domain, so they are still there when you come back.
 
 Tick class weeks to change them together:
 
