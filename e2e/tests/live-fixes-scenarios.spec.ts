@@ -132,8 +132,8 @@ test('an instructor can have a time zone, and quiet hours for instructors are of
   await page.locator('tbody tr').filter({ hasText: 'Test Instructor D' }).first().click();
   const dlg = page.getByRole('dialog');
   await ready(page);
+  // The drawer saves by itself (autosave).
   await dlg.getByRole('combobox', { name: 'Time zone (optional)' }).selectOption('India');
-  await dlg.getByRole('button', { name: 'Save changes' }).click();
   await expect
     .poll(
       async () =>

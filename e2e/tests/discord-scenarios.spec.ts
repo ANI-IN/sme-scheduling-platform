@@ -211,9 +211,16 @@ function channelAnswer(name: string, id: string, userId: string, canSee: boolean
 test('a pasted link is checked first; a channel they cannot see is not saved; the suggested one is, with one welcome', async ({
   page,
 }) => {
+  // The username first: changing it starts a Discord check, which would clear the account found below.
   await sql(
-    `update public.instructor set discord_username = 'e2e.instructor.e', discord_user_id = '900000000000000097',
-            discord_status = 'Found', version = version where full_name = 'Test Instructor E'`,
+    `update public.instructor set discord_username = 'e2e.instructor.e', version = version where full_name = 'Test Instructor E'`,
+  );
+  await sql(
+    `delete from public.action_queue where action = 'discord_member' and status = 'Queued'`,
+  );
+  await sql(
+    `update public.instructor set discord_user_id = '900000000000000097', discord_status = 'Found', version = version
+      where full_name = 'Test Instructor E'`,
   );
   await page.goto('/setup/instructors');
   await ready(page);
