@@ -18,6 +18,8 @@ update public.app_config set discord_bot_user_id = '720000000000000099' where id
 update public.instructor set full_name = 'CC Victor', discord_user_id = '720000000000000001', discord_status = 'Found'
  where id = :'i1';
 update public.instructor set discord_user_id = null where id = :'i2';
+-- The scenario gives each instructor a made up channel; these two start without one, as a new instructor does.
+delete from public.instructor_channel where instructor_id in (:'i1', :'i2') and domain_id = :'dom';
 
 -- What WF4 would answer from Discord: the channel and its overwrites, the roles, the bot and the instructor.
 -- Roles: @everyone (the server id) with nothing, BOT with the given bits, MEM with nothing.

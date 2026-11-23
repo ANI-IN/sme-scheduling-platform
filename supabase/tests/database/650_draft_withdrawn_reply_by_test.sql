@@ -68,9 +68,13 @@ select ok(position('Setup, Domains, open the domain, Discord server' in pg_get_f
 
 -- =============================================================== 15 to 16: the run log keeps 7 days
 select lives_ok($$ select private.purge_run_log() $$, '15. the purge runs');
-select ok(to_regclass('cron.job') is null or current_database() <> 'postgres'
-          or exists (select 1 from cron.job where jobname = 'sme-run-log-purge' and schedule = '15 21 * * *'),
-  '16. every night at 21:15 UTC where the clock lives');
+create function pg_temp.purge_job() returns boolean language plpgsql as $f$
+begin
+  -- Only where the clock lives (pg_cron in the main database); the test copies have no cron.
+  if to_regclass('cron.job') is null or current_database() <> 'postgres' then return true; end if;
+  return exists (select 1 from cron.job where jobname = 'sme-run-log-purge' and schedule = '15 21 * * *');
+end $f$;
+select ok(pg_temp.purge_job(), '16. every night at 21:15 UTC where the clock lives');
 
 select * from finish();
 rollback;

@@ -10,11 +10,11 @@ create function pg_temp.def(text, text) returns text language sql as $$
 -- Sending at any hour (decision 332).
 select tests.scenario('KA', 'Live', '2027-01-31', 2) as a \gset
 select (:'a'::jsonb ->> 'domain') as adom, (:'a'::jsonb ->> 'mw') as amw, (:'a'::jsonb ->> 'i1') as ai1 \gset
-select is(private.instructor_send_time(:'adom', '2027-01-01 07:00+00', false, 'US', :'ai1'), '2027-01-01 07:00+00'::timestamptz,
+select is(private.instructor_send_time(:'adom', '2027-01-02 07:00+00', false, 'US', :'ai1'), '2027-01-02 07:00+00'::timestamptz,
   '1. any hour: 11:00 PM Pacific goes at once while quiet hours are off');
-select tests.tick(:'adom', '2027-01-01 07:00+00');
+select tests.tick(:'adom', '2027-01-02 07:00+00');
 select ok(exists (select 1 from public.message where module_week_id = :'amw' and template_id = 'M1')
-          and not exists (select 1 from public.message where module_week_id = :'amw' and template_id = 'M1' and not_before <> '2027-01-01 07:00+00'),
+          and not exists (select 1 from public.message where module_week_id = :'amw' and template_id = 'M1' and not_before <> '2027-01-02 07:00+00'),
   '2. any hour: the request itself goes at once');
 -- Both times in instructor messages (decision 332).
 select ok(exists (select 1 from public.message where module_week_id = :'amw' and template_id = 'M1' and channel = 'Email'
@@ -23,7 +23,7 @@ select ok(exists (select 1 from public.message where module_week_id = :'amw' and
 
 -- Never Asking with nobody asked (decision 332).
 update public.instructor set status = 'Inactive' where id = :'ai1';
-select private.withdraw_open_request(:'amw', 'test', '2027-01-01 07:30+00', false);
+select private.withdraw_open_request(:'amw', 'test', '2027-01-02 07:30+00', false);
 set constraints all immediate;
 select is(tests.asking(:'amw'), 'KA Instr2', '4. never Asking with nobody asked: the next instructor is asked when the change is saved');
 set constraints all deferred;

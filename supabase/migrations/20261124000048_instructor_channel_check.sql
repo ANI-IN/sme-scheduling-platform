@@ -18,6 +18,11 @@ create table public.channel_check (
 );
 create index channel_check_person_idx on public.channel_check (instructor_id, domain_id, created_at desc);
 alter table public.channel_check enable row level security;
+create index channel_check_domain_idx on public.channel_check (domain_id);
+-- The channel check is a new kind of Discord work for the automation.
+alter table public.action_queue drop constraint if exists action_queue_action_check;
+alter table public.action_queue add constraint action_queue_action_check
+  check (action in ('deliver', 'run_check_now', 'send_test_alert', 'discord_servers', 'discord_server', 'discord_member', 'discord_channel'));
 revoke all on public.channel_check from anon;
 grant select on public.channel_check to authenticated;
 create policy channel_check_team_read on public.channel_check for select to authenticated using (private.is_team_user());

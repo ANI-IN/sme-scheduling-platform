@@ -270,3 +270,9 @@ begin
 end;
 $$;
 drop table if exists public.channel_check;
+
+-- The channel check work type: its queued work has no meaning without the channel check, so it goes first.
+delete from public.action_queue where action = 'discord_channel';
+alter table public.action_queue drop constraint if exists action_queue_action_check;
+alter table public.action_queue add constraint action_queue_action_check
+  check (action in ('deliver', 'run_check_now', 'send_test_alert', 'discord_servers', 'discord_server', 'discord_member'));

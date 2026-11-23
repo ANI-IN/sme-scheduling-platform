@@ -28,7 +28,7 @@ select lives_ok(format($$ select public.set_instructor_channel(%L, %L, '99900000
 select lives_ok(format($$ select public.set_instructor_channel(%L, %L, '999000000000049103') $$, :'i2', :'dom'),
   '2. another instructor''s channel can be in server C, for the same domain');
 select throws_ok(format($$ select public.set_instructor_channel(%L, %L, '999000000000049104') $$, :'i2', :'dom'), '22023',
-  'An admin must approve the Discord server of #elsewhere for this domain first (Settings, Connections).',
+  'An admin must approve the Discord server of #elsewhere for this domain first: Setup, Domains, open the domain, Discord server.',
   '3. a channel in a server not approved for this domain is refused, with what to do');
 
 -- A new channel needs a new contact check (decision 176); the instructors confirm it, as they would.
