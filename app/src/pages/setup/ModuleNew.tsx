@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, CircleAlert, CircleCheck, UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -20,8 +20,9 @@ import {
   Select,
 } from '@/components/ui';
 import { InstructorDrawer } from '../Instructors';
-import { PatternEditor, RankingEditor, dayLabel, type ModuleRow } from './moduleParts';
-import { Owners } from './ModuleDetail';
+import { DEFAULT_CLASS_TIMES, classTimeText } from '@/lib/classTimes';
+import { PatternEditor, RankingEditor, type ModuleRow } from './moduleParts';
+import { OperationsTeam, Owners } from './ModuleDetail';
 
 const STEPS = [
   'Module details',
@@ -117,7 +118,7 @@ export default function ModuleNew() {
           {step === 1 && (
             <Section
               title="Class times"
-              description="The classes of one class week, in the local time of each cohort (US Pacific or India). The planner uses them to create classes."
+              description="The classes of one class week, in the local time of each cohort (US Pacific or India). They start with the usual times: the live class on Sunday from 9:00 AM to 1:00 PM and the assignment review on Thursday from 6:00 PM to 8:00 PM. Change them if this module differs."
             >
               <PatternEditor module={m} run={run} />
             </Section>
@@ -269,6 +270,17 @@ function DetailsStep({
                     .select()
                     .single(),
                 )!;
+                // Every new module starts with the usual class times, which the next step shows to change (B10).
+                check(
+                  await supabase.from('class_pattern_item').insert(
+                    DEFAULT_CLASS_TIMES.map((d, i) => ({
+                      module_id: created.id,
+                      ...d,
+                      title_template: '{module}: {class_type}',
+                      sort_order: i + 1,
+                    })),
+                  ),
+                );
                 await qc.invalidateQueries();
                 onSaved(created.id);
               }
@@ -324,36 +336,11 @@ function PeopleStep({
   module: ModuleRow;
   run: (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 }) {
-  const team = useTeam();
-  const ops = useQuery({
-    queryKey: ['domain_team', m.domain_id],
-    queryFn: async () =>
-      check(
-        await supabase
-          .from('domain_team')
-          .select('*')
-          .eq('domain_id', m.domain_id)
-          .eq('role', 'Operations'),
-      ),
-  });
-  const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   return (
     <div className="space-y-4">
       <Owners module={m} run={run} />
-      <Section
-        title="Operations team"
-        description="Shared by every module of the domain. They handle checklists, failed messages and written replies."
-      >
-        <p className="text-sm">
-          {(ops.data ?? [])
-            .map((r) => names.get(r.team_member_id))
-            .filter(Boolean)
-            .join(', ') || 'Nobody yet.'}{' '}
-          <Link to="/setup/domains" className="text-link hover:underline">
-            Change on the Domains page
-          </Link>
-        </p>
-      </Section>
+      {/* The module's own operations team; empty uses the domain's default team (shown when empty). */}
+      <OperationsTeam module={m} run={run} moduleOnly />
     </div>
   );
 }
@@ -423,11 +410,12 @@ function Review({
             'Class times (local time of each cohort)',
             m.class_pattern_item.length
               ? [...m.class_pattern_item]
-                  .sort((a, b) => a.day_offset - b.day_offset)
-                  .map(
-                    (p) =>
-                      `${p.class_type}, ${dayLabel(p.day_offset)} ${p.start_time.slice(0, 5)}, ${p.duration_minutes} minutes`,
+                  .filter((p) => !p.cohort_id)
+                  .sort(
+                    (a, b) =>
+                      a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time),
                   )
+                  .map(classTimeText)
                   .join('; ')
               : 'None',
           )}

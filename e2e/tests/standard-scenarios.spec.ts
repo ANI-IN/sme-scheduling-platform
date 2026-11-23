@@ -238,7 +238,7 @@ test('the standard changes: its cohorts are updated, except a customized and a c
     name: 'Class times of Database Design in this standard',
   });
   await times.getByLabel('Class type').selectOption('Live class');
-  await times.getByLabel('Day').selectOption({ label: 'First day' });
+  await times.getByLabel('Day').selectOption({ label: 'Sunday' });
   await times.getByLabel('Starts (local time)').fill('10:00');
   await times.getByLabel('Length in minutes').fill('240');
   await times.getByRole('button', { name: 'Add class' }).click();
