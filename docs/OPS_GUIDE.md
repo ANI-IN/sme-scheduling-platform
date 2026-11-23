@@ -71,6 +71,11 @@ Press **Legend** on the board to see every mark with its meaning. The ones that 
    suggested one. The app checks it in Discord first, then says **Channel ready** and sends one welcome that tags them.
 5. Add them to each module's **Instructor order** (Setup, Modules, the module, Instructor order).
 
+### Writing to an instructor yourself
+
+Open them on **Setup, Instructors**, write under **Contact instructor** and press **Send message**. It goes to their
+own channel and by email, signed with your name, and is kept in Activity history.
+
 ### A domain
 
 1. **Setup, Domains**, **Add domain**. It starts as **Draft**: nothing is sent.

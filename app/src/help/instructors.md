@@ -48,6 +48,12 @@ A contact check is optional. Instructors you add are asked whether or not their 
 
 If you checked their details another way, for example on a call, press **Mark as checked**. Saving a new email or Discord username clears the check. You can send a new one if you like.
 
+## Write to an instructor yourself
+
+1. Open the instructor on [Instructors](/setup/instructors).
+2. Under **Contact instructor**, write your message and press **Send message**.
+3. It goes to their own Discord channel and by email, signed with your name. Activity history keeps it.
+
 ## Test instructors
 
 Tick **Test instructor** for a record that is only for trying things out. Test instructors are never booked in a live domain. Several test instructors can share one Discord username and use plus email addresses, for example name+1@company.com, so one person can play several instructors. While the beta setting is on under Settings, Admin, only test instructors and signed in colleagues get messages.
