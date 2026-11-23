@@ -158,18 +158,22 @@ export default function Outreach() {
       finding.map((w) => `${w.id}:${w.version}`).join(),
     ],
     enabled: finding.length > 0,
-    // One request for every class week, at most 500 at a time (was one request per class week; decision 334).
+    // Class weeks in groups of 25, the groups at the same time (decision 334): far fewer requests than one per class
+    // week, and the database still works on several groups at once (one group of all of them was slower).
     queryFn: async () => {
-      const out: Record<string, Preview> = {};
-      for (let i = 0; i < finding.length; i += 500) {
-        Object.assign(
-          out,
-          (await rpc('preview_next_many', {
-            p_module_week_ids: finding.slice(i, i + 500).map((w) => w.id),
-          })) as unknown as Record<string, Preview>,
-        );
-      }
-      return out;
+      const groups: string[][] = [];
+      for (let i = 0; i < finding.length; i += 25)
+        groups.push(finding.slice(i, i + 25).map((w) => w.id));
+      const parts = await Promise.all(
+        groups.map(
+          async (g) =>
+            (await rpc('preview_next_many', { p_module_week_ids: g })) as unknown as Record<
+              string,
+              Preview
+            >,
+        ),
+      );
+      return Object.assign({}, ...parts) as Record<string, Preview>;
     },
   });
 
