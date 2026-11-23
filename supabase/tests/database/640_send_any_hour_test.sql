@@ -23,7 +23,7 @@ select ok(exists (select 1 from public.message where module_week_id = :'amw' and
                     and body_text ~ 'Live class: Sun, Jan 31 · 9:00 AM to 1:00 PM PST \(Sun, Jan 31 · 10:30 PM to 2:30 AM IST\)'),
   '5. class times are in US Pacific time and India time');
 select ok(exists (select 1 from public.message where module_week_id = :'amw' and template_id = 'M1' and channel = 'Email'
-                    and body_text ~ 'reply by [^\n]*P[SD]T \([^)]*IST\)'),
+                    and body_text like '%reply by Sun, Jan 3 · 1:30 PM PST / Mon, Jan 4 · 3:00 AM IST.%'),
   '6. and so is the reply by time');
 
 -- 7: a US instructor of an India class, at 3:00 AM Pacific time on Jan 2 (11:00 UTC), when asking for it starts.

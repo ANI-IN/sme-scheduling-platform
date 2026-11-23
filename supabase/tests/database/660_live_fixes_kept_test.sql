@@ -18,7 +18,7 @@ select ok(exists (select 1 from public.message where module_week_id = :'amw' and
   '2. any hour: the request itself goes at once');
 -- Both times in instructor messages (decision 332).
 select ok(exists (select 1 from public.message where module_week_id = :'amw' and template_id = 'M1' and channel = 'Email'
-                    and body_text ~ 'P[SD]T \([^)]*IST\)' and body_text ~ 'reply by [^\n]*P[SD]T \([^)]*IST\)'),
+                    and body_text ~ 'P[SD]T \([^)]*IST\)' and body_text ~ 'reply by [^\n]*P[SD]T / [^\n]*IST\.'),
   '3. both times: class times and the reply by time in US Pacific and India time');
 
 -- Never Asking with nobody asked (decision 332).
