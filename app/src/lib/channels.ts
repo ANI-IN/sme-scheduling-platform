@@ -34,7 +34,7 @@ export function channelNamesFor(person: { fullName: string; username?: string | 
 export type ChannelLite = {
   id: string;
   name: string;
-  server_id: string;
+  server_id?: string | null;
   bot_can_post?: boolean | null;
 };
 
