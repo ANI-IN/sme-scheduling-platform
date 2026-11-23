@@ -50,10 +50,12 @@ export const PAGE_ROWS = 1000;
 export async function fetchAll<T>(
   page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
 ): Promise<T[]> {
-  // Four pages at a time instead of one after another (decision 334): a big domain's class weeks load in one
-  // round trip instead of several. Pages past the end come back empty at once.
-  const out: T[] = [];
-  for (let from = 0; ; from += PAGE_ROWS * PARALLEL_PAGES) {
+  // The first page alone (most lists fit in it: one request). When it is full, the next pages are asked three at a
+  // time instead of one after another (decision 334), so a big domain's class weeks load in two round trips, not
+  // four. Pages past the end come back empty at once.
+  const out: T[] = check(await page(0, PAGE_ROWS - 1));
+  if (out.length < PAGE_ROWS) return out;
+  for (let from = PAGE_ROWS; ; from += PAGE_ROWS * PARALLEL_PAGES) {
     const batch = await Promise.all(
       Array.from({ length: PARALLEL_PAGES }, (_, k) =>
         page(from + k * PAGE_ROWS, from + (k + 1) * PAGE_ROWS - 1).then(check),
@@ -66,7 +68,7 @@ export async function fetchAll<T>(
   }
 }
 
-const PARALLEL_PAGES = 4;
+const PARALLEL_PAGES = 3;
 
 /** How many IDs go in one `in(...)` filter: each is 37 characters of the address, which must stay short. */
 export const IDS_PER_REQUEST = 100;

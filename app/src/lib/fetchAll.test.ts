@@ -5,11 +5,17 @@ vi.mock('./env', () => ({ env: {} }));
 const { fetchAll, fetchByIds, IDS_PER_REQUEST, PAGE_ROWS } = await import('./rpc');
 
 describe('fetchAll', () => {
-  it('reads every page until one comes back short, so nothing past 1,000 rows is lost', async () => {
+  it('reads every page until one comes back short, so nothing past 1,000 rows is lost, three pages at a time after the first', async () => {
     const total = PAGE_ROWS * 2 + 5;
     const asked: [number, number][] = [];
+    let inFlight = 0;
+    let most = 0;
     const rows = await fetchAll(async (from, to) => {
       asked.push([from, to]);
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
       const data = Array.from(
         { length: Math.max(0, Math.min(to, total - 1) - from + 1) },
         (_, i) => from + i,
@@ -18,11 +24,14 @@ describe('fetchAll', () => {
     });
     expect(rows).toHaveLength(total);
     expect(rows.at(-1)).toBe(total - 1);
+    // The first page alone, then the next three together (decision 334).
     expect(asked).toEqual([
       [0, 999],
       [1000, 1999],
       [2000, 2999],
+      [3000, 3999],
     ]);
+    expect(most).toBe(3);
   });
 
   it('asks once when everything fits on one page, and passes on an error', async () => {
