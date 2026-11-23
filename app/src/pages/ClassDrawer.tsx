@@ -134,6 +134,8 @@ export function ClassDrawer({
   );
 
   const [assignTo, setAssignTo] = useState('');
+  // Search in a long list of instructors (owner, 24 November 2026).
+  const [assignSearch, setAssignSearch] = useState('');
   const [note, setNote] = useState('');
   const [assignWarn, setAssignWarn] = useState<{
     fn: 'assign_manually' | 'record_offline_confirmation';
@@ -272,25 +274,40 @@ export function ClassDrawer({
             <div className="space-y-2 rounded-md border border-border p-3">
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="Instructor">
+                  {(eligible.data ?? []).length > 8 && (
+                    <Input
+                      aria-label="Search instructors"
+                      placeholder="Search instructors"
+                      value={assignSearch}
+                      onChange={(e) => setAssignSearch(e.target.value)}
+                      className="mb-1"
+                    />
+                  )}
                   <Select value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
                     <option value="">Choose an instructor</option>
-                    {(eligible.data ?? []).map((i) => (
-                      <option
-                        key={i.instructor_id}
-                        value={i.instructor_id}
-                        disabled={
-                          !!i.reason &&
-                          i.reason !== 'Not verified' &&
-                          i.reason !== 'Being asked now'
-                        }
-                      >
-                        {i.name}
-                        {i.rank
-                          ? ` (${i.rank === 1 ? 'Primary' : `Backup ${i.rank - 1}`})`
-                          : ' (not in the instructor order)'}
-                        {i.reason ? `: ${plain(i.reason)}` : ''}
-                      </option>
-                    ))}
+                    {(eligible.data ?? [])
+                      .filter(
+                        (i) =>
+                          i.instructor_id === assignTo ||
+                          i.name.toLowerCase().includes(assignSearch.trim().toLowerCase()),
+                      )
+                      .map((i) => (
+                        <option
+                          key={i.instructor_id}
+                          value={i.instructor_id}
+                          disabled={
+                            !!i.reason &&
+                            i.reason !== 'Not verified' &&
+                            i.reason !== 'Being asked now'
+                          }
+                        >
+                          {i.name}
+                          {i.rank
+                            ? ` (${i.rank === 1 ? 'Primary' : `Backup ${i.rank - 1}`})`
+                            : ' (not in the instructor order)'}
+                          {i.reason ? `: ${plain(i.reason)}` : ''}
+                        </option>
+                      ))}
                   </Select>
                 </Field>
                 <Field label="Note" hint="Optional. Saved in Activity history.">
