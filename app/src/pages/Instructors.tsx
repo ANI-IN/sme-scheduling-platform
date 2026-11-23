@@ -9,7 +9,8 @@ import { refresh } from '@/lib/live';
 import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
 import { instructorStatusLabel } from '@/lib/labels';
-import { useDomains, useInstructors, type Instructor } from '@/lib/data';
+import { useBlockedMessages, useDomains, useInstructors, type Instructor } from '@/lib/data';
+import { BlockedMessages } from '@/components/BlockedMessages';
 import { useDomain } from '@/lib/domain';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
@@ -462,6 +463,7 @@ export function InstructorDrawer({
         .map((e) => e.email)
         .sort()
         .join();
+  const blocked = useBlockedMessages({ instructorId: instructor?.id });
 
   async function save(another = false) {
     setErr(null);
@@ -630,6 +632,7 @@ export function InstructorDrawer({
       }
     >
       <div className="space-y-5">
+        {blocked.data && <BlockedMessages messages={blocked.data} />}
         {dup && (
           <Notice tone="warning">
             An instructor with this email or Discord username already exists: {dup.full_name}. Edit
@@ -761,7 +764,7 @@ export function InstructorDrawer({
                   onClick={() =>
                     act(
                       () => rpc('check_discord', { p_kind: 'instructor', p_id: instructor.id }),
-                      'Checking Discord. This takes up to a minute.',
+                      'Checking Discord, usually a few seconds. The result shows here by itself.',
                     )
                   }
                 >

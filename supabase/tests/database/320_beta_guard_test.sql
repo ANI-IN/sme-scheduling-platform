@@ -42,9 +42,9 @@ select ok(exists (select 1 from public.history_event where action = 'Who may rec
 
 -- 5 to 8: email.
 select is(tests.q('bg-5', 'Team', 'Email', 'friend@gmail.com'), 'Cancelled', '5. email to an outside address is blocked');
-select alike((select last_error from public.message where unique_key = 'bg-5'), 'During the beta, email goes only to example.com addresses.%',
+select alike((select last_error from public.message where unique_key = 'bg-5'), 'Not sent: during the beta, email goes only to example.com addresses.%',
   '6. with the reason');
-select ok(exists (select 1 from public.history_event where action = 'Message blocked' and note like 'During the beta, email goes only to%'),
+select ok(exists (select 1 from public.history_event where action = 'Message blocked' and note like 'Not sent: during the beta, email goes only to%'),
   '7. and logged in Activity history');
 select is(tests.q('bg-8', 'Team', 'Email', 'colleague@example.com'), 'Pending', '8. email to a company address goes out');
 

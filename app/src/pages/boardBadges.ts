@@ -71,6 +71,7 @@ export const BADGE = {
   shared_class: 'Shared class',
   answer_due_soon: 'Answer due soon',
   message_failed: 'Message failed',
+  message_blocked: 'Message not sent',
   help_open: 'Help request open',
   tasks_overdue: 'Class tasks overdue',
   moved: 'Moved',
@@ -101,6 +102,8 @@ const BADGE_TEXT: Record<BadgeCode, string> = {
     'This class week is taught together with another cohort, and the side panel says which one.',
   answer_due_soon: 'The answer is due within 12 hours (a setting on Settings, Automation).',
   message_failed: 'A message about this class week could not be delivered.',
+  message_blocked:
+    'A beta rule stopped a message, and the side panel says why and lets you send it again.',
   help_open: 'Someone asked for help with this class week and it is not closed yet.',
   tasks_overdue: 'A task for this class week is past its due date.',
   moved: 'A class moved from its first time, and the side panel shows the time before.',
@@ -110,7 +113,12 @@ const BADGE_TEXT: Record<BadgeCode, string> = {
 };
 
 /** Badges in red: something is wrong now. The others are amber. */
-export const SERIOUS = new Set<string>(['clash', 'unavailable', 'message_failed']);
+export const SERIOUS = new Set<string>([
+  'clash',
+  'unavailable',
+  'message_failed',
+  'message_blocked',
+]);
 
 /** The words of a badge code, or nothing when the board does not show that code. */
 export const badgeLabel = (code: string): string | undefined =>

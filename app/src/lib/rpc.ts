@@ -76,16 +76,19 @@ export async function fetchByIds<T>(
   return (await Promise.all(groups.map(async (g) => check(await part(g))))).flat();
 }
 
-/** Ask n8n (WF4) to deliver queued messages now. Carries no data; safe to call often. */
-export async function poke(): Promise<void> {
-  if (!env.pokeUrl) return;
-  try {
-    await fetch(env.pokeUrl, {
-      method: 'POST',
-      // Normal CORS request: 'no-cors' would silently drop the x-poke-key header.
-      headers: env.pokeKey ? { 'x-poke-key': env.pokeKey } : undefined,
-    });
-  } catch {
-    // n8n's 5-minute safety run delivers anyway.
-  }
+/**
+ * Ask n8n (WF4) to work now. Carries no data. The database already pokes n8n by itself within a few seconds whenever
+ * a message is queued or a Discord check is asked for (decision 329), so this is only a backup, and it never makes
+ * anyone wait: it returns at once and the request finishes in the background.
+ */
+export function poke(): Promise<void> {
+  if (!env.pokeUrl) return Promise.resolve();
+  void fetch(env.pokeUrl, {
+    method: 'POST',
+    // Normal CORS request: 'no-cors' would silently drop the x-poke-key header.
+    headers: env.pokeKey ? { 'x-poke-key': env.pokeKey } : undefined,
+  }).catch(() => {
+    // The database clock delivers anyway.
+  });
+  return Promise.resolve();
 }

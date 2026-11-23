@@ -17,6 +17,7 @@ import {
   Notice,
   PageHeader,
   Section,
+  Switch,
 } from '@/components/ui';
 import { refresh } from '@/lib/live';
 
@@ -238,6 +239,7 @@ function RecipientsSection() {
     recipient_email_domains?: string[];
     message_recipients?: string;
     daily_email_cap?: number;
+    beta_list_may_receive?: boolean;
   };
   const [domains, setDomains] = useState<string | null>(null);
   const [cap, setCap] = useState<string | null>(null);
@@ -258,7 +260,7 @@ function RecipientsSection() {
             : 'Let messages reach anyone?',
         body:
           nextRecipients === BETA
-            ? 'Real instructors are never contacted, direct messages go only to signed in colleagues, and messages may only tag them. Blocked messages are listed in Activity history.'
+            ? 'Only test instructors, signed in colleagues and (if the setting below is on) people on the beta list are contacted or tagged. Every message that is stopped shows with its reason on the instructor, the class week and the board.'
             : 'Messages go to real instructors again, as in normal Production use. Do this only when the beta is over.',
         confirmLabel:
           nextRecipients === BETA ? 'Use the beta setting' : 'Let messages reach anyone',
@@ -315,6 +317,25 @@ function RecipientsSection() {
           />
         </Field>
       </div>
+      {recipients === BETA && (
+        <div className="mt-3">
+          <Switch
+            label="People on the beta list may receive messages before they sign in"
+            hint="Then a colleague added as an instructor gets requests and Discord messages straight away. Signed in colleagues always may. Each change is in Activity history."
+            checked={cfg.beta_list_may_receive ?? true}
+            onChange={(on) =>
+              void rpc('set_beta_list_recipients', { p_on: on })
+                .then(() => {
+                  toast.success(
+                    on ? 'People on the beta list may receive messages' : 'Only after they sign in',
+                  );
+                  void qc.invalidateQueries({ queryKey: ['system_state'] });
+                })
+                .catch(setErr)
+            }
+          />
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           onClick={() => void save(BETA)}

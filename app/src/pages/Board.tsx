@@ -10,7 +10,7 @@ import { rpc } from '@/lib/rpc';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
-import { useInstructors, useWeeks } from '@/lib/data';
+import { useBlockedMessages, useInstructors, useWeeks } from '@/lib/data';
 import { asRegion, REGIONS } from '@/lib/region';
 import {
   applyFilters,
@@ -211,7 +211,7 @@ export default function Board() {
   const planned = usePlanned(
     (raw?.weeks ?? []).filter((c) => !c.past && PLANNED_FOR.includes(c.status)).map((c) => c.id),
   );
-  const b = useMemo(
+  const withPlanned = useMemo(
     () =>
       raw && {
         ...raw,
@@ -224,6 +224,26 @@ export default function Board() {
       },
     [raw, planned.data],
   );
+  // Messages a beta rule stopped show on their class week (decision 329); the board data comes from the database.
+  const blockedMsgs = useBlockedMessages({ domainId: domain?.id });
+  const blockedWeeks = useMemo(
+    () => new Set((blockedMsgs.data ?? []).map((m) => m.module_week_id).filter(Boolean)),
+    [blockedMsgs.data],
+  );
+  const b = useMemo(() => {
+    if (!withPlanned || blockedWeeks.size === 0) return withPlanned;
+    const weeks = withPlanned.weeks.map((c) =>
+      blockedWeeks.has(c.id) && !c.badges.includes('message_blocked')
+        ? { ...c, badges: [...c.badges, 'message_blocked'] }
+        : c,
+    );
+    const n = weeks.filter((c) => c.badges.includes('message_blocked')).length;
+    return {
+      ...withPlanned,
+      weeks,
+      decisions: { ...withPlanned.decisions, ...(n ? { message_blocked: n } : {}) },
+    };
+  }, [withPlanned, blockedWeeks]);
   // What each filter reads from a cohort column, and from a class week (through its cohort for the first three).
   const cohortGetters = useMemo<Getters<CohortCol>>(
     () => ({

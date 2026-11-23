@@ -21,7 +21,7 @@ export type ServerDiscordStatus = 'NotSet' | 'NotChecked' | 'Checking' | 'Ready'
 
 export const personStatus: Record<PersonDiscordStatus, { label: string; tone: Tone }> = {
   NotSet: { label: 'No Discord username', tone: 'neutral' },
-  Checking: { label: 'Checking Discord', tone: 'info' },
+  Checking: { label: 'Checking Discord, usually a few seconds', tone: 'info' },
   Found: { label: 'Discord found', tone: 'success' },
   NotFound: { label: 'Not found on Discord', tone: 'warning' },
   Problem: { label: 'Discord problem', tone: 'danger' },
