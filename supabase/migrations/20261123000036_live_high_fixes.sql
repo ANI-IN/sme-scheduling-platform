@@ -86,8 +86,15 @@ begin
               and coalesce(ds.refreshed_at, '-infinity') < now() - interval '2 minutes'
               and (p_domain_id is null or ds.id = (select d.discord_server_id from public.domain d where d.id = p_domain_id)
                    or private.server_allowed(ds.id, p_domain_id)) loop
-    perform private.queue_server_check(s.id);
-    v_n := v_n + 1;
+    -- A quiet refresh: the server keeps its status while the list is fetched, so a refresh that never comes back
+    -- does not turn a server into "Needs a fix". A check someone asks for (Check again) still shows Checking.
+    insert into public.action_queue (action, payload, requested_by)
+    select 'discord_server', jsonb_build_object('server_id', s.id, 'quiet', true), private.current_team_member_id()
+     where not exists (select 1 from public.action_queue a where a.action = 'discord_server' and a.status in ('Queued', 'Processing')
+                          and a.payload ->> 'server_id' = s.id);
+    if found then
+      v_n := v_n + 1;
+    end if;
   end loop;
   return jsonb_build_object('queued', v_n);
 end;

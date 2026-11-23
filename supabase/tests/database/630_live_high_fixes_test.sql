@@ -1,7 +1,7 @@
 -- Owner's live testing of 23 November 2026, the High findings (decision 331).
 begin;
 \ir ../helpers/helpers.psql
-select plan(24);
+select plan(25);
 
 select tests.scenario('HF', 'Draft', '2027-01-31', 2) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as mod, (:'j'::jsonb ->> 'i1') as i1, (:'j'::jsonb ->> 'i2') as i2 \gset
@@ -87,6 +87,8 @@ select ok((select discord_user_id is null from public.instructor where id = :'i2
 select is((public.request_channel_refresh(:'dom') ->> 'queued')::int, 1, '22. opening the domain asks for a fresh channel list');
 select ok(exists (select 1 from public.action_queue where action = 'discord_server' and status = 'Queued'
                    and payload ->> 'server_id' = '999000000000063001'), '23. as a server check');
+select is((select status from public.discord_server where id = '999000000000063001'), 'Ready',
+  '23b. a quiet refresh: the server keeps its status, so a refresh that never comes back is not a problem');
 update public.discord_server set status = 'Ready', refreshed_at = now() where id = '999000000000063001';
 select is((public.request_channel_refresh(:'dom') ->> 'queued')::int, 0, '24. not again within 2 minutes');
 
