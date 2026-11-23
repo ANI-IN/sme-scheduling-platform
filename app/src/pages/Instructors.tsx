@@ -845,7 +845,7 @@ export function InstructorDrawer({
                   key={d.id}
                   person={instructor}
                   domain={d}
-                  approvedServerIds={approved.data?.get(d.id)}
+                  approvedServerIds={approved.data ? (approved.data.get(d.id) ?? []) : undefined}
                   takenIds={
                     new Set(
                       all

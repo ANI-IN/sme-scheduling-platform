@@ -8,6 +8,7 @@ import { useDomains, useMe, useSystem } from '@/lib/data';
 import { ago } from '@/lib/time';
 import { botInviteUrl } from '@/lib/discord';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
+import { refresh } from '@/lib/live';
 import { useRun } from '@/pages/ClassDrawer';
 import { ArchiveButton, DeleteButton } from '@/components/Lifecycle';
 import { useConfirm } from '@/components/Confirm';
@@ -68,7 +69,7 @@ export function DiscordServers() {
   const domains = useDomains();
   const system = useSystem();
   const config = system.data?.config;
-  const { run, err } = useRun();
+  const { run, err } = useServerRun();
   const isAdmin = !!useMe()?.is_admin;
   const serverDomains = useServerDomains();
   const invite = botInviteUrl();
@@ -301,7 +302,7 @@ export function DiscordServers() {
  */
 function ServerList() {
   const domains = useDomains();
-  const { run, err } = useRun();
+  const { run, err } = useServerRun();
   const isAdmin = !!useMe()?.is_admin;
   const serverDomains = useServerDomains();
   const confirm = useConfirm();
@@ -519,7 +520,7 @@ function ApproveServer({
   onClose: () => void;
 }) {
   const domains = useDomains();
-  const { run, err } = useRun();
+  const { run, err } = useServerRun();
   const [chosen, setChosen] = useState<string[]>(initial);
   return (
     <Modal
@@ -561,4 +562,20 @@ function ApproveServer({
       <ErrorText error={err} />
     </Modal>
   );
+}
+
+/**
+ * useRun, plus the Discord lists: after a server is approved, refused, checked or archived, the server list, its
+ * domains and its channels load again at once (the class lists alone did not show the change).
+ */
+function useServerRun() {
+  const qc = useQueryClient();
+  const { run: base, err } = useRun();
+  const run = (fn: () => Promise<unknown>, ok?: string) =>
+    base(async () => {
+      const r = await fn();
+      refresh(qc, 'discord_server', 'domain');
+      return r;
+    }, ok);
+  return { run, err };
 }
