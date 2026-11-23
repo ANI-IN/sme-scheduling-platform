@@ -44,7 +44,7 @@ Each cell has one status, always shown with its colour, icon and word:
 - **Waiting for an answer:** an instructor was asked and has not answered yet.
 - **Needs instructor:** nobody is confirmed or being asked, so you choose an instructor.
 - **Proposed time:** the instructor proposed another time, which you accept or reject.
-- **Not asked yet:** nobody was asked yet. The cell names the Primary instructor, who is asked first.
+- **Not asked yet:** nobody was asked yet. The cell names who is planned and the day asking starts, for example **Planned: Victor Palmer (Primary), asking starts Sat, Oct 31**. It is the person the app would ask first today, so someone who cannot teach that week is skipped. Once asked, the cell says **Waiting for an answer: Victor Palmer**, and then **Confirmed: Victor Palmer**.
 - **Setup incomplete:** something is missing, such as class times or an instructor order, so nobody can be asked yet.
 - **Paused:** requests for this class week are paused.
 - **Cancelled** and **Completed**.
@@ -96,6 +96,7 @@ What each action does is in [Changing a class week](/help/cancellations-and-move
 
 The buttons in the bar:
 
+- **Start asking now:** asks the planned instructor of each selected class week straight away, instead of waiting for the usual day. First you see who will be asked for each class week, and which are left as they are and why (for example someone is already confirmed). Press **Start asking** to go ahead. Paused class weeks are resumed. Nobody is confirmed until they say yes.
 - **Add a break:** the break dialog opens with the cohorts of the selected class weeks, and the first selected week as its first day.
 - **Move:** choose how many weeks earlier or later under **Move by**, then press **Move**. Every selected class week moves by the same number of weeks, at the same clock time.
 - **Cancel:** type the **Reason**, then press **Cancel class weeks**. The people confirmed for them are told.

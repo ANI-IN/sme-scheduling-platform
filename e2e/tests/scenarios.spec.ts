@@ -310,14 +310,24 @@ test('owners and the operations team can be reassigned', async ({ page }) => {
   const m = await backendModule('API Design');
   await page.goto(`/setup/modules/${m.id}?tab=owners`);
   await ready(page);
+  // A real multi select: search, tick an option (the list stays open), and the chip has a remove button.
   const addOwner = page.getByRole('combobox', { name: 'Add an owner' });
-  await addOwner.selectOption({ label: 'Sandbox Escalation' });
+  await addOwner.fill('sandbox esc');
+  const ownerList = page.getByRole('listbox', { name: 'Add an owner' });
+  await ownerList.getByRole('option', { name: 'Sandbox Escalation' }).click();
   await expect(page.getByRole('button', { name: 'Remove Sandbox Escalation' })).toBeVisible();
+  await expect(ownerList.getByRole('option', { name: 'Sandbox Escalation' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await addOwner.press('Escape');
+  await expect(ownerList).toHaveCount(0);
   await page.goto(`/setup/modules/${m.id}?tab=operations`);
   await ready(page);
-  await page.getByRole('combobox', { name: 'Add a person' }).first().selectOption({
-    label: 'Sandbox Owner',
-  });
+  // The keyboard works too: typing makes the first match active, and Enter ticks it.
+  const addPerson = page.getByRole('combobox', { name: 'Add a person', exact: true });
+  await addPerson.fill('Sandbox Owner');
+  await addPerson.press('Enter');
   await expect(page.getByRole('button', { name: 'Remove Sandbox Owner' }).first()).toBeVisible();
   const owners = await sql<{ name: string }>(
     `select t.name from public.module_owner o join public.team_member t on t.id = o.team_member_id

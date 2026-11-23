@@ -11,7 +11,7 @@ keywords: glossary, words, meaning, definition, terms, status
 - **Waiting for an answer:** an instructor was asked and has not answered yet.
 - **Needs instructor:** nobody is confirmed or being asked, so you choose an instructor.
 - **Proposed time:** the instructor proposed another time, which you accept or reject.
-- **Not asked yet:** nobody was asked yet. The Primary instructor is asked first.
+- **Not asked yet:** nobody was asked yet. The class week names who is planned to be asked first, usually the Primary instructor, and the day asking starts.
 - **Setup incomplete:** something is missing, such as class times or an instructor order, so nobody can be asked yet.
 - **Paused:** requests for this class week are paused, so nobody is asked.
 - **Cancelled:** the class week or class will not take place.

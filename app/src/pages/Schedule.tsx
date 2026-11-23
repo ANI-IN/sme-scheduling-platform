@@ -27,7 +27,8 @@ import { useRememberedFilters } from '@/lib/useFilters';
 import { FilterBar } from '@/components/FilterBar';
 import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
 import { PT } from '@/lib/time';
-import { asRegion, classTimeLine, REGIONS, TZ } from '@/lib/region';
+import { asRegion, classTimeLine, REGIONS, TZ, weekRegion } from '@/lib/region';
+import { plannedLine } from '@/lib/planned';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { AT_RISK, WEEK_KINDS, WEEK_STATUS, weekState, weeksById } from '@/lib/status';
 import { downloadCsv, toCsv } from '@/lib/csv';
@@ -53,6 +54,19 @@ import { PlanDialog } from './PlanDialog';
 import { BulkChangeDialog } from './boardBulk';
 import { AddClassDialog } from './AddClassDialog';
 import { ClassDrawer, useRun } from './ClassDrawer';
+import { StartAskingDialog, usePlanned } from './startAsking';
+
+/** The statuses of a class week nobody is confirmed or asked for, which show who is planned instead. */
+const PLANNED_FOR: string[] = [
+  WEEK_STATUS['Not asked yet'].word,
+  WEEK_STATUS.Paused.word,
+  WEEK_STATUS['Setup incomplete'].word,
+  WEEK_STATUS['Needs instructor'].word,
+];
+
+/** "Database Design, Weekday cohort, week of Oct 4". */
+const weekLabel = (w: WeekRow) =>
+  `${w.module?.name ?? 'Class week'}${w.cohort ? `, ${w.cohort}` : ''}, week of ${DateTime.fromISO(w.week_start_date).toFormat('LLL d')}`;
 
 /** The fields of the filter bar, in order (Release 3, C13). Values are the words people read. */
 export const CLASSES_FILTERS = ['cohort', 'module', 'region', 'status', 'instructor'] as const;
@@ -94,6 +108,7 @@ export default function Schedule() {
   const [search, setSearch] = useState('');
   const [queueFor, setQueueFor] = useState<string[] | null>(null);
   const [bulk, setBulk] = useState<'move' | 'cancel' | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
@@ -115,6 +130,17 @@ export default function Schedule() {
     return m;
   }, [holidays.data]);
   const weekIds = (weeks.data ?? []).map((w) => w.id);
+  // Who is planned for each coming class week nobody is confirmed or asked for yet (the database's own line).
+  const planned = usePlanned(
+    (weeks.data ?? [])
+      .filter(
+        (w) =>
+          PLANNED_FOR.includes(weekState(w, names, byId).kind) &&
+          !!w.first_class_at &&
+          new Date(w.first_class_at) > new Date(),
+      )
+      .map((w) => w.id),
+  );
   const checklist = useQuery({
     queryKey: ['checklist_item', 'grid', domain?.id, weekIds.length],
     enabled: weekIds.length > 0,
@@ -326,7 +352,10 @@ export default function Schedule() {
       col.accessor(
         (r) => {
           const s = weekState(r.week, names, byId);
-          return s.confirmed ?? (s.asking ? `${WEEK_STATUS.Waiting.word}: ${s.asking}` : '');
+          if (s.confirmed) return `${WEEK_STATUS.Confirmed.word}: ${s.confirmed}`;
+          if (s.asking) return `${WEEK_STATUS.Waiting.word}: ${s.asking}`;
+          const p = planned.data?.get(r.week.id);
+          return (p && plannedLine(p, DateTime.now(), weekRegion(r.week.class_session))) ?? '';
         },
         {
           id: 'confirmed',
@@ -378,7 +407,7 @@ export default function Schedule() {
           ) : null,
       }),
     ],
-    [selected, names, byId, checklistByWeek],
+    [selected, names, byId, checklistByWeek, planned.data],
   );
 
   // TanStack Table manages its own memoisation; the React Compiler skips this component.
@@ -474,6 +503,9 @@ export default function Schedule() {
           <strong className="px-1">
             {selected.size} class week{selected.size === 1 ? '' : 's'} selected
           </strong>
+          <Button size="sm" onClick={() => setStarting(true)}>
+            Start asking now
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => setQueueFor([...selected])}>
             Choose who to ask
           </Button>
@@ -561,6 +593,13 @@ export default function Schedule() {
         </div>
       )}
       <ErrorText error={err} />
+      {starting && (
+        <StartAskingDialog
+          weeks={selectedWeeks.map((w) => ({ id: w.id, label: weekLabel(w) }))}
+          onDone={() => setSelected(new Set())}
+          onClose={() => setStarting(false)}
+        />
+      )}
       {bulk && (
         <BulkChangeDialog
           action={bulk}

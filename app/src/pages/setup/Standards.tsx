@@ -53,13 +53,13 @@ import {
   thead,
   trowClick,
 } from '@/components/ui';
+import { classTimeText } from '@/lib/classTimes';
 import { PatternEditor, SortableRow, type ModuleRow } from './moduleParts';
 import {
   CohortScheduleBadge,
   PlanFromStandardDialog,
   ResetToStandard,
   UpdateCohortsDialog,
-  classTimeText,
 } from './standardParts';
 import { refresh } from '@/lib/live';
 

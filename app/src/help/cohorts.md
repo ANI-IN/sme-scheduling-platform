@@ -80,8 +80,11 @@ Choices in one filter add up, and different filters narrow down. For example, tw
 
 Select a choice under the filters to remove it, press **Clear** in a filter's list to remove only its choices, or press **Clear all** to remove every filter. Your filters are remembered for you on this device, separately for each domain, so they are still there when you come back.
 
+The **Instructor** column says **Confirmed** or **Waiting for an answer** with the name. Before anyone is asked, it names who is planned and the day asking starts, for example **Planned: Victor Palmer (Primary), asking starts Sat, Oct 31**.
+
 Tick class weeks to change them together:
 
+- **Start asking now:** asks the planned instructor of each ticked class week straight away. First you see who will be asked, and which class weeks are left as they are and why. Press **Start asking** to go ahead. Nobody is confirmed until they say yes.
 - **Choose who to ask:** tick instructors in the order they should be asked. **Use the instructor order** and **Use a chosen list** switch between the two.
 - **Pause requests** and **Resume requests**.
 - **Move by weeks** and **Cancel classes** open the same preview as on the Schedule board. See [The Schedule board](/help/schedule-board).

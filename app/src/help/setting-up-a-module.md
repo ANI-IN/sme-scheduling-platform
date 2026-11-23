@@ -13,9 +13,9 @@ A module is something your domain teaches, for example Concurrency. The app plan
 
 1. Open [Modules](/setup/modules) and press **Add module**.
 2. **Module details:** enter the name and its **Order in the rotation** (1 is the first module). Press **Save and continue**. Until you finish, the module is saved as not in use, so it is not planned or asked yet.
-3. **Class times:** add each class of one class week. Press **Add class**, choose the **Class type**, the day (counted from the first class of the class week, on any weekday), **Starts (local time)** and **Length in minutes**. For example a live class on the first day at 9:00 AM for 240 minutes, and an assignment review 4 days after the first day at 6:00 PM for 120 minutes.
+3. **Class times:** a new module starts with the usual class times, already filled in: a **Live class** on **Sunday** from 9:00 AM to 1:00 PM and an **Assignment review** on **Thursday** from 6:00 PM to 8:00 PM, in the local time of each cohort. Change them with the pencil, remove one with the bin, or press **Add class** to add another: choose the **Class type**, the **Day**, **Starts (local time)** and **Length in minutes**. The days are shown for a class week that starts on Sunday, as usual. A class week planned from another day keeps the same gaps between its classes.
 4. **Instructor order:** choose instructors and drag them into order. The first is the **Primary instructor**, then **Backup 1**, **Backup 2** and so on. Use **Add new instructor** if someone is missing.
-5. **Owners and operations team:** press **Add an owner** and choose at least one. The operations team comes from the domain.
+5. **Owners and operations team:** click **Add an owner**, type part of a name to search, and tick one or more people. The list stays open, so you can tick several in a row, or press **Add all shown**. Each person shows as a chip; press the cross on a chip to remove them. Add at least one owner. Leave the operations team empty to use the domain's default operations team, or add people the same way.
 6. **Review and save:** missing items are marked under **Before you save**. Press **Save and start using**, or **Save as not in use** to finish later.
 
 Use **Back** and **Continue** to move between the steps.
