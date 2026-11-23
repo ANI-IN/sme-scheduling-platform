@@ -5,9 +5,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { DateTime } from 'luxon';
 import { Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { poke, rpc } from '@/lib/rpc';
+import { rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { asRegion, type Region } from '@/lib/region';
 import { useStandards, type CohortScheduleStatus } from '@/lib/data';
@@ -29,18 +28,7 @@ import {
   td,
   th,
 } from '@/components/ui';
-import { dayLabel } from './moduleParts';
-
-/** "Live class: first day, 9:00 AM, 240 minutes". */
-export function classTimeText(p: {
-  class_type: string;
-  day_offset: number;
-  start_time: string;
-  duration_minutes: number;
-}) {
-  const t = DateTime.fromFormat(p.start_time.slice(0, 5), 'HH:mm').toFormat('h:mm a');
-  return `${p.class_type}: ${dayLabel(p.day_offset).toLowerCase()}, ${t}, ${p.duration_minutes} minutes`;
-}
+import { deliverNow, refresh, refreshClasses } from '@/lib/live';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -206,8 +194,9 @@ function StandardChangesDialog({
       toast.success(done(r));
       // Close first, so the preview is not asked for again once it is saved.
       onClose();
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      refresh(qc, 'standard_schedule', 'cohort');
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {
@@ -476,7 +465,8 @@ export function PlanFromStandardDialog({
       toast.success(
         `Planned ${plural(rows.length, 'cohort')} with ${plural(res.class_weeks ?? 0, 'class week')}`,
       );
-      await qc.invalidateQueries();
+      refreshClasses(qc);
+      refresh(qc, 'standard_schedule', 'cohort');
       onClose();
     } catch (e) {
       setErr(e);

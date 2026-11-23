@@ -1,18 +1,18 @@
 title: Pausing all messages in an emergency
 summary: Stop every message to instructors at once, and turn them back on.
-order: 13
+order: 17
+group: Messages and settings
+keywords: pause, emergency, stop messages, turn messages back on, incident, wrong message, red bar
 ---
 
-Use this when something is wrong, for example wrong class times were sent or a message text has a mistake.
-
-Only an admin can pause or turn messages back on. If you are not an admin and something is wrong, tell an admin at once.
+Use this when something is wrong, for example wrong class times were sent or a message text has a mistake. Only an admin can pause or turn messages back on. If you are not an admin and something is wrong, tell an admin at once.
 
 ![Pause all messages from your account menu](/help/pause-menu.png)
 
 1. Open your account menu at the bottom of the sidebar (your email address).
 2. Press **Pause all messages** and confirm.
 
-You can also pause at the bottom of the [Automation](/settings/automation) page or from [Connections](/settings/connections).
+You can also pause from the **Pause all messages** section at the bottom of [Automation](/settings/automation) or on [Connections](/settings/connections).
 
 While messages are paused:
 
@@ -25,4 +25,8 @@ While messages are paused:
 
 Press **Turn messages back on** in the red bar and confirm. Messages that were waiting go out at the next automatic check. Nothing is lost and nothing is sent twice.
 
-> To pause only one class week, open it, choose **More options** and press **Pause requests**. To pause one domain, set its status to Paused on the Domains page.
+## Pause less than everything
+
+- **One class week:** open it, open **More options** and press **Pause requests**. The board shows **Paused**.
+- **Several class weeks:** tick them on [Upcoming classes](/classes) and press **Pause requests**.
+- **One domain:** set its status to **Paused** on [Domains](/setup/domains). See [Domains and the Discord server](/help/domains-and-discord).

@@ -149,7 +149,7 @@ test('replacing an instructor: release from the class drawer, the next one is as
     [w.id],
   );
   expect(next.name).not.toBe(w.name);
-  await expect(dlg.getByText(`Asking ${next.name} now.`)).toBeVisible();
+  await expect(dlg.getByText(`Waiting for an answer from ${next.name}.`)).toBeVisible();
 });
 
 test('reminders: the daily summary is switched off for the domain and back on', async ({
@@ -168,13 +168,15 @@ test('reminders: the daily summary is switched off for the domain and back on', 
     );
     return rows.length ? String(rows[0]!.v) : 'default';
   };
+  // A switch saves as soon as it changes: there is no Save changes bar for it.
   await sw.click();
-  await page.getByRole('button', { name: 'Save changes' }).click();
   await expect.poll(value).toBe(String(!wasOn));
+  await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(0);
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
   // Back on: the switch shows the saved value after a reload.
   await sw.click();
-  await page.getByRole('button', { name: 'Save changes' }).click();
   await expect.poll(value).not.toBe(String(!wasOn));
+  await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(0);
   await page.reload();
   await ready(page);
   await expect(sw).toHaveAttribute('aria-checked', String(wasOn));

@@ -4,7 +4,7 @@
 // person can do each one in the app and that the result lands in the database.
 import type { Locator, Page } from '@playwright/test';
 import { EMAIL, signInLink } from '../env.ts';
-import { expect, loadDemoData, ready, sql, test } from './fixtures.ts';
+import { expect, loadDemoData, ready, setFilter, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'default' });
 test.beforeAll(() => loadDemoData());
@@ -55,7 +55,7 @@ async function backendModule(name = 'Database Design') {
 async function openWeek(page: Page, cohort: string, has: RegExp) {
   await page.goto('/classes');
   await ready(page);
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: cohort });
+  await setFilter(page, 'Cohort', [cohort]);
   await ready(page);
   await page.locator('tbody tr').filter({ hasText: has }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -85,10 +85,9 @@ test('weekend and weekday cohorts run at the same time', async ({ page }) => {
 
   await page.goto('/classes');
   await ready(page);
-  const cohort = page.getByRole('combobox', { name: 'Cohort' });
-  await cohort.selectOption({ label: 'Weekday cohort' });
+  await setFilter(page, 'Cohort', ['Weekday cohort']);
   await expect(page.locator('tbody tr').first()).toContainText(/Tue/);
-  await cohort.selectOption({ label: 'Weekend cohort' });
+  await setFilter(page, 'Cohort', ['Weekend cohort']);
   await expect(page.locator('tbody tr').first()).toContainText(/Sat/);
 
   // Plan a third cohort in the same weeks from the app.
@@ -125,7 +124,7 @@ test('the same instructor teaches in two cohorts', async ({ page }) => {
       where c.name = 'Weekend cohort' and b.status = 'Active'`,
   );
   expect(confirmed.length).toBeGreaterThan(0);
-  await openWeek(page, 'Weekday cohort', /Needs an instructor|Ready to ask|Asking|Not started/);
+  await openWeek(page, 'Weekday cohort', /Needs instructor|Not asked yet|Waiting for an answer/);
   const dlg = page.getByRole('dialog');
   const select = dlg.getByRole('combobox', { name: 'Instructor', exact: true });
   const options = (await select.locator('option').allTextContents()).map((o) => o.trim());
@@ -207,7 +206,7 @@ test('a one off class, and a warning accepted with a reason', async ({ page }) =
 });
 
 test('"same instructor" off for one class week', async ({ page }) => {
-  await openWeek(page, 'Weekend cohort', /Needs an instructor|Ready to ask|Not started/);
+  await openWeek(page, 'Weekend cohort', /Needs instructor|Not asked yet/);
   const dlg = page.getByRole('dialog');
   await dlg.getByText('More options', { exact: true }).click();
   const sw = dlg.getByLabel('The same instructor teaches every class of this week');
@@ -287,15 +286,19 @@ test('two people edit the same module: the second is asked to reload', async ({ 
   const m = await backendModule('Concurrency');
   const a = await browser.newPage();
   const b = await browser.newPage();
+  // The second person does not hear live updates (as when their connection drops), so their page still has the
+  // version they opened. With live updates their page would show the first change before they type.
+  await b.routeWebSocket(/\/realtime\//, () => {});
   for (const p of [a, b]) {
     await p.goto(`/setup/modules/${m.id}`);
     await ready(p);
   }
+  // The name saves by itself when the field is left.
   await a.getByLabel('Name').first().fill('Concurrency A');
-  await a.getByRole('button', { name: 'Save changes' }).first().click();
-  await expect(a.getByText(/saved/i).first()).toBeVisible();
+  await a.getByLabel('Name').first().blur();
+  await expect(a.getByText('Saved', { exact: true })).toBeVisible();
   await b.getByLabel('Name').first().fill('Concurrency B');
-  await b.getByRole('button', { name: 'Save changes' }).first().click();
+  await b.getByLabel('Name').first().blur();
   await expect(b.getByText(/Someone else saved this after you opened it/)).toBeVisible();
   const now = await backendModule('Concurrency A');
   expect(now.id).toBe(m.id);
@@ -307,14 +310,24 @@ test('owners and the operations team can be reassigned', async ({ page }) => {
   const m = await backendModule('API Design');
   await page.goto(`/setup/modules/${m.id}?tab=owners`);
   await ready(page);
+  // A real multi select: search, tick an option (the list stays open), and the chip has a remove button.
   const addOwner = page.getByRole('combobox', { name: 'Add an owner' });
-  await addOwner.selectOption({ label: 'Sandbox Escalation' });
+  await addOwner.fill('sandbox esc');
+  const ownerList = page.getByRole('listbox', { name: 'Add an owner' });
+  await ownerList.getByRole('option', { name: 'Sandbox Escalation' }).click();
   await expect(page.getByRole('button', { name: 'Remove Sandbox Escalation' })).toBeVisible();
+  await expect(ownerList.getByRole('option', { name: 'Sandbox Escalation' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await addOwner.press('Escape');
+  await expect(ownerList).toHaveCount(0);
   await page.goto(`/setup/modules/${m.id}?tab=operations`);
   await ready(page);
-  await page.getByRole('combobox', { name: 'Add a person' }).first().selectOption({
-    label: 'Sandbox Owner',
-  });
+  // The keyboard works too: typing makes the first match active, and Enter ticks it.
+  const addPerson = page.getByRole('combobox', { name: 'Add a person', exact: true });
+  await addPerson.fill('Sandbox Owner');
+  await addPerson.press('Enter');
   await expect(page.getByRole('button', { name: 'Remove Sandbox Owner' }).first()).toBeVisible();
   const owners = await sql<{ name: string }>(
     `select t.name from public.module_owner o join public.team_member t on t.id = o.team_member_id
@@ -460,13 +473,13 @@ test('a US cohort and an India cohort: time zones, badges and the region filter'
   expect(r).toEqual({ cohort: 'India', classes: 'India', ist: '09:00' });
 
   // The region filter: India classes show IST only; US classes show PST or PDT and the India time.
-  await page.getByRole('combobox', { name: 'Region' }).selectOption('India');
+  await setFilter(page, 'Region', ['India']);
   await ready(page);
   const india = page.locator('tbody tr').filter({ hasText: 'E2E India' }).first();
   await expect(india).toContainText('IST');
   await expect(india).not.toContainText(/PST|PDT/);
   await expect(india.getByText('India', { exact: true })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Region' }).selectOption('US');
+  await setFilter(page, 'Region', ['US']);
   await ready(page);
   const us = page.locator('tbody tr').first();
   await expect(us).toContainText(/PST|PDT/);
@@ -546,7 +559,7 @@ test('an instructor busy in a US class cannot take an India class at the same mo
   await goAhead(page, 'Add anyway', 'E2E: this time on purpose', 8_000);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: 'E2E India' });
+  await setFilter(page, 'Cohort', ['E2E India']);
   await page.getByLabel('Search classes').fill('E2E same moment');
   await ready(page);
   await page.locator('tbody tr').first().click();

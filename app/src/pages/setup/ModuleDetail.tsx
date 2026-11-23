@@ -4,6 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import { useAutosave } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { useDomain } from '@/lib/domain';
 import { useCohorts, useModules, useTeam } from '@/lib/data';
 import { LastChanged } from '@/components/LastChanged';
@@ -12,7 +15,6 @@ import { PeoplePicker } from '@/components/PeoplePicker';
 import { ArchiveButton, DeleteButton, useRemovePart } from '@/components/Lifecycle';
 import {
   Badge,
-  Button,
   Checkbox,
   Empty,
   ErrorText,
@@ -67,7 +69,7 @@ export default function ModuleDetail() {
     try {
       await fn();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      refresh(qc, 'module', 'module_operations');
     } catch (e) {
       setErr(e);
     }
@@ -100,7 +102,7 @@ export default function ModuleDetail() {
         tabs={MODULE_TABS}
       >
         <TabPanel value="details">
-          <DetailsForm key={m.version} module={m} run={run} />
+          <DetailsForm module={m} />
         </TabPanel>
         <TabPanel value="times">
           <Section
@@ -170,23 +172,46 @@ export default function ModuleDetail() {
 
 type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
-function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
+function DetailsForm({ module: m }: { module: ModuleRow }) {
   const navigate = useNavigate();
-  const [f, setF] = useState({
+  const stored = {
     name: m.name,
     rotation_order: m.rotation_order,
     status: m.status,
     same: m.same_instructor_for_module_week,
-  });
+  };
+  const [f, setF] = useState(stored);
   const v = useFormErrors({
     name: !f.name.trim() ? 'Enter a name.' : undefined,
     rotation_order: !(f.rotation_order >= 1) ? 'Use 1 or more.' : undefined,
   });
-  const dirty =
-    f.name !== m.name ||
-    f.rotation_order !== m.rotation_order ||
-    f.status !== m.status ||
-    f.same !== m.same_instructor_for_module_week;
+  // Name, order, status and the toggle save as they change (C15); the page header follows when the list reloads.
+  const qc = useQueryClient();
+  const auto = useAutosave({
+    value: { ...f, name: f.name.trim() },
+    instant: ['status', 'same'],
+    stored,
+    version: m.version,
+    valid: !v.hasErrors,
+    onReload: setF,
+    save: async (x, version) => {
+      const [row] = check(
+        await supabase
+          .from('module')
+          .update({
+            name: x.name,
+            rotation_order: x.rotation_order,
+            status: x.status,
+            same_instructor_for_module_week: x.same,
+            version,
+          })
+          .eq('id', m.id)
+          .select(),
+      );
+      refresh(qc, 'module');
+      return row?.version;
+    },
+  });
   return (
     <div className="space-y-5">
       <Section title="Module details">
@@ -194,7 +219,7 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
           <Field label="Name" required error={v.show('name')}>
             <Input
               value={f.name}
-              onBlur={v.touch('name')}
+              onBlur={() => (v.touch('name')(), auto.flush())}
               onChange={(e) => setF({ ...f, name: e.target.value })}
             />
           </Field>
@@ -207,16 +232,16 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
               type="number"
               min={1}
               value={f.rotation_order}
-              onBlur={v.touch('rotation_order')}
+              onBlur={() => (v.touch('rotation_order')(), auto.flush())}
               onChange={(e) => setF({ ...f, rotation_order: Number(e.target.value) })}
             />
           </Field>
           <Field
             label="Status"
-            hint="Modules that are not in use are skipped when planning and asking."
+            hint="Draft while you set it up: it is skipped when planning and nobody is asked. Live: instructors are asked."
           >
             <Select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>
-              {['Active', 'Inactive'].map((s) => (
+              {['Inactive', 'Active'].map((s) => (
                 <option key={s} value={s}>
                   {MODULE_STATUS[s]?.label}
                 </option>
@@ -233,32 +258,7 @@ function DetailsForm({ module: m, run }: { module: ModuleRow; run: Run }) {
             />
           </div>
         </div>
-        <Button
-          className="mt-4"
-          disabled={!dirty}
-          onClick={() =>
-            v.submit() &&
-            run(
-              async () =>
-                check(
-                  await supabase
-                    .from('module')
-                    .update({
-                      name: f.name.trim(),
-                      rotation_order: f.rotation_order,
-                      status: f.status,
-                      same_instructor_for_module_week: f.same,
-                      version: m.version,
-                    })
-                    .eq('id', m.id)
-                    .select(),
-                ),
-              'Changes saved',
-            )
-          }
-        >
-          Save changes
-        </Button>
+        <SaveState className="mt-3" status={auto.status} waiting={auto.dirty} />
         <div className="mt-2">
           <LastChanged at={m.updated_at} by={m.updated_by} />
         </div>
@@ -295,13 +295,15 @@ export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
         selected={m.module_owner.map((o) => o.team_member_id)}
         addLabel="Add an owner"
         emptyText="No owner yet. A module needs at least one owner before requests can start."
-        onAdd={(id) =>
+        onAdd={(ids) =>
           run(
             async () =>
               check(
-                await supabase.from('module_owner').insert({ module_id: m.id, team_member_id: id }),
+                await supabase
+                  .from('module_owner')
+                  .insert(ids.map((id) => ({ module_id: m.id, team_member_id: id }))),
               ),
-            'Owner added',
+            ids.length === 1 ? 'Owner added' : `${ids.length} owners added`,
           )
         }
         onRemove={async (id) => {
@@ -319,7 +321,7 @@ export function Owners({ module: m, run }: { module: ModuleRow; run: Run }) {
               'Owner removed',
             )
           )
-            await qc.invalidateQueries();
+            refresh(qc, 'module');
         }}
       />
     </Section>
@@ -364,7 +366,16 @@ function ForCohort({
 }
 
 /** Operations team for the module, and for a cohort when it differs. Empty means the domain default. */
-function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
+export function OperationsTeam({
+  module: m,
+  run,
+  moduleOnly,
+}: {
+  module: ModuleRow;
+  run: Run;
+  /** Only the module's own team, without the cohorts (the new module flow). */
+  moduleOnly?: boolean;
+}) {
   const team = useTeam();
   const qc = useQueryClient();
   const removePart = useRemovePart();
@@ -386,13 +397,13 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
       ),
   });
   const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
-  const picker = (cohortId: string | null) => (
+  const picker = (cohortId: string | null, cohortName?: string) => (
     <PeoplePicker
       people={(team.data ?? []).filter((t) => !t.access_removed_at)}
       selected={(rows.data ?? [])
         .filter((r) => r.cohort_id === cohortId)
         .map((r) => r.team_member_id)}
-      addLabel="Add a person"
+      addLabel={cohortName ? `Add a person for ${cohortName}` : 'Add a person'}
       emptyText={
         cohortId
           ? 'Same as the module.'
@@ -401,15 +412,19 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
               'nobody yet'
             }.`
       }
-      onAdd={(id) =>
+      onAdd={(ids) =>
         run(
           async () =>
             check(
               await supabase
                 .from('module_operations')
-                .insert({ module_id: m.id, cohort_id: cohortId, team_member_id: id }),
+                .insert(
+                  ids.map((id) => ({ module_id: m.id, cohort_id: cohortId, team_member_id: id })),
+                ),
             ),
-          'Added to the operations team',
+          ids.length === 1
+            ? 'Added to the operations team'
+            : `${ids.length} people added to the operations team`,
         )
       }
       onRemove={async (id) => {
@@ -428,7 +443,7 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
             'Removed from the operations team',
           )
         )
-          await qc.invalidateQueries();
+          refresh(qc, 'module_operations');
       }}
     />
   );
@@ -440,7 +455,7 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
       >
         {picker(null)}
       </Section>
-      {(cohorts.data ?? []).length > 0 && (
+      {!moduleOnly && (cohorts.data ?? []).length > 0 && (
         <Section
           title="Different people for a cohort"
           description="Only when a cohort has its own operations team for this module."
@@ -449,7 +464,7 @@ function OperationsTeam({ module: m, run }: { module: ModuleRow; run: Run }) {
             {(cohorts.data ?? []).map((c) => (
               <div key={c.id}>
                 <div className="mb-1 text-sm font-medium">{c.name}</div>
-                {picker(c.id)}
+                {picker(c.id, c.name)}
               </div>
             ))}
           </div>

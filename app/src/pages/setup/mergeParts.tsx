@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { useCohorts } from '@/lib/data';
 import { useConfirm } from '@/components/Confirm';
@@ -23,6 +23,7 @@ import {
   SkeletonRows,
   formatDateValue,
 } from '@/components/ui';
+import { deliverNow, refresh, refreshClasses } from '@/lib/live';
 
 type MergeWeek = {
   module_week_id: string;
@@ -125,8 +126,9 @@ export function MergeCohortsDialog({
         `Cohorts merged into ${name.trim()}: ${r.moved} class week${r.moved === 1 ? '' : 's'} moved`,
       );
       onClose();
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      refresh(qc, 'cohort');
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {
@@ -346,7 +348,8 @@ export function MergedBadge({
             try {
               await rpc('undo_cohort_merge', { p_merge_id: merge.data!.id });
               toast.success('Merge undone');
-              await qc.invalidateQueries();
+              refreshClasses(qc);
+              refresh(qc, 'cohort');
             } catch (e) {
               setErr(e);
             }

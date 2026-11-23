@@ -3,8 +3,8 @@ import { DateTime } from 'luxon';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
-import { useNameBook, type WeekRow } from '@/lib/data';
+import { check, rpc } from '@/lib/rpc';
+import { useNameBook, useWeeks, type WeekRow } from '@/lib/data';
 import { currentBlocked } from '@/lib/blocked';
 import { BlockedMessages } from '@/components/BlockedMessages';
 import { discordNames } from '@/lib/discordNames';
@@ -12,8 +12,9 @@ import { messageTitle, plain } from '@/lib/plain';
 import { describeHistory } from '@/lib/historyText';
 import { fmtLocal } from '@/lib/time';
 import { asRegion, localParts, timeFieldLabel } from '@/lib/region';
+import { COHORT_BADGE, MSG_STATUS, PANEL_BADGE, STATUS } from './boardBadges';
 import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
-import { weekState } from '@/lib/status';
+import { weekState, weeksById } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
@@ -29,6 +30,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  DateInput,
   Drawer,
   ErrorText,
   Field,
@@ -36,6 +38,7 @@ import {
   Select,
   Textarea,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Eligible = {
   instructor_id: string;
@@ -56,9 +59,9 @@ export function useRun() {
     try {
       const r = await fn();
       if (ok) toast.success(ok);
-      // Show the result at once, then ask n8n to deliver; refresh again when it has started.
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      // The class lists load again in the background, and n8n is asked to deliver; neither is waited for.
+      refreshClasses(qc);
+      deliverNow(qc);
       return r;
     } catch (e) {
       setErr(e);
@@ -81,7 +84,9 @@ export function ClassDrawer({
 }) {
   const confirm = useConfirm();
   const { run, err, busy } = useRun();
-  const state = weekState(week, names);
+  // A shared class week shows the status of the class week it is taught in.
+  const all = useWeeks(week.shared_with ? week.domain_id : undefined);
+  const state = weekState(week, names, weeksById(all.data));
   const classes = [...week.class_session].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const booking = week.booking.find((b) => b.status === 'Active');
 
@@ -187,14 +192,19 @@ export function ClassDrawer({
         {timeline.data && <BlockedMessages messages={currentBlocked(timeline.data.messages)} />}
         <div className="flex flex-wrap gap-2">
           <Badge tone={state.tone}>{state.short}</Badge>
-          {week.at_risk && state.kind !== 'At risk' && <Badge tone="danger">At risk</Badge>}
-          <Badge>{week.outreach_mode === 'Manual' ? 'Chosen list' : 'Instructor order'}</Badge>
-          {week.shared_with ? (
-            <Badge tone="accent">Shared class</Badge>
-          ) : (
-            week.paused && <Badge tone="accent">Requests paused</Badge>
+          {week.at_risk && state.status !== 'Confirmed' && (
+            <Badge tone="danger">{PANEL_BADGE.atRisk}</Badge>
           )}
-          {openHelp && <Badge tone="warning">Help request open</Badge>}
+          <Badge>
+            {week.outreach_mode === 'Manual' ? PANEL_BADGE.chosenList : PANEL_BADGE.instructorOrder}
+          </Badge>
+          {week.shared_with ? (
+            <Badge tone="accent">{PANEL_BADGE.sharedClass}</Badge>
+          ) : (
+            week.paused &&
+            state.status !== 'Paused' && <Badge tone="neutral">{STATUS.Paused.word}</Badge>
+          )}
+          {openHelp && <Badge tone="warning">{PANEL_BADGE.helpOpen}</Badge>}
         </div>
         {week.at_risk && week.at_risk_reason && (
           <p className="-mt-4 text-danger-strong">{plain(week.at_risk_reason)}</p>
@@ -253,7 +263,9 @@ export function ClassDrawer({
             </div>
           ) : (
             <p className="text-muted-foreground">
-              {state.asking ? `Asking ${state.asking} now.` : 'No instructor confirmed yet.'}
+              {state.asking
+                ? `${STATUS.Waiting.word} from ${state.asking}.`
+                : 'No instructor confirmed yet.'}
             </p>
           )}
           {!booking && week.status !== 'Cancelled' && (
@@ -431,7 +443,9 @@ export function ClassDrawer({
                             p_module_week_id: week.id,
                             p_paused: !week.paused,
                           }),
-                        week.paused ? 'Requests resumed' : 'Requests paused',
+                        week.paused
+                          ? 'Requests for this class week resumed'
+                          : 'Requests for this class week are paused',
                       )
                     }
                   >
@@ -463,7 +477,7 @@ export function ClassDrawer({
                     onClick={() =>
                       run(
                         () => rpc('start_asking_now', { p_module_week_id: week.id }),
-                        'Asking now',
+                        'Started asking',
                       )
                     }
                   >
@@ -728,16 +742,6 @@ const VIA: Record<string, string> = {
   Offline: 'agreed by phone or chat',
   Manual: 'assigned by the team',
 };
-const MSG_STATUS: Record<string, string> = {
-  Scheduled: 'Scheduled',
-  Pending: 'Waiting to send',
-  Sending: 'Sending',
-  Sent: 'Sent',
-  Failed: 'Not delivered',
-  Received: 'Received',
-  Cancelled: 'Not sent',
-};
-
 type Compare = {
   follows_standard: boolean;
   standard?: {
@@ -781,7 +785,7 @@ function StandardGroup({ week }: { week: WeekRow }) {
       <div className="flex flex-wrap items-center gap-2">
         {c.customized_at ? (
           <>
-            <Badge tone="warning">Custom</Badge>
+            <Badge tone="warning">{COHORT_BADGE.custom}</Badge>
             <span className="text-muted-foreground">
               Changed for this cohort on {DateTime.fromISO(c.customized_at).toFormat('LLL d, yyyy')}
               .
@@ -789,14 +793,14 @@ function StandardGroup({ week }: { week: WeekRow }) {
           </>
         ) : c.differs ? (
           <>
-            <Badge tone="success">Standard</Badge>
+            <Badge tone="success">{COHORT_BADGE.standard}</Badge>
             <span className="text-muted-foreground">
               The standard changed after this class week was planned.
             </span>
           </>
         ) : (
           <>
-            <Badge tone="success">Standard</Badge>
+            <Badge tone="success">{COHORT_BADGE.standard}</Badge>
             <span className="text-muted-foreground">It follows its standard.</span>
           </>
         )}
@@ -884,7 +888,7 @@ function ClassEditor({
         <ClassTime start={c.starts_at} end={c.ends_at} region={c.region} className="font-medium" />
         {c.status === 'Planned' && c.previous_starts_at && (
           <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <Badge tone="accent">Moved</Badge> before:{' '}
+            <Badge tone="accent">{PANEL_BADGE.moved}</Badge> before:{' '}
             <ClassTime
               start={c.previous_starts_at}
               end={c.previous_ends_at ?? c.ends_at}
@@ -902,15 +906,14 @@ function ClassEditor({
             {timeFieldLabel(t.region, t.date)}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date"
+            <DateInput
               aria-label="Date"
               value={t.date}
-              onChange={(ev) => {
-                setT({ ...t, date: ev.target.value });
+              onChange={(date) => {
+                setT({ ...t, date });
                 setFold(null);
               }}
-              className="h-8 w-40"
+              className="w-48"
             />
             <Input
               type="time"

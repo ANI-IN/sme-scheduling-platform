@@ -6,8 +6,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
+import { timesChoice, withoutGuest } from '@/lib/share';
 import { useConfirm } from '@/components/Confirm';
 import { DrawerGroup } from '@/components/DrawerGroup';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
@@ -21,6 +22,7 @@ import {
   Select,
   SkeletonRows,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Week = {
   id: string;
@@ -90,6 +92,7 @@ export function ShareDialog({
   const qc = useQueryClient();
   const candidates = useCandidates(week);
   const [chosen, setChosen] = useState<string[]>(guests ?? []);
+  // Empty until someone chooses; choosing this class week sends its own ID (an empty choice is no choice).
   const [timesFrom, setTimesFrom] = useState<string>('');
   const [release, setRelease] = useState(false);
   const [pending, setPending] = useState<CheckWarning[] | null>(null);
@@ -113,6 +116,7 @@ export function ShareDialog({
     refetchOnWindowFocus: false,
   });
   const p = preview.data;
+  const times = timesChoice(timesFrom, week.id, p?.different_times);
   const name = (id: string) => {
     const c = (candidates.data ?? []).find((x) => x.id === id);
     return c
@@ -135,8 +139,8 @@ export function ShareDialog({
       }
       toast.success(`Class shared with ${r.saved} other class week${r.saved === 1 ? '' : 's'}`);
       onClose();
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {
@@ -166,9 +170,12 @@ export function ShareDialog({
                   key={c.id}
                   label={`${c.cohort_ref?.name ?? 'Cohort'}: ${c.module?.name ?? 'class week'}, week of ${weekOf(c.week_start_date)}`}
                   checked={chosen.includes(c.id)}
-                  onChange={(v) =>
-                    setChosen(v ? [...chosen, c.id] : chosen.filter((x) => x !== c.id))
-                  }
+                  onChange={(v) => {
+                    if (v) return setChosen([...chosen, c.id]);
+                    const next = withoutGuest(chosen, c.id, timesFrom);
+                    setChosen(next.chosen);
+                    setTimesFrom(next.timesFrom);
+                  }}
                 />
               ))}
             </div>
@@ -178,11 +185,16 @@ export function ShareDialog({
           <div className="flex flex-wrap items-end gap-4">
             <Field label="The shared class keeps the times of">
               <Select
-                value={timesFrom}
+                value={times.value}
                 onChange={(e) => setTimesFrom(e.target.value)}
                 className="w-72"
               >
-                <option value="">This class week</option>
+                {times.needsChoice && (
+                  <option value="" disabled>
+                    Choose whose times
+                  </option>
+                )}
+                <option value={week.id}>This class week</option>
                 {chosen.map((id) => (
                   <option key={id} value={id}>
                     {name(id)}
@@ -318,8 +330,8 @@ export function SharedClassGroup({ week }: { week: Week }) {
           ? 'No longer shared: its instructor order is being asked'
           : 'No longer shared: its instructor order is asked when asking starts',
       );
-      await qc.invalidateQueries();
-      void poke().then(() => qc.invalidateQueries());
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     }

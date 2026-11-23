@@ -22,10 +22,18 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { reorderA11y } from '@/lib/reorder';
-import { DateTime } from 'luxon';
+import {
+  DAY_HINT,
+  clockTime,
+  dayLabel,
+  nextClassTime,
+  withClassType,
+  type ClassTimeInput,
+} from '@/lib/classTimes';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { instructorStatusLabel } from '@/lib/labels';
+import { WEEK_STATUS } from '@/lib/status';
 import { useDomain } from '@/lib/domain';
 import { useInstructors, useModules, useWeeks } from '@/lib/data';
 import { fmtAt, weekRegion } from '@/lib/region';
@@ -43,13 +51,9 @@ import {
 } from '@/components/ui';
 import { useInstructorContext } from '../Instructors';
 import { useFormErrors } from '@/lib/useFormErrors';
+import { refresh } from '@/lib/live';
 
 export type ModuleRow = NonNullable<ReturnType<typeof useModules>['data']>[number];
-export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-/** A pattern day: days after the first class of the class week. */
-export const dayLabel = (o: number) =>
-  o === 0 ? 'First day' : `${o} day${o === 1 ? '' : 's'} after the first day`;
 
 export type Run = (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 
@@ -91,13 +95,6 @@ export function PatternEditor({
           .order('name'),
       ),
   });
-  const blank = {
-    class_type: 'Live class',
-    day_offset: 0,
-    start_time: '09:00',
-    duration_minutes: 240,
-  };
-  const [n, setN] = useState(blank);
   // Editing one class time fills the form below; saving changes it in place (decision 257).
   const [editId, setEditId] = useState<string | null>(null);
   const removePart = useRemovePart();
@@ -107,6 +104,10 @@ export function PatternEditor({
       ? standard.items.filter((p) => p.module_id === m.id)
       : m.class_pattern_item.filter((p) => (p.cohort_id ?? undefined) === cohortId)
   ).sort((a, b) => a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time));
+  // Until something is typed, the form holds the next default class time (B10): Sunday's live class, then the
+  // Thursday review. Going back to the defaults (null) follows the class times as they are saved.
+  const [typed, setN] = useState<ClassTimeInput | null>(null);
+  const n = typed ?? nextClassTime(items);
   // A standard schedule's class times allow the same days as a module's own (decision 300).
   const days = 14;
   const later = standard
@@ -145,13 +146,12 @@ export function PatternEditor({
       }),
     );
   };
-  const time = (t: string) => DateTime.fromFormat(t.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   return (
     <section>
       {items.length === 0 ? (
         <div className="mb-3 text-sm text-muted-foreground">
           {empty ??
-            'No classes yet. Add the live class and its review, for example Sunday 9:00 AM for 240 minutes and Thursday 6:00 PM for 120 minutes.'}
+            'No classes yet. The form below starts with the usual times: the live class on Sunday, then the assignment review on Thursday.'}
         </div>
       ) : (
         <div className="mb-4 overflow-x-auto">
@@ -172,7 +172,7 @@ export function PatternEditor({
                 <tr key={p.id} className="border-b border-border last:border-0">
                   <td className={td}>{p.class_type}</td>
                   <td className={td}>{dayLabel(p.day_offset)}</td>
-                  <td className={td}>{time(p.start_time)}</td>
+                  <td className={td}>{clockTime(p.start_time)}</td>
                   <td className={td}>{p.duration_minutes} minutes</td>
                   <td className={`${td} text-right whitespace-nowrap`}>
                     <Button
@@ -203,7 +203,7 @@ export function PatternEditor({
                             `Class time removed. ${later}`,
                           )
                         )
-                          await qc.invalidateQueries();
+                          refresh(qc, standard ? 'standard_schedule' : 'module');
                       }}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -217,13 +217,18 @@ export function PatternEditor({
       )}
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Class type">
-          <Select value={n.class_type} onChange={(e) => setN({ ...n, class_type: e.target.value })}>
+          <Select
+            value={n.class_type}
+            onChange={(e) =>
+              setN(editId ? { ...n, class_type: e.target.value } : withClassType(n, e.target.value))
+            }
+          >
             {(types.data?.map((t) => t.name) ?? ['Live class', 'Assignment review']).map((s) => (
               <option key={s}>{s}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Day" hint="Counted from the first class of the class week, on any weekday.">
+        <Field label="Day" hint={DAY_HINT}>
           <Select
             value={n.day_offset}
             onChange={(e) => setN({ ...n, day_offset: Number(e.target.value) })}
@@ -255,12 +260,13 @@ export function PatternEditor({
             className="w-24"
           />
         </Field>
+        {/* Keeps its button (C15): a class time is four fields that only make sense together. */}
         <Button
           variant="secondary"
           onClick={async () => {
             await run(save, editId ? `Class time saved. ${later}` : 'Class time added');
             setEditId(null);
-            setN(blank);
+            setN(null);
           }}
         >
           {editId ? 'Save class time' : 'Add class'}
@@ -270,7 +276,7 @@ export function PatternEditor({
             variant="ghost"
             onClick={() => {
               setEditId(null);
-              setN(blank);
+              setN(null);
             }}
           >
             Go back
@@ -380,7 +386,7 @@ export function RankingEditor({
           <ol className="space-y-1">
             {order.map((id, idx) => {
               const i = byId.get(id);
-              const greyed = !i || i.status !== 'Active' || !i.verified_at;
+              const greyed = !i || i.status !== 'Active';
               return (
                 <SortableRow key={id} id={id} label={i?.full_name ?? 'Unknown instructor'}>
                   <span className="w-32 text-xs text-muted-foreground">
@@ -390,9 +396,6 @@ export function RankingEditor({
                     {i?.full_name ?? 'Unknown'}
                   </span>
                   {i && i.status !== 'Active' && <Badge>{instructorStatusLabel(i.status)}</Badge>}
-                  {i && !i.verified_at && !i.is_test && (
-                    <Badge tone="warning">Not checked yet</Badge>
-                  )}
                   {i?.is_test && <Badge tone="accent">Test instructor</Badge>}
                   <span
                     className="ml-2 hidden truncate text-xs text-muted-foreground sm:inline"
@@ -441,6 +444,7 @@ export function RankingEditor({
           Add
         </Button>
         {footer}
+        {/* Keeps Review and save (C15): a new order changes who is asked next, so it shows the effect first. */}
         <Button
           disabled={!dirty}
           onClick={async () => {
@@ -514,7 +518,7 @@ export function RankingEditor({
                     });
                     toast.success('Instructor order saved');
                     setImpact(null);
-                    await qc.invalidateQueries();
+                    refresh(qc, 'module', 'request');
                   } catch (e) {
                     setErr(e);
                     setImpact(null);
@@ -676,7 +680,7 @@ export function WhoIsNext({ moduleId }: { moduleId: string }) {
               <span>
                 {p.asking ? (
                   <>
-                    Asking <strong>{p.asking.name}</strong> now, then{' '}
+                    {WEEK_STATUS.Waiting.word} from <strong>{p.asking.name}</strong>, then{' '}
                   </>
                 ) : (
                   'Next: '

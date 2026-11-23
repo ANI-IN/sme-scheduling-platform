@@ -22,6 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { rpc } from '@/lib/rpc';
 import { reorderA11y } from '@/lib/reorder';
+import { moduleStatusLabel } from '@/lib/labels';
 import { useDomain } from '@/lib/domain';
 import {
   useCohortScheduleStatus,
@@ -53,14 +54,15 @@ import {
   thead,
   trowClick,
 } from '@/components/ui';
+import { classTimeText } from '@/lib/classTimes';
 import { PatternEditor, SortableRow, type ModuleRow } from './moduleParts';
 import {
   CohortScheduleBadge,
   PlanFromStandardDialog,
   ResetToStandard,
   UpdateCohortsDialog,
-  classTimeText,
 } from './standardParts';
+import { refresh } from '@/lib/live';
 
 type Break = { after_position: number; weeks: number };
 
@@ -295,7 +297,8 @@ function StandardForm({
       toast.success(
         standard ? 'Standard schedule saved' : `Standard schedule ${name.trim()} added`,
       );
-      await qc.invalidateQueries();
+      // The page opens the saved schedule from the list, so only that list is waited for.
+      await qc.invalidateQueries({ queryKey: ['standard_schedule'] });
       onSaved?.(r.id);
     } catch (e) {
       setErr(e);
@@ -339,7 +342,7 @@ function StandardForm({
                         {idx + 1}.
                       </span>
                       <span className="font-medium">{m?.name ?? 'A module that was removed'}</span>
-                      {m && m.status !== 'Active' && <Badge>Not in use</Badge>}
+                      {m && m.status !== 'Active' && <Badge>{moduleStatusLabel(m.status)}</Badge>}
                       <button
                         type="button"
                         className="ml-auto text-muted-foreground hover:text-danger-strong"
@@ -515,7 +518,7 @@ function StandardDrawer({
     try {
       await rpc('archive_standard_schedule', { p_id: s.id, p_archived: !archived });
       toast.success(archived ? `${s.name} restored` : `${s.name} archived`);
-      await qc.invalidateQueries();
+      refresh(qc, 'standard_schedule');
     } catch (e) {
       setErr(e);
     }
@@ -568,7 +571,7 @@ function StandardDrawer({
                       try {
                         await fn();
                         if (ok) toast.success(ok);
-                        await qc.invalidateQueries();
+                        refresh(qc, 'standard_schedule');
                       } catch (e) {
                         setErr(e);
                       }

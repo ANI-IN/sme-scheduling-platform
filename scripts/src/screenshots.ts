@@ -1,17 +1,23 @@
 // Screenshots of every page, drawer and dialog in light and dark themes, desktop and mobile.
 //   npm run screenshots -w scripts                 # everything into docs/screenshots/
 //   npm run screenshots -w scripts -- home classes # only shots whose name starts with these
+//   npm run screenshots -w scripts -- --out review-batch3   # the owner's review pictures (see below), after
+//                                                           # npm run review-data -w scripts
 // Needs the separate test stack (npm run test-stack -w scripts -- up, then npm run demo -w scripts -- load)
 // and an app server for it on http://localhost:5174 (see scripts/src/help-screenshots.ts).
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Page } from 'playwright';
 import { chromePath, localKeys, signInLink } from './browser.ts';
 import pg from 'pg';
 
 const ROOT = join(import.meta.dirname, '..', '..');
-const OUT = join(ROOT, 'docs', 'screenshots');
+// --out <folder> writes into docs/screenshots/<folder>/; a review folder (review-batch3) takes the REVIEW shots.
+const outAt = process.argv.indexOf('--out');
+const OUT_NAME = outAt >= 0 ? process.argv[outAt + 1] : undefined;
+const REVIEW_MODE = !!OUT_NAME?.startsWith('review-batch');
+const OUT = join(ROOT, 'docs', 'screenshots', ...(OUT_NAME ? [OUT_NAME] : []));
 const APP = process.env.APP_URL ?? 'http://localhost:5174';
 const EMAIL = process.env.SHOT_EMAIL ?? 'ops.placeholder@example.com';
 const DB =
@@ -103,7 +109,14 @@ export const SHOTS: Shot[] = [
   { name: 'board', path: '/board' },
   { name: 'board-by-instructor', path: '/board', act: click(/^by instructor$/i) },
   { name: 'board-list', path: '/board', act: click(/^list$/i) },
-  { name: 'board-legend', path: '/board', act: click(/^legend$/i) },
+  // The Legend shows by default (Release 3, C14); this picture is scrolled to it.
+  {
+    name: 'board-legend',
+    path: '/board',
+    act: async (p) => p.getByRole('region', { name: 'Legend' }).scrollIntoViewIfNeeded(),
+  },
+  { name: 'board-filter-list', path: '/board', act: click(/^badge/i) },
+  { name: 'classes-filter-list', path: '/classes', act: click(/^cohort/i) },
   { name: 'board-side-panel', path: '/board', act: click(/^Open /) },
   { name: 'board-select', path: '/board', act: selectTwo },
   { name: 'board-bulk-move', path: '/board', act: steps(selectTwo, click(/^move$/i)) },
@@ -191,10 +204,126 @@ export const SHOTS: Shot[] = [
     act: click(/^pause all messages$/i),
   },
   { name: 'help', path: '/help' },
-  { name: 'help-guide', path: '/help/planning-classes' },
+  { name: 'help-guide', path: '/help/cohorts' },
   { name: 'activity', path: '/activity' },
   { name: 'activity-details', path: '/activity', act: click(/show details/i) },
 ];
+
+/** The exceptions review-data.ts makes on Backend, by the name in the picture and in its manifest. */
+export const REVIEW_EXCEPTIONS = [
+  'clash',
+  'shared-class',
+  'merge',
+  'break',
+  'proposed-time',
+  'cohort-holiday',
+  'moved',
+  'needs-instructor',
+  'message-failed',
+] as const;
+/** The class weeks review-data.ts chose, one per exception. */
+const REVIEW_FILE = join(ROOT, '.test-stack', 'review-data.json');
+/** The board's remembered filters (Board.tsx usePrefs): By cohort, 12 weeks from this week. */
+const BOARD_PREFS = { view: 'cohort', weeks: 12, onlyProblems: false };
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A board cell's button: "Open <module> for <cohort>, week of <Mon d>: ..." (Board.tsx). */
+const cellButton = (p: Page, name: RegExp) => p.getByRole('button', { name }).first();
+/** The board with the cell in view and focused, so it is easy to find in the picture. */
+const showCell = (name: RegExp) => async (p: Page) => {
+  const b = cellButton(p, name);
+  await b.waitFor({ timeout: 10000 });
+  await b.scrollIntoViewIfNeeded();
+  await b.focus();
+  await p.waitForTimeout(400);
+};
+/** The side panel of the cell's class week. */
+const openCell = (name: RegExp) => async (p: Page) => {
+  await cellButton(p, name).click();
+  await p.getByRole('dialog').first().waitFor({ timeout: 10000 });
+  await p.waitForTimeout(700);
+  await settle(p);
+};
+
+/**
+ * The owner's review pictures (npm run screenshots -w scripts -- --out review-batch3): each exception of
+ * review-data.ts on the board and in its side panel, then the main pages. The board shows 12 weeks By cohort,
+ * on a phone too (set in the browser before each page loads).
+ */
+async function reviewShots(): Promise<Shot[]> {
+  if (!existsSync(REVIEW_FILE))
+    throw new Error(
+      'No review data found. Run npm run review-data -w scripts first (after npm run demo -w scripts -- load).',
+    );
+  const chosen = JSON.parse(readFileSync(REVIEW_FILE, 'utf8')) as Record<string, string>;
+  const c = new pg.Client({ connectionString: DB });
+  await c.connect();
+  const shots: Shot[] = [{ name: 'review-board', path: '/board' }];
+  try {
+    for (const x of REVIEW_EXCEPTIONS) {
+      if (!chosen[x]) {
+        console.warn(`  ! review-board-${x}: review-data.ts did not make it, so it is left out.`);
+        continue;
+      }
+      const w = (
+        await c.query<{ module: string; cohort: string; start: string }>(
+          `select m.name module, c.name cohort, w.week_start_date::text start from public.module_week w
+             join public.module m on m.id = w.module_id join public.cohort c on c.id = w.cohort_id where w.id = $1`,
+          [chosen[x]],
+        )
+      ).rows[0];
+      if (!w) continue;
+      const day = new Date(`${w.start}T12:00:00Z`).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
+      const name = new RegExp(
+        `^Open\\s*${escapeRe(w.module)}\\s*for ${escapeRe(w.cohort)}, week of ${day}:`,
+      );
+      shots.push(
+        { name: `review-board-${x}`, path: '/board', act: showCell(name) },
+        { name: `review-panel-${x}`, path: '/board', act: openCell(name) },
+      );
+    }
+  } finally {
+    await c.end();
+  }
+  return [
+    ...shots,
+    { name: 'review-home', path: '/' },
+    { name: 'review-classes', path: '/classes' },
+    { name: 'review-requests', path: '/requests' },
+    { name: 'review-activity', path: '/activity' },
+    { name: 'review-help', path: '/help' },
+    { name: 'review-standards', path: '/setup/standards' },
+    {
+      name: 'review-domains-discord',
+      path: '/setup/domains',
+      act: steps(clickRow('tbody tr:has-text("Backend")'), async (p) => {
+        const server = p.getByRole('dialog').getByLabel('Discord server').first();
+        await server.waitFor({ timeout: 8000 });
+        await server.scrollIntoViewIfNeeded();
+        await p.waitForTimeout(300);
+      }),
+    },
+    { name: 'review-connections', path: '/settings/connections' },
+    { name: 'review-admin', path: '/settings/admin' },
+  ];
+}
+
+/** The Backend domain, chosen in the browser for the review pictures. */
+async function backendId() {
+  const c = new pg.Client({ connectionString: DB });
+  await c.connect();
+  try {
+    return (
+      await c.query<{ id: string }>(`select id from public.domain where name = 'Backend' limit 1`)
+    ).rows[0]?.id;
+  } finally {
+    await c.end();
+  }
+}
 
 /**
  * The test data names its made up colleagues "Sandbox ..." (older tests use those names). Pictures show the app as
@@ -222,8 +351,13 @@ async function plainNames() {
 
 async function main() {
   await plainNames();
-  const only = process.argv.slice(2);
-  const shots = only.length ? SHOTS.filter((s) => only.some((o) => s.name.startsWith(o))) : SHOTS;
+  const only = process.argv.slice(2).filter((a, i, all) => a !== '--out' && all[i - 1] !== '--out');
+  const list = REVIEW_MODE ? await reviewShots() : SHOTS;
+  const shots = only.length ? list.filter((s) => only.some((o) => s.name.startsWith(o))) : list;
+  // The review pictures show Backend, and its board By cohort with 12 weeks on every screen.
+  const review = REVIEW_MODE
+    ? { domain: await backendId(), board: `board:${EMAIL}`, prefs: BOARD_PREFS }
+    : null;
   const { api, secret } = localKeys();
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium
@@ -238,15 +372,22 @@ async function main() {
         viewport: { width: vp.width, height: vp.height },
         colorScheme: theme,
       });
-      await ctx.addInitScript((t) => {
-        localStorage.setItem('ik-theme', t);
-        // The shots show the app as people use it: no Development label of the local copy (decision 313).
-        document.addEventListener('DOMContentLoaded', () => {
-          const st = document.createElement('style');
-          st.textContent = '[data-environment-label]{display:none!important}';
-          document.head.appendChild(st);
-        });
-      }, theme);
+      await ctx.addInitScript(
+        ({ t, r }) => {
+          localStorage.setItem('ik-theme', t);
+          if (r) {
+            if (r.domain) localStorage.setItem('ik-domain', r.domain);
+            localStorage.setItem(r.board, JSON.stringify(r.prefs));
+          }
+          // The shots show the app as people use it: no Development label of the local copy (decision 313).
+          document.addEventListener('DOMContentLoaded', () => {
+            const st = document.createElement('style');
+            st.textContent = '[data-environment-label]{display:none!important}';
+            document.head.appendChild(st);
+          });
+        },
+        { t: theme, r: review },
+      );
       const page = await ctx.newPage();
       await page.goto(await signInLink(api, secret, EMAIL, APP));
       await page

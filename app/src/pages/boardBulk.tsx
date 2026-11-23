@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { poke, rpc } from '@/lib/rpc';
+import { rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
 import {
@@ -17,6 +17,7 @@ import {
   Select,
   SkeletonRows,
 } from '@/components/ui';
+import { deliverNow, refreshClasses } from '@/lib/live';
 
 type Problem = { code: string; level: string; text: string; new?: boolean };
 type Result = {
@@ -40,10 +41,13 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 export function BulkChangeDialog({
   action,
   weekIds,
+  onSaved,
   onClose,
 }: {
   action: 'move' | 'cancel';
   weekIds: string[];
+  /** After a save, before the dialog closes. */
+  onSaved?: () => void;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -89,13 +93,11 @@ export function BulkChangeDialog({
           ? `${plural(r.saved ?? 0, 'class week')} moved`
           : `${plural(r.saved ?? 0, 'class week')} cancelled`,
       );
+      onSaved?.();
       onClose();
       qc.removeQueries({ queryKey: ['bulk_preview'] });
-      const others = {
-        predicate: (q: { queryKey: readonly unknown[] }) => q.queryKey[0] !== 'bulk_preview',
-      };
-      await qc.invalidateQueries(others);
-      void poke().then(() => qc.invalidateQueries(others));
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {

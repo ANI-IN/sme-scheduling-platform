@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeHistory, type HistoryLike } from './historyText';
+import { describeHistory, historyDetails, offersUndo, type HistoryLike } from './historyText';
 import { plain } from './plain';
 
 const ids = {
@@ -77,6 +77,31 @@ describe('History in plain sentences', () => {
     expect(JSON.stringify(e)).not.toMatch(/[0-9a-f]{8}-|version/);
   });
 
+  it('says Draft and Live for a module status, never the stored values', () => {
+    const e = describeHistory(
+      {
+        ...base,
+        action: 'module changed',
+        entity_table: 'module',
+        before: { name: 'API Design', status: 'Inactive', version: 1 },
+        after: { name: 'API Design', status: 'Active', version: 2 },
+      },
+      book,
+    );
+    expect(e.sentence).toBe('Sienna changed status for module API Design from Draft to Live');
+    const details = historyDetails(
+      {
+        ...base,
+        action: 'module changed',
+        entity_table: 'module',
+        before: { name: 'API Design', status: 'Active' },
+        after: { name: 'API Design', status: 'Archived' },
+      },
+      book,
+    );
+    expect(details).toContainEqual({ label: 'Status', from: 'Live', to: 'Archived' });
+  });
+
   it('names messages instead of template codes', () => {
     const d = describeHistory(
       {
@@ -133,6 +158,16 @@ describe('plain wording for database text', () => {
     expect(plain('No reply to the 10-day check-in: Shelly')).toBe(
       'No answer to the reminder 10 days before class: Shelly',
     );
+  });
+
+  it('reads a no reply the old way (a dash) and the new way (a comma)', () => {
+    for (const action of [
+      'No reply from Shelly Carver — moving on',
+      'No reply from Shelly Carver, moving on',
+    ])
+      expect(describeHistory({ ...base, action, module_id: ids.api }, book).sentence).toBe(
+        'Shelly Carver did not reply about API Design, so the next instructor was asked',
+      );
   });
 
   it('describes going live, pausing messages and downloads', () => {
@@ -363,5 +398,228 @@ describe('cohort merges in plain sentences (decision 304)', () => {
     expect(describeHistory({ ...team, action: 'Cohort merge undone' }, book).sentence).toBe(
       'Sienna undid a cohort merge',
     );
+  });
+});
+
+describe('Show details in plain words (item 11)', () => {
+  const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  const text = (d: ReturnType<typeof historyDetails>) =>
+    d.map((x) => `${x.label}: ${x.from !== undefined ? `${x.from} → ${x.to}` : x.to}`);
+  const stranger = '99999999-9999-9999-9999-999999999999';
+
+  it('lists what changed, field by field, with no ids or database field names', () => {
+    const d = historyDetails(
+      {
+        ...base,
+        action: 'instructor changed',
+        entity_table: 'instructor',
+        instructor_id: ids.shelly,
+        before: {
+          id: ids.shelly,
+          full_name: 'Shelly Carver',
+          phone: null,
+          monthly_class_limit: 4,
+          version: 3,
+          updated_at: '2026-11-20T10:00:00+00:00',
+          updated_by: stranger,
+          discord_user_id: '900000000000000013',
+        },
+        after: {
+          id: ids.shelly,
+          full_name: 'Shelly Carver',
+          phone: '555 0100',
+          monthly_class_limit: 6,
+          version: 4,
+          updated_at: '2026-11-21T10:00:00+00:00',
+          updated_by: stranger,
+          discord_user_id: '900000000000000014',
+        },
+      },
+      book,
+    );
+    expect(text(d)).toEqual([
+      'Type of change: Setup changes',
+      'Phone: nothing → 555 0100',
+      'Monthly class limit: 4 → 6',
+    ]);
+  });
+
+  it('lists the fields of a new record, naming what its ids point to and leaving out unknown ones', () => {
+    const d = historyDetails(
+      {
+        ...base,
+        action: 'instructor_unavailability added',
+        entity_table: 'instructor_unavailability',
+        after: {
+          id: stranger,
+          instructor_id: ids.shelly,
+          from_date: '2027-01-04',
+          to_date: '2027-01-08',
+          reason: 'Holiday',
+          created_by: stranger,
+          created_at: '2026-11-21T10:00:00+00:00',
+        },
+      },
+      book,
+    );
+    expect(text(d)).toEqual([
+      'Type of change: Setup changes',
+      'Instructor: Shelly Carver',
+      'From: Mon Jan 4, 2027',
+      'To: Fri Jan 8, 2027',
+      'Reason: Holiday',
+    ]);
+  });
+
+  it('shows a setting by its name and the reason given, never its key', () => {
+    const d = historyDetails(
+      {
+        ...base,
+        action: 'setting added',
+        entity_table: 'setting',
+        note: 'Busy month',
+        after: { id: stranger, key: 'outreach_days', value: 25, domain_id: ids.weekend },
+      },
+      book,
+    );
+    expect(text(d)).toEqual([
+      'Type of change: Setup changes',
+      'Setting: Start asking instructors this many days before the class',
+      'Value: 25',
+      'Domain: Weekend cohort',
+      'Reason: Busy month',
+    ]);
+  });
+
+  it('reads nested data and lists without raw data', () => {
+    const d = historyDetails(
+      {
+        ...base,
+        category: 'Team actions',
+        action: 'Ranking saved',
+        entity_table: 'module_ranking',
+        before: { instructor_ids: [ids.shelly], cohort_id: null, names: ['Shelly Carver'] },
+        after: {
+          instructor_ids: [ids.sienna, ids.shelly],
+          cohort_id: null,
+          names: ['Sienna', 'Shelly Carver'],
+        },
+      },
+      book,
+    );
+    expect(text(d)).toEqual([
+      'Type of change: Team actions',
+      'Instructor order: Shelly Carver → Sienna, Shelly Carver',
+    ]);
+    const nested = historyDetails(
+      {
+        ...base,
+        category: 'Team actions',
+        action: 'Class time changed',
+        before: { shown: 'Sun, Mar 7 · 9:00 AM', week: { id: stranger, status: 'Planned' } },
+        after: { shown: 'Mon, Mar 8 · 9:00 AM', week: { id: stranger, status: 'Confirmed' } },
+      },
+      book,
+    );
+    expect(text(nested)).toEqual([
+      'Type of change: Team actions',
+      'Class time: Sun, Mar 7, 9:00 AM → Mon, Mar 8, 9:00 AM',
+      'Status: Planned → Confirmed',
+    ]);
+  });
+
+  it('never shows an id, JSON or a field name with an underscore', () => {
+    const d = historyDetails(
+      {
+        ...base,
+        category: 'Messages',
+        action: 'M1 sent to Shelly Carver via Email',
+        before: null,
+        after: {
+          message_id: 42,
+          template_id: 'M1',
+          external_id: 'gmail-123',
+          sent_to: stranger,
+          channel: 'Email',
+          extra: { payload: { id: stranger } },
+          sent_at: '2027-01-01T18:00:00+00:00',
+        },
+      },
+      book,
+    );
+    for (const line of text(d)) {
+      expect(line).not.toMatch(UUID);
+      expect(line).not.toMatch(/[{}[\]"_]/);
+      expect(line).not.toMatch(/\bM1\b|gmail-123|\b42\b/);
+    }
+    expect(d.map((x) => x.label)).toEqual(['Type of change', 'Channel', 'Sent']);
+    expect(d[2]!.to).toMatch(/^\w{3} \w{3} \d{1,2}, 2027, \d{1,2}:\d{2} (AM|PM)$/);
+  });
+
+  it('leaves out an undo note, which only names an entry number', () => {
+    const d = historyDetails(
+      {
+        ...base,
+        action: 'Undo: holiday changed',
+        entity_table: 'holiday',
+        undo_of: 12,
+        note: 'Undid change #12',
+        before: { id: stranger, name: 'New year' },
+        after: { id: stranger, name: 'New year day' },
+      },
+      book,
+    );
+    expect(text(d)).toEqual(['Type of change: Setup changes', 'Name: New year → New year day']);
+  });
+});
+
+describe('Undo only where it is safe (item 11)', () => {
+  const edit = {
+    ...base,
+    action: 'holiday changed',
+    entity_table: 'holiday',
+    actor_team_member_id: ids.sienna,
+    before: { name: 'New year' },
+    after: { name: 'New year day' },
+    undoable: true,
+  };
+
+  it('is offered for a team member editing a setup record', () => {
+    expect(offersUndo(edit)).toBe(true);
+    expect(offersUndo({ ...edit, entity_table: 'module', action: 'module changed' })).toBe(true);
+  });
+
+  it('is not offered when the database says no', () => {
+    expect(offersUndo({ ...edit, undoable: false })).toBe(false);
+    expect(offersUndo({ ...edit, undoable: null })).toBe(false);
+  });
+
+  it('is never offered for the system, the clock, the automation, a setup command or test data', () => {
+    for (const actor_label of ['System', 'Clock', 'Automation', 'Setup command', 'Test data']) {
+      expect(offersUndo({ ...edit, actor_kind: 'System', actor_label })).toBe(false);
+      // Even if it were logged as a team member.
+      expect(offersUndo({ ...edit, actor_label })).toBe(false);
+    }
+    expect(offersUndo({ ...edit, actor_kind: 'Instructor', actor_label: 'Shelly Carver' })).toBe(
+      false,
+    );
+    expect(offersUndo({ ...edit, actor_team_member_id: null })).toBe(false);
+    expect(offersUndo({ ...edit, actor_team_member_id: undefined })).toBe(false);
+  });
+
+  it('is never offered for creating or removing a module, domain or cohort', () => {
+    for (const t of ['module', 'domain', 'cohort']) {
+      expect(offersUndo({ ...edit, entity_table: t, action: `${t} added`, before: null })).toBe(
+        false,
+      );
+      expect(offersUndo({ ...edit, entity_table: t, action: `${t} removed`, after: null })).toBe(
+        false,
+      );
+    }
+  });
+
+  it('is not offered for actions that are not setup changes, or for an undo', () => {
+    expect(offersUndo({ ...edit, category: 'Team actions' })).toBe(false);
+    expect(offersUndo({ ...edit, action: 'Undo: holiday changed', undo_of: 3 })).toBe(false);
   });
 });

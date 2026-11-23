@@ -12,13 +12,26 @@ import { CalendarDays, Download, LifeBuoy, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, fetchAll, fetchByIds, rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
+import { useAuth } from '@/lib/auth';
+import {
+  applyFilters,
+  filtersKey,
+  fixedOptions,
+  hasChoices,
+  matches,
+  optionsFrom,
+  type FilterField,
+  type Getters,
+} from '@/lib/filters';
+import { useRememberedFilters } from '@/lib/useFilters';
+import { FilterBar } from '@/components/FilterBar';
 import { useCohorts, useInstructors, useModules, useWeeks, type WeekRow } from '@/lib/data';
 import { PT } from '@/lib/time';
-import { asRegion, classTimeLine, REGIONS, TZ } from '@/lib/region';
+import { asRegion, classTimeLine, REGIONS, TZ, weekRegion } from '@/lib/region';
+import { plannedLine } from '@/lib/planned';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
-import { WEEK_KINDS, weekState } from '@/lib/status';
+import { AT_RISK, WEEK_KINDS, WEEK_STATUS, weekState, weeksById } from '@/lib/status';
 import { downloadCsv, toCsv } from '@/lib/csv';
-import { useConfirm } from '@/components/Confirm';
 import {
   Badge,
   Button,
@@ -38,8 +51,32 @@ import {
   th,
 } from '@/components/ui';
 import { PlanDialog } from './PlanDialog';
+import { BulkChangeDialog } from './boardBulk';
 import { AddClassDialog } from './AddClassDialog';
 import { ClassDrawer, useRun } from './ClassDrawer';
+import { StartAskingDialog, usePlanned } from './startAsking';
+
+/** The statuses of a class week nobody is confirmed or asked for, which show who is planned instead. */
+const PLANNED_FOR: string[] = [
+  WEEK_STATUS['Not asked yet'].word,
+  WEEK_STATUS.Paused.word,
+  WEEK_STATUS['Setup incomplete'].word,
+  WEEK_STATUS['Needs instructor'].word,
+];
+
+/** "Database Design, Weekday cohort, week of Oct 4". */
+const weekLabel = (w: WeekRow) =>
+  `${w.module?.name ?? 'Class week'}${w.cohort ? `, ${w.cohort}` : ''}, week of ${DateTime.fromISO(w.week_start_date).toFormat('LLL d')}`;
+
+/** The fields of the filter bar, in order (Release 3, C13). Values are the words people read. */
+export const CLASSES_FILTERS = ['cohort', 'module', 'region', 'status', 'instructor'] as const;
+/** The Instructor filter's choice for a class week with nobody confirmed or being asked. */
+export const NO_INSTRUCTOR = 'No instructor yet';
+const NO_COHORT = 'No cohort';
+/** Region is read from each class, since the classes of one class week can be taught in either region. */
+const CLASS_GETTERS: Getters<WeekRow['class_session'][number]> = {
+  region: (c) => asRegion(c.region),
+};
 
 type Row = {
   week: WeekRow;
@@ -51,29 +88,33 @@ const col = createColumnHelper<Row>();
 
 export default function Schedule() {
   const { domain } = useDomain();
+  const auth = useAuth();
   const weeks = useWeeks(domain?.id);
   const instructors = useInstructors();
   const modules = useModules(domain?.id);
   const cohorts = useCohorts(domain?.id);
-  const confirm = useConfirm();
   const { run, err } = useRun();
   const [planning, setPlanning] = useState(false);
   const [openWeek, setOpenWeek] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showPast, setShowPast] = useState(false);
-  const [moduleFilter, setModuleFilter] = useState('');
-  const [cohortFilter, setCohortFilter] = useState('');
-  const [regionFilter, setRegionFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  // Cohort, module, region, status and instructor: several choices each, remembered per person and domain.
+  const [filters, setFilters] = useRememberedFilters(
+    filtersKey('classes', auth.account?.member?.email),
+    domain?.id,
+    CLASSES_FILTERS,
+  );
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [queueFor, setQueueFor] = useState<string[] | null>(null);
-  const [shiftN, setShiftN] = useState(1);
+  const [bulk, setBulk] = useState<'move' | 'cancel' | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
+  const byId = useMemo(() => weeksById(weeks.data), [weeks.data]);
   const holidays = useQuery({
     queryKey: ['holiday'],
     queryFn: async () => check(await supabase.from('holiday').select('*')),
@@ -89,6 +130,17 @@ export default function Schedule() {
     return m;
   }, [holidays.data]);
   const weekIds = (weeks.data ?? []).map((w) => w.id);
+  // Who is planned for each coming class week nobody is confirmed or asked for yet (the database's own line).
+  const planned = usePlanned(
+    (weeks.data ?? [])
+      .filter(
+        (w) =>
+          PLANNED_FOR.includes(weekState(w, names, byId).kind) &&
+          !!w.first_class_at &&
+          new Date(w.first_class_at) > new Date(),
+      )
+      .map((w) => w.id),
+  );
   const checklist = useQuery({
     queryKey: ['checklist_item', 'grid', domain?.id, weekIds.length],
     enabled: weekIds.length > 0,
@@ -118,25 +170,42 @@ export default function Schedule() {
     return m;
   }, [checklist.data]);
 
-  const rows = useMemo<Row[]>(() => {
-    const today = DateTime.now().setZone(PT).toISODate()!;
-    const out: Row[] = [];
-    for (const w of weeks.data ?? []) {
-      if (
-        !showPast &&
-        (['Completed', 'Cancelled'].includes(w.status) ||
-          DateTime.fromISO(w.week_start_date).plus({ days: 7 }).toISODate()! < today)
-      )
-        continue;
-      if (moduleFilter && w.module_id !== moduleFilter) continue;
-      if (cohortFilter && w.cohort_id !== cohortFilter) continue;
-      if (statusFilter) {
-        const s = weekState(w, names);
+  // What each filter reads from a class week (Region is read from each class, CLASS_GETTERS).
+  const weekGetters = useMemo<Getters<WeekRow>>(
+    () => ({
+      cohort: (w) => w.cohort ?? NO_COHORT,
+      module: (w) => w.module?.name,
+      status: (w) => {
+        const s = weekState(w, names, byId);
         // "At risk" shows every week at risk, confirmed or not; the others match the status itself.
-        if (statusFilter === 'At risk' ? !s.atRisk : s.kind !== statusFilter) continue;
-      }
+        return s.atRisk ? [s.kind, AT_RISK] : s.kind;
+      },
+      instructor: (w) => {
+        const s = weekState(w, names, byId);
+        return s.confirmed ?? s.asking ?? NO_INSTRUCTOR;
+      },
+    }),
+    [names, byId],
+  );
+
+  // The class weeks shown before any filter: the upcoming ones, or every one with Show past and cancelled.
+  const inView = useMemo(() => {
+    const today = DateTime.now().setZone(PT).toISODate()!;
+    return (weeks.data ?? []).filter(
+      (w) =>
+        showPast ||
+        !(
+          ['Completed', 'Cancelled'].includes(w.status) ||
+          DateTime.fromISO(w.week_start_date).plus({ days: 7 }).toISODate()! < today
+        ),
+    );
+  }, [weeks.data, showPast]);
+
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    for (const w of applyFilters(inView, filters, weekGetters)) {
       const classes = [...w.class_session]
-        .filter((c) => !regionFilter || asRegion(c.region) === regionFilter)
+        .filter((c) => matches(c, filters, CLASS_GETTERS))
         .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
       classes.forEach((c, idx) => {
         const r = asRegion(c.region);
@@ -150,29 +219,51 @@ export default function Schedule() {
       });
     }
     return out;
-  }, [
-    weeks.data,
-    showPast,
-    moduleFilter,
-    cohortFilter,
-    regionFilter,
-    statusFilter,
-    names,
-    holidayMap,
-  ]);
+  }, [inView, filters, weekGetters, holidayMap]);
   // Only the statuses some class week has, in their natural order, without names.
   const statuses = useMemo(() => {
     const have = new Set<string>();
     for (const w of weeks.data ?? []) {
-      const s = weekState(w, names);
+      const s = weekState(w, names, byId);
       have.add(s.kind);
-      if (s.atRisk) have.add('At risk');
+      if (s.atRisk) have.add(AT_RISK);
     }
-    // Over and cancelled weeks only show with "Show past and cancelled".
-    return WEEK_KINDS.filter(
-      (k) => have.has(k) && (showPast || !['Completed', 'Cancelled'].includes(k)),
+    // Over and cancelled weeks only show with "Show past and cancelled". At risk is a flag, so it comes last.
+    return [...WEEK_KINDS, AT_RISK].filter(
+      (k) =>
+        have.has(k) &&
+        (showPast || (k !== WEEK_STATUS.Completed.word && k !== WEEK_STATUS.Cancelled.word)),
     );
-  }, [weeks.data, names, showPast]);
+  }, [weeks.data, names, byId, showPast]);
+
+  const filterFields = useMemo<FilterField[]>(
+    () => [
+      {
+        key: 'cohort',
+        label: 'Cohort',
+        options: optionsFrom(
+          [...(cohorts.data ?? []).map((c) => c.name), ...inView.map((w) => w.cohort ?? NO_COHORT)],
+          (n) => n,
+        ),
+      },
+      {
+        key: 'module',
+        label: 'Module',
+        options: optionsFrom(
+          [...(modules.data ?? []).map((m) => m.name), ...inView.map((w) => w.module?.name ?? '')],
+          (n) => n || null,
+        ),
+      },
+      { key: 'region', label: 'Region', options: fixedOptions(REGIONS) },
+      { key: 'status', label: 'Status', options: fixedOptions(statuses) },
+      {
+        key: 'instructor',
+        label: 'Instructor',
+        options: optionsFrom(inView, weekGetters.instructor!),
+      },
+    ],
+    [cohorts.data, modules.data, inView, statuses, weekGetters],
+  );
 
   const columns = useMemo(
     () => [
@@ -249,19 +340,22 @@ export default function Schedule() {
           ),
         },
       ),
-      col.accessor((r) => weekState(r.week, names).short, {
+      col.accessor((r) => weekState(r.week, names, byId).short, {
         id: 'status',
         header: 'Status',
         cell: ({ row }) => {
           if (!row.original.first) return null;
-          const s = weekState(row.original.week, names);
+          const s = weekState(row.original.week, names, byId);
           return <Badge tone={s.tone}>{s.short}</Badge>;
         },
       }),
       col.accessor(
         (r) => {
-          const s = weekState(r.week, names);
-          return s.confirmed ?? (s.asking ? `Asking: ${s.asking}` : '');
+          const s = weekState(r.week, names, byId);
+          if (s.confirmed) return `${WEEK_STATUS.Confirmed.word}: ${s.confirmed}`;
+          if (s.asking) return `${WEEK_STATUS.Waiting.word}: ${s.asking}`;
+          const p = planned.data?.get(r.week.id);
+          return (p && plannedLine(p, DateTime.now(), weekRegion(r.week.class_session))) ?? '';
         },
         {
           id: 'confirmed',
@@ -313,7 +407,7 @@ export default function Schedule() {
           ) : null,
       }),
     ],
-    [selected, names, checklistByWeek],
+    [selected, names, byId, checklistByWeek, planned.data],
   );
 
   // TanStack Table manages its own memoisation; the React Compiler skips this component.
@@ -341,10 +435,7 @@ export default function Schedule() {
       p_rows: table.getFilteredRowModel().rows.length,
       p_filters: {
         search,
-        module: moduleFilter,
-        cohort: cohortFilter,
-        region: regionFilter,
-        status: statusFilter,
+        ...filters,
         show_past: showPast,
       },
       p_domain_id: domain?.id,
@@ -353,7 +444,7 @@ export default function Schedule() {
       `schedule-${domain?.name}-${DateTime.now().toFormat('yyyy-LL-dd')}.csv`,
       toCsv(
         table.getFilteredRowModel().rows.map(({ original: r }) => {
-          const s = weekState(r.week, names);
+          const s = weekState(r.week, names, byId);
           return {
             date_time: classTimeLine(r.cls.starts_at, r.cls.ends_at, r.cls.region),
             region: asRegion(r.cls.region),
@@ -403,65 +494,18 @@ export default function Schedule() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-56"
         />
-        <Select
-          aria-label="Module"
-          value={moduleFilter}
-          onChange={(e) => setModuleFilter(e.target.value)}
-          className="w-52"
-        >
-          <option value="">All modules</option>
-          {(modules.data ?? []).map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </Select>
-        {(cohorts.data ?? []).length > 1 && (
-          <Select
-            aria-label="Cohort"
-            value={cohortFilter}
-            onChange={(e) => setCohortFilter(e.target.value)}
-            className="w-52"
-          >
-            <option value="">All cohorts</option>
-            {(cohorts.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        )}
-        <Select
-          aria-label="Region"
-          value={regionFilter}
-          onChange={(e) => setRegionFilter(e.target.value)}
-          className="w-40"
-        >
-          <option value="">All regions</option>
-          <option value="US">US</option>
-          <option value="India">India</option>
-        </Select>
-        <Select
-          aria-label="Status"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-48"
-        >
-          <option value="">All statuses</option>
-          {statuses.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </Select>
         <Checkbox label="Show past and cancelled" checked={showPast} onChange={setShowPast} />
       </Toolbar>
+      <FilterBar fields={filterFields} value={filters} onChange={setFilters} />
 
       {selected.size > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary-soft p-2 text-sm">
           <strong className="px-1">
             {selected.size} class week{selected.size === 1 ? '' : 's'} selected
           </strong>
+          <Button size="sm" onClick={() => setStarting(true)}>
+            Start asking now
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => setQueueFor([...selected])}>
             Choose who to ask
           </Button>
@@ -513,7 +557,7 @@ export default function Schedule() {
                   w.booking.some((b) => b.status === 'Active')
                     ? undefined
                     : rpc('pause_outreach', { p_module_week_id: w.id, p_paused: true }),
-                'Requests paused for the class weeks still looking for an instructor',
+                'Paused requests for the class weeks still looking for an instructor',
               )
             }
           >
@@ -531,44 +575,10 @@ export default function Schedule() {
           >
             Resume requests
           </Button>
-          <span className="flex items-center gap-1">
-            <Input
-              type="number"
-              aria-label="Weeks to move"
-              value={shiftN}
-              onChange={(e) => setShiftN(Number(e.target.value))}
-              className="h-8 w-16"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                if (
-                  !(await confirm({
-                    title: `Move ${selected.size} class week${selected.size === 1 ? '' : 's'} by ${shiftN} week${Math.abs(shiftN) === 1 ? '' : 's'}?`,
-                    body: 'Only the selected weeks move, and each class keeps its local time. Confirmed instructors are asked to confirm the new dates.',
-                  }))
-                )
-                  return;
-                const ordered = [...selectedWeeks].sort((a, b) =>
-                  shiftN > 0
-                    ? b.week_start_date.localeCompare(a.week_start_date)
-                    : a.week_start_date.localeCompare(b.week_start_date),
-                );
-                await run(async () => {
-                  for (const w of ordered)
-                    await rpc('shift_classes', {
-                      p_module_week_id: w.id,
-                      p_weeks: shiftN,
-                      p_include_later: false,
-                    });
-                }, 'Dates moved');
-                setSelected(new Set());
-              }}
-            >
-              Move by weeks
-            </Button>
-          </span>
+          {/* The same preview, checks and reasons as on the Schedule board (bulk_change_weeks). */}
+          <Button size="sm" variant="outline" onClick={() => setBulk('move')}>
+            Move by weeks
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
             Clear selection
           </Button>
@@ -576,34 +586,34 @@ export default function Schedule() {
             size="sm"
             variant="destructive"
             className="ml-auto"
-            onClick={async () => {
-              if (
-                await confirm({
-                  title: `Cancel ${selected.size} class week${selected.size === 1 ? '' : 's'}?`,
-                  body: 'Open requests are withdrawn politely and confirmed instructors are told that the class is cancelled. This cannot be undone.',
-                  danger: true,
-                  confirmLabel: 'Cancel the classes',
-                  cancelLabel: 'Keep the classes',
-                })
-              )
-                await forEachWeek(
-                  (w) => rpc('cancel_module_week', { p_module_week_id: w.id }),
-                  'Classes cancelled',
-                );
-            }}
+            onClick={() => setBulk('cancel')}
           >
             Cancel classes
           </Button>
         </div>
       )}
       <ErrorText error={err} />
+      {starting && (
+        <StartAskingDialog
+          weeks={selectedWeeks.map((w) => ({ id: w.id, label: weekLabel(w) }))}
+          onDone={() => setSelected(new Set())}
+          onClose={() => setStarting(false)}
+        />
+      )}
+      {bulk && (
+        <BulkChangeDialog
+          action={bulk}
+          weekIds={selectedWeeks.map((w) => w.id)}
+          onSaved={() => setSelected(new Set())}
+          onClose={() => setBulk(null)}
+        />
+      )}
 
       {weeks.isLoading ? (
         <SkeletonRows rows={8} />
       ) : weeks.error ? (
         <LoadError what="the classes" onRetry={() => weeks.refetch()} />
-      ) : table.getFilteredRowModel().rows.length === 0 &&
-        (search || moduleFilter || cohortFilter || regionFilter || statusFilter) ? (
+      ) : table.getFilteredRowModel().rows.length === 0 && (search || hasChoices(filters)) ? (
         <Empty
           title="No classes match these filters"
           icon={<CalendarDays className="h-5 w-5" />}
@@ -612,10 +622,7 @@ export default function Schedule() {
               variant="secondary"
               onClick={() => {
                 setSearch('');
-                setModuleFilter('');
-                setCohortFilter('');
-                setRegionFilter('');
-                setStatusFilter('');
+                setFilters({});
               }}
             >
               Clear filters
@@ -714,7 +721,6 @@ function QueueDialog({ weekIds, onDone }: { weekIds: string[]; onDone: () => voi
             />
             {order.includes(i.id) && <Badge tone="info">{order.indexOf(i.id) + 1}</Badge>}
             {i.full_name}
-            {!i.verified_at && <Badge tone="warning">Contact details not checked</Badge>}
           </label>
         ))}
       </div>

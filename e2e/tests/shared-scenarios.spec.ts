@@ -3,7 +3,7 @@
 // preview, the second shows Shared class and is not asked, and Stop sharing gives it its own class week back. The
 // rules behind each step are covered in depth by the database test 440.
 import type { Page } from '@playwright/test';
-import { a11y, expect, loadDemoData, noDashes, ready, sql, test } from './fixtures.ts';
+import { a11y, expect, loadDemoData, noDashes, ready, setFilter, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => loadDemoData());
@@ -23,7 +23,7 @@ const saturday = (() => {
 async function openWeek(page: Page, cohort: string) {
   await page.goto('/classes');
   await ready(page);
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: cohort });
+  await setFilter(page, 'Cohort', [cohort]);
   await ready(page);
   await page
     .getByRole('button', { name: /^Open Database Design, week of/ })

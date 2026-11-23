@@ -117,10 +117,12 @@ export const useWeeks = (domainId: string | undefined) =>
         supabase
           .from('module_week')
           .select(
-            '*, module(name), class_session(*), booking(*), request(*), help_request(id, status), manual_queue_item(*)',
+            '*, module(name), class_session(*), booking(*), request(*), help_request(id, status), manual_queue_item(*), time_proposal(id, status)',
           )
           .eq('domain_id', domainId!)
           .order('week_start_date')
+          // Class weeks of the same week in the order of their first class, earliest first.
+          .order('first_class_at', { nullsFirst: false })
           .order('id')
           .range(from, to),
       ),

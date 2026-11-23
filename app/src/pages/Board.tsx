@@ -2,33 +2,33 @@
 // instructor, or as a list. Each cell shows its main status (colour, icon and word together), its instructor and its
 // exception badges; Needs a decision counts every problem and filters by it. A cell opens the class drawer, which
 // holds every action. All data and every check come from the database (schedule_board).
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
-import {
-  AlertTriangle,
-  Download,
-  CalendarClock,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  Clock,
-  Pause,
-  PauseCircle,
-  Wrench,
-  XCircle,
-} from 'lucide-react';
+import { Download, ChevronDown, ChevronRight, Pause } from 'lucide-react';
 import { rpc } from '@/lib/rpc';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
 import { useBlockedMessages, useInstructors, useWeeks } from '@/lib/data';
+import { asRegion, REGIONS } from '@/lib/region';
+import {
+  applyFilters,
+  filtersKey,
+  fixedOptions,
+  hasChoices,
+  optionsFrom,
+  type FilterField,
+  type Getters,
+} from '@/lib/filters';
+import { useRememberedFilters } from '@/lib/useFilters';
 import { RegionBadge } from '@/components/ClassTime';
+import { FilterBar } from '@/components/FilterBar';
 import {
   Badge,
   Button,
   Checkbox,
+  Empty,
   ErrorText,
   PageHeader,
   Select,
@@ -41,6 +41,37 @@ import { AddBreakDialog, AddCohortHolidayDialog } from './setup/breakParts';
 import { MergeCohortsDialog } from './setup/mergeParts';
 import { ShareDialog } from './sharedParts';
 import { BulkChangeDialog } from './boardBulk';
+import { StartAskingDialog, usePlanned } from './startAsking';
+import { plannedLine, type Planned } from '@/lib/planned';
+import {
+  COHORT_BADGE,
+  MARK,
+  SERIOUS,
+  STATUS,
+  badgeLabel,
+  confirmedCount,
+  decisionLabel,
+  legendGroups,
+  moreBadges,
+  type Status,
+} from './boardBadges';
+
+/** The group of cohorts that follow no standard schedule. */
+export const NO_STANDARD_GROUP = 'No standard schedule';
+/**
+ * The fields of the board's filter bar, in order (Release 3, C14). "track" is the standard schedule a cohort follows,
+ * labelled Standard schedule; "badge" is a badge or problem code of a class week, such as clash or message_failed.
+ */
+export const BOARD_FILTERS = [
+  'cohort',
+  'track',
+  'module',
+  'region',
+  'status',
+  'instructor',
+  'badge',
+] as const;
+const NO_COHORT = 'No cohort';
 
 type Problem = { code: string; level: 'Block' | 'Warning' | 'Information'; text: string };
 type Cell = {
@@ -58,7 +89,11 @@ type Cell = {
   guests: number;
   standard_position: number | null;
   customized: boolean;
+  /** Who is planned, for a class week nobody is confirmed or asked for (planned_instructors). */
+  planned?: Planned;
 };
+/** The statuses of a class week nobody is confirmed or asked for, which name who is planned instead. */
+const PLANNED_FOR: Status[] = ['Not asked yet', 'Paused', 'Setup incomplete', 'Needs instructor'];
 type CohortCol = {
   id: string;
   name: string;
@@ -86,73 +121,6 @@ type Board = {
   breaks: BreakRow[];
   decisions: Record<string, number>;
 };
-type Status =
-  | 'Confirmed'
-  | 'Waiting'
-  | 'Needs instructor'
-  | 'Proposed time'
-  | 'Not asked yet'
-  | 'Setup incomplete'
-  | 'Paused'
-  | 'Cancelled'
-  | 'Completed';
-
-/** The main statuses: always colour, icon and word together. */
-const STATUS: Record<
-  Status,
-  {
-    tone: 'success' | 'warning' | 'danger' | 'accent' | 'neutral';
-    icon: typeof Circle;
-    word: string;
-  }
-> = {
-  Confirmed: { tone: 'success', icon: CheckCircle2, word: 'Confirmed' },
-  Waiting: { tone: 'warning', icon: Clock, word: 'Waiting for an answer' },
-  'Needs instructor': { tone: 'danger', icon: AlertTriangle, word: 'Needs instructor' },
-  'Proposed time': { tone: 'accent', icon: CalendarClock, word: 'Proposed time' },
-  'Not asked yet': { tone: 'neutral', icon: Circle, word: 'Not asked yet' },
-  'Setup incomplete': { tone: 'neutral', icon: Wrench, word: 'Setup incomplete' },
-  Paused: { tone: 'neutral', icon: PauseCircle, word: 'Paused' },
-  Cancelled: { tone: 'neutral', icon: XCircle, word: 'Cancelled' },
-  Completed: { tone: 'neutral', icon: CheckCircle2, word: 'Completed' },
-};
-
-/** Exception badges, in the glossary's words. */
-export const BADGE: Record<string, string> = {
-  clash: 'Clash',
-  tight_gap: 'Tight gap',
-  busy_day: 'Full day',
-  unavailable: 'Unavailable',
-  monthly_limit: 'Monthly limit',
-  not_in_use: 'Instructor not in use',
-  sooner_class_first: 'Sooner class first',
-  unusual_hours: 'Odd hours',
-  holiday: 'Holiday',
-  cohort_holiday: 'Cohort holiday',
-  in_break: 'During a break',
-  cohort_overlap: 'Overlaps another class',
-  proposed_time: 'Proposed time',
-  waiting_new_time: 'Waiting to confirm a new time',
-  shared_class: 'Shared class',
-  answer_due_soon: 'Answer due soon',
-  message_failed: 'Message failed',
-  message_blocked: 'Message not sent',
-  help_open: 'Help request open',
-  tasks_overdue: 'Class tasks overdue',
-  moved: 'Moved',
-  extra_class: 'Extra class',
-  declined: 'Declined or no reply before',
-  ambiguous_time: 'Daylight saving',
-  needs_instructor: 'Needs instructor',
-};
-const SERIOUS = new Set([
-  'clash',
-  'unavailable',
-  'message_failed',
-  'message_blocked',
-  'needs_instructor',
-]);
-
 function StatusChip({ status }: { status: Status }) {
   const s = STATUS[status];
   const Icon = s.icon;
@@ -168,6 +136,8 @@ type Prefs = {
   weeks: number;
   onlyProblems: boolean;
   compare?: boolean;
+  /** False after Hide legend. Saved views from before the Legend was shown by default have nothing, so it shows. */
+  legend?: boolean;
 };
 
 /** Filters remembered per person on this device. */
@@ -197,18 +167,25 @@ export default function Board() {
   const { domain } = useDomain();
   const auth = useAuth();
   const [prefs, setPrefs] = usePrefs(`board:${auth.account?.member?.email ?? 'me'}`);
-  const [start, setStart] = useState(() => sunday(DateTime.now()).minus({ weeks: 1 }));
+  // The board opens at this week, so no empty past weeks come first; Earlier shows the weeks before.
+  const [start, setStart] = useState(() => sunday(DateTime.now()));
   const [decision, setDecision] = useState<string | null>(null);
   const [openWeek, setOpenWeek] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [menu, setMenu] = useState<{ kind: 'break' | 'holiday' | 'merge'; cohort?: string } | null>(
     null,
   );
-  const [legend, setLegend] = useState(false);
+  const legend = prefs.legend !== false;
+  // Cohort, standard schedule, module, region, status, instructor and badge: remembered per person and domain.
+  const [filters, setFilters] = useRememberedFilters(
+    filtersKey('board', auth.account?.member?.email),
+    domain?.id,
+    BOARD_FILTERS,
+  );
   // Bulk actions (M12b, decision 314): select several class weeks, then one action with one combined preview.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const [bulk, setBulk] = useState<'move' | 'cancel' | 'break' | 'share' | null>(null);
+  const [bulk, setBulk] = useState<'move' | 'cancel' | 'break' | 'share' | 'ask' | null>(null);
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const from = start.toISODate()!;
@@ -229,6 +206,24 @@ export default function Board() {
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
+  const raw = board.data;
+  // Who is planned for the class weeks nobody is confirmed or asked for yet: the database's own next person.
+  const planned = usePlanned(
+    (raw?.weeks ?? []).filter((c) => !c.past && PLANNED_FOR.includes(c.status)).map((c) => c.id),
+  );
+  const withPlanned = useMemo(
+    () =>
+      raw && {
+        ...raw,
+        // The planned person is the cell's instructor, so By instructor and the download show them too.
+        weeks: raw.weeks.map((c) => {
+          const p = planned.data?.get(c.id);
+          if (!PLANNED_FOR.includes(c.status) || !p) return c;
+          return { ...c, instructor: p.planned?.name ?? c.instructor, planned: p };
+        }),
+      },
+    [raw, planned.data],
+  );
   // Messages a beta rule stopped show on their class week (decision 329); the board data comes from the database.
   const blockedMsgs = useBlockedMessages({ domainId: domain?.id });
   const blockedWeeks = useMemo(
@@ -236,18 +231,42 @@ export default function Board() {
     [blockedMsgs.data],
   );
   const b = useMemo(() => {
-    const raw = board.data;
-    if (!raw || blockedWeeks.size === 0) return raw;
-    const weeks = raw.weeks.map((c) =>
+    if (!withPlanned || blockedWeeks.size === 0) return withPlanned;
+    const weeks = withPlanned.weeks.map((c) =>
       blockedWeeks.has(c.id) && !c.badges.includes('message_blocked')
         ? { ...c, badges: [...c.badges, 'message_blocked'] }
         : c,
     );
     const n = weeks.filter((c) => c.badges.includes('message_blocked')).length;
-    return { ...raw, weeks, decisions: { ...raw.decisions, ...(n ? { message_blocked: n } : {}) } };
-  }, [board.data, blockedWeeks]);
+    return {
+      ...withPlanned,
+      weeks,
+      decisions: { ...withPlanned.decisions, ...(n ? { message_blocked: n } : {}) },
+    };
+  }, [withPlanned, blockedWeeks]);
+  // What each filter reads from a cohort column, and from a class week (through its cohort for the first three).
+  const cohortGetters = useMemo<Getters<CohortCol>>(
+    () => ({
+      cohort: (c) => c.name,
+      track: (c) => c.standard ?? NO_STANDARD_GROUP,
+      region: (c) => asRegion(c.region),
+    }),
+    [],
+  );
+  const cellGetters = useMemo<Getters<Cell>>(() => {
+    const cohortOf = new Map((b?.cohorts ?? []).map((c) => [c.id, c] as const));
+    return {
+      cohort: (c) => c.cohort ?? NO_COHORT,
+      track: (c) => cohortOf.get(c.cohort_id ?? '')?.standard ?? NO_STANDARD_GROUP,
+      module: (c) => c.module,
+      region: (c) => asRegion(cohortOf.get(c.cohort_id ?? '')?.region),
+      status: (c) => STATUS[c.status].word,
+      instructor: (c) => c.instructor ?? NO_INSTRUCTOR,
+      badge: (c) => [...c.badges, ...c.problems.map((p) => p.code)],
+    };
+  }, [b]);
   const cells = useMemo(() => {
-    const all = b?.weeks ?? [];
+    const all = applyFilters(b?.weeks ?? [], filters, cellGetters);
     return all.filter(
       (c) =>
         (!prefs.onlyProblems ||
@@ -259,7 +278,7 @@ export default function Board() {
           c.problems.some((p) => p.code === decision) ||
           c.status.toLowerCase().replace(/ /g, '_') === decision),
     );
-  }, [b, prefs.onlyProblems, decision]);
+  }, [b, prefs.onlyProblems, decision, filters, cellGetters]);
   const rows = useMemo(
     () => Array.from({ length: prefs.weeks }, (_, i) => start.plus({ weeks: i })),
     [start, prefs.weeks],
@@ -281,15 +300,16 @@ export default function Board() {
         DateTime.fromISO(x.starts_on) < row.plus({ weeks: 1 }) &&
         DateTime.fromISO(x.starts_on).plus({ weeks: x.weeks }) > row,
     );
-  // Tracks: the cohorts of one standard schedule, which can be folded away together.
+  // Tracks: the cohorts of one standard schedule, which can be folded away together. The cohort, standard schedule
+  // and region filters also leave out the columns of the other cohorts.
   const tracks = useMemo(() => {
     const m = new Map<string, CohortCol[]>();
-    for (const c of b?.cohorts ?? []) {
-      const k = c.standard ?? 'Other cohorts';
+    for (const c of applyFilters(b?.cohorts ?? [], filters, cohortGetters)) {
+      const k = c.standard ?? NO_STANDARD_GROUP;
       m.set(k, [...(m.get(k) ?? []), c]);
     }
     return [...m.entries()];
-  }, [b]);
+  }, [b, filters, cohortGetters]);
   const visibleCohorts = tracks.flatMap(([t, cs]) => (collapsed.has(t) ? [] : cs));
   const health = (cohort: string) => {
     const mine = (b?.weeks ?? []).filter(
@@ -298,8 +318,19 @@ export default function Board() {
     return { confirmed: mine.filter((c) => c.status === 'Confirmed').length, total: mine.length };
   };
 
+  const regionOf = new Map((b?.cohorts ?? []).map((k) => [k.id, k.region]));
+  /** The instructor line of a cell: Confirmed, Waiting for an answer, or who is planned and from when. */
+  const who = (c: Cell): string | null => {
+    if (c.planned)
+      return plannedLine(c.planned, DateTime.now(), c.cohort_id ? regionOf.get(c.cohort_id) : null);
+    if (!c.instructor || PLANNED_FOR.includes(c.status)) return null;
+    if (c.status === 'Confirmed' || c.status === 'Waiting')
+      return `${STATUS[c.status].word}: ${c.instructor}`;
+    return c.instructor;
+  };
+
   const CellButton = ({ c }: { c: Cell }) => {
-    const shown = c.badges.filter((x) => BADGE[x]);
+    const shown = c.badges.filter((x) => badgeLabel(x));
     const differs = prefs.compare && (c.customized || c.standard_position === null);
     const body = (
       <>
@@ -316,23 +347,19 @@ export default function Board() {
         {differs && (
           <div className="mt-1">
             <Badge tone="warning">
-              {c.standard_position === null ? 'Not in the standard' : 'Differs from the standard'}
+              {c.standard_position === null ? MARK.notInStandard : MARK.differs}
             </Badge>
           </div>
         )}
-        {c.instructor && (
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {c.status === 'Not asked yet' ? `Primary: ${c.instructor}` : c.instructor}
-          </div>
-        )}
+        {who(c) && <div className="mt-0.5 text-xs break-words text-muted-foreground">{who(c)}</div>}
         {shown.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {shown.slice(0, 3).map((x) => (
               <Badge key={x} tone={SERIOUS.has(x) ? 'danger' : 'warning'}>
-                {BADGE[x]}
+                {badgeLabel(x)}
               </Badge>
             ))}
-            {shown.length > 3 && <Badge>+{shown.length - 3}</Badge>}
+            {shown.length > 3 && <Badge>{moreBadges(shown.length - 3)}</Badge>}
           </div>
         )}
       </>
@@ -363,12 +390,49 @@ export default function Board() {
 
   const decisions = Object.entries(b?.decisions ?? {}).filter(([, n]) => n > 0);
 
+  const allWeeks = b?.weeks ?? [];
+  const filterFields: FilterField[] = [
+    {
+      key: 'cohort',
+      label: 'Cohort',
+      // Every cohort column, and No cohort when a class week has none.
+      options: optionsFrom(
+        [...(b?.cohorts ?? []).map((c) => c.name), ...allWeeks.map((c) => c.cohort ?? NO_COHORT)],
+        (n) => n,
+      ),
+    },
+    {
+      key: 'track',
+      label: 'Standard schedule',
+      options: optionsFrom(b?.cohorts ?? [], cohortGetters.track!),
+    },
+    { key: 'module', label: 'Module', options: optionsFrom(allWeeks, cellGetters.module!) },
+    { key: 'region', label: 'Region', options: fixedOptions(REGIONS) },
+    {
+      key: 'status',
+      label: 'Status',
+      options: fixedOptions((Object.keys(STATUS) as Status[]).map((s) => STATUS[s].word)),
+    },
+    {
+      key: 'instructor',
+      label: 'Instructor',
+      options: optionsFrom(allWeeks, cellGetters.instructor!),
+    },
+    {
+      key: 'badge',
+      label: 'Badge',
+      options: optionsFrom(allWeeks, cellGetters.badge!, decisionLabel),
+    },
+  ];
+  // With a filter on and nothing left, say so instead of an empty grid.
+  const filtered = hasChoices(filters);
+
   // What is shown, as a spreadsheet, and the download in Activity history like every other one.
   const download = () => {
     void rpc('log_export', {
       p_what: 'Schedule board',
       p_rows: cells.length,
-      p_filters: { from, to, only_problems: prefs.onlyProblems, decision },
+      p_filters: { from, to, only_problems: prefs.onlyProblems, decision, ...filters },
       p_domain_id: domain?.id,
     }).catch(() => {});
     downloadCsv(
@@ -380,7 +444,7 @@ export default function Board() {
           module: c.module,
           status: STATUS[c.status].word,
           instructor: c.instructor ?? '',
-          badges: c.badges.map((x) => BADGE[x] ?? x).join('; '),
+          badges: c.badges.map((x) => badgeLabel(x) ?? x).join('; '),
           problems: c.problems.map((p) => `${p.level}: ${p.text}`).join(' | '),
           follows_standard: c.standard_position === null ? 'no' : c.customized ? 'changed' : 'yes',
         })),
@@ -422,11 +486,7 @@ export default function Board() {
           >
             Earlier
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setStart(sunday(DateTime.now()).minus({ weeks: 1 }))}
-          >
+          <Button size="sm" variant="outline" onClick={() => setStart(sunday(DateTime.now()))}>
             This week
           </Button>
           <Button
@@ -459,8 +519,14 @@ export default function Board() {
           checked={!!prefs.compare}
           onChange={(v) => setPrefs({ compare: v })}
         />
-        <Button size="sm" variant="ghost" aria-expanded={legend} onClick={() => setLegend(!legend)}>
-          Legend
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={legend}
+          aria-controls={legend ? 'board-legend-section' : undefined}
+          onClick={() => setPrefs({ legend: !legend })}
+        >
+          {legend ? 'Hide legend' : 'Show legend'}
         </Button>
         <Button size="sm" variant="secondary" disabled={cells.length === 0} onClick={download}>
           <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
@@ -488,6 +554,14 @@ export default function Board() {
               ? 'Click class weeks to select them.'
               : `${selected.length} class week${selected.length === 1 ? '' : 's'} selected`}
           </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={selected.length === 0}
+            onClick={() => setBulk('ask')}
+          >
+            Start asking now
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -528,24 +602,9 @@ export default function Board() {
         </section>
       )}
 
-      {legend && (
-        <section
-          aria-label="Legend"
-          className="mb-4 flex flex-wrap gap-2 rounded-md border border-border p-3"
-        >
-          {(Object.keys(STATUS) as Status[]).map((s) => (
-            <StatusChip key={s} status={s} />
-          ))}
-          <Badge>
-            <Pause className="h-3.5 w-3.5" aria-hidden /> Break
-          </Badge>
-          <Badge tone="danger">Message not sent</Badge>
-          <span className="text-xs text-muted-foreground">
-            Message not sent: a beta rule stopped it. Open the class week to see why and send it
-            again.
-          </span>
-        </section>
-      )}
+      <FilterBar fields={filterFields} value={filters} onChange={setFilters} />
+
+      {legend && <Legend />}
 
       <section aria-label="Needs a decision" className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Needs a decision</h2>
@@ -561,7 +620,7 @@ export default function Board() {
                 aria-pressed={decision === k}
                 onClick={() => setDecision(decision === k ? null : k)}
               >
-                {BADGE[k] ?? k.replace(/_/g, ' ')}: {n}
+                {decisionLabel(k)}: {n}
               </Button>
             ))}
             {decision && (
@@ -579,6 +638,17 @@ export default function Board() {
         <ErrorText error={board.error} />
       ) : !b || b.weeks.length === 0 ? (
         <p className="text-sm text-muted-foreground">No class weeks in these weeks.</p>
+      ) : filtered && cells.length === 0 ? (
+        <Empty
+          title="No class weeks match these filters"
+          action={
+            <Button variant="secondary" onClick={() => setFilters({})}>
+              Clear all filters
+            </Button>
+          }
+        >
+          Remove a filter above, or show other weeks with Earlier and Later.
+        </Empty>
       ) : prefs.view === 'list' ? (
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
@@ -672,18 +742,22 @@ export default function Board() {
                                       : 'neutral'
                                 }
                               >
-                                {c.mode === 'Custom' ? `Custom (${c.changes})` : c.mode}
+                                {c.mode === 'Custom'
+                                  ? `${COHORT_BADGE.custom} (${c.changes})`
+                                  : c.mode === 'Standard'
+                                    ? COHORT_BADGE.standard
+                                    : COHORT_BADGE.fullyCustom}
                               </Badge>
                               <Badge
                                 tone={
                                   h.total > 0 && h.confirmed === h.total ? 'success' : 'neutral'
                                 }
                               >
-                                {h.confirmed} of {h.total} confirmed
+                                {confirmedCount(h.confirmed, h.total)}
                               </Badge>
                               {c.merged_into && c.merged_from && (
                                 <Badge tone="accent">
-                                  Merged into {c.merged_into_name} from{' '}
+                                  {COHORT_BADGE.mergedInto} {c.merged_into_name} from{' '}
                                   {DateTime.fromISO(c.merged_from).toFormat('LLL d')}
                                 </Badge>
                               )}
@@ -734,7 +808,7 @@ export default function Board() {
                         className="px-3 py-2"
                       >
                         <Badge>
-                          <Pause className="h-3.5 w-3.5" aria-hidden /> Program break:{' '}
+                          <Pause className="h-3.5 w-3.5" aria-hidden /> {MARK.programBreak}:{' '}
                           {program.reason}
                         </Badge>
                       </td>
@@ -750,7 +824,7 @@ export default function Board() {
                                   <div className="space-y-1">
                                     {br && here.length === 0 && (
                                       <Badge>
-                                        <Pause className="h-3.5 w-3.5" aria-hidden /> Break:{' '}
+                                        <Pause className="h-3.5 w-3.5" aria-hidden /> {MARK.break}:{' '}
                                         {br.reason}
                                       </Badge>
                                     )}
@@ -780,6 +854,18 @@ export default function Board() {
             setBulk(null);
             setSelected([]);
           }}
+        />
+      )}
+      {bulk === 'ask' && (
+        <StartAskingDialog
+          weeks={(b?.weeks ?? [])
+            .filter((c) => selected.includes(c.id))
+            .map((c) => ({
+              id: c.id,
+              label: `${c.module}${c.cohort ? `, ${c.cohort}` : ''}, week of ${DateTime.fromISO(c.week_start_date).toFormat('LLL d')}`,
+            }))}
+          onDone={() => setSelected([])}
+          onClose={() => setBulk(null)}
         />
       )}
       {bulk === 'break' && domain && (
@@ -851,6 +937,42 @@ export default function Board() {
   );
 }
 
+/** Every status and badge the board and its side panel can show, each with one sentence. */
+function Legend() {
+  return (
+    <section
+      id="board-legend-section"
+      aria-labelledby="board-legend"
+      className="mb-4 rounded-md border border-border p-3"
+    >
+      <h2 id="board-legend" className="text-sm font-semibold">
+        Legend
+      </h2>
+      {legendGroups().map((g) => (
+        <div key={g.title} className="mt-3">
+          <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{g.title}</h3>
+          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
+            {g.items.map((i) => {
+              const Icon = i.icon;
+              return (
+                <div key={i.label} className="min-w-0">
+                  <dt className="inline">
+                    <Badge tone={i.tone}>
+                      {Icon && <Icon className="h-3.5 w-3.5" aria-hidden />}
+                      {i.label}
+                    </Badge>
+                  </dt>
+                  <dd className="ml-1.5 inline text-muted-foreground">{i.text}</dd>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 /** The cohort header menu: add a break, a cohort holiday, merge, and links to its settings and instructor order. */
 function CohortMenu({
   name,
@@ -904,7 +1026,24 @@ function CohortMenu({
   );
 }
 
-/** By instructor: one row per instructor, one column per week. */
+const NO_INSTRUCTOR = 'No instructor yet';
+const PHONE = '(width < 768px)';
+/** True on a phone sized screen, and follows the screen when it turns or resizes. */
+function usePhone() {
+  return useSyncExternalStore(
+    (changed) => {
+      const m = window.matchMedia(PHONE);
+      m.addEventListener('change', changed);
+      return () => m.removeEventListener('change', changed);
+    },
+    () => window.matchMedia(PHONE).matches,
+  );
+}
+
+/**
+ * By instructor: one row per instructor, one column per week. On a phone each instructor is a heading with their
+ * class weeks as cards underneath, so nothing scrolls sideways and no week without a class takes room.
+ */
 function InstructorGrid({
   cells,
   rows,
@@ -916,7 +1055,10 @@ function InstructorGrid({
   thisWeek: string | null;
   render: (c: Cell) => React.ReactNode;
 }) {
-  const people = [...new Set(cells.map((c) => c.instructor ?? 'No instructor yet'))].sort();
+  const phone = usePhone();
+  const people = [...new Set(cells.map((c) => c.instructor ?? NO_INSTRUCTOR))].sort();
+  if (phone)
+    return <InstructorCards cells={cells} people={people} thisWeek={thisWeek} render={render} />;
   return (
     <div className="max-h-[70vh] overflow-auto rounded-md border border-border">
       <table className="text-sm">
@@ -950,7 +1092,7 @@ function InstructorGrid({
                     {cells
                       .filter(
                         (c) =>
-                          (c.instructor ?? 'No instructor yet') === p &&
+                          (c.instructor ?? NO_INSTRUCTOR) === p &&
                           DateTime.fromISO(c.week_start_date) >= r &&
                           DateTime.fromISO(c.week_start_date) < r.plus({ weeks: 1 }),
                       )
@@ -969,6 +1111,63 @@ function InstructorGrid({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** By instructor on a phone: each instructor's class weeks as cards, in date order. */
+function InstructorCards({
+  cells,
+  people,
+  thisWeek,
+  render,
+}: {
+  cells: Cell[];
+  people: string[];
+  thisWeek: string | null;
+  render: (c: Cell) => React.ReactNode;
+}) {
+  if (people.length === 0)
+    return <p className="text-sm text-muted-foreground">No class weeks match these filters.</p>;
+  return (
+    <div className="space-y-6">
+      {people.map((p) => {
+        const mine = cells
+          .filter((c) => (c.instructor ?? NO_INSTRUCTOR) === p)
+          .sort(
+            (x, y) =>
+              x.week_start_date.localeCompare(y.week_start_date) ||
+              (x.cohort ?? '').localeCompare(y.cohort ?? ''),
+          );
+        return (
+          <div key={p}>
+            <h2 className="mb-2 text-base font-semibold">
+              {p}{' '}
+              <span className="text-sm font-normal text-muted-foreground">
+                ({mine.length} class week{mine.length === 1 ? '' : 's'})
+              </span>
+            </h2>
+            <ul className="space-y-3" aria-label={`Class weeks of ${p}`}>
+              {mine.map((c) => {
+                const now = sunday(DateTime.fromISO(c.week_start_date)).toISODate() === thisWeek;
+                return (
+                  <li
+                    key={c.id}
+                    aria-current={now ? 'date' : undefined}
+                    className={cn('min-w-0 rounded-md', now && 'bg-info-soft/40 p-1')}
+                  >
+                    <div className="mb-1 text-xs text-muted-foreground">
+                      Week of {DateTime.fromISO(c.week_start_date).toFormat('LLL d')}
+                      {now && ' (this week)'}, {c.cohort ?? 'No cohort'}
+                    </div>
+                    {render(c)}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

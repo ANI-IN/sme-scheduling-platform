@@ -45,6 +45,22 @@ const sql = async (q: string, params: unknown[] = []) => {
   }
 };
 
+/** Opens the Backend domain's panel on Domains. */
+const openDomain = async (p: Page) => {
+  await p.locator('tbody tr').filter({ hasText: 'Backend' }).first().click();
+  await p.waitForTimeout(800);
+};
+
+/** On the Schedule board: Select class weeks, then select the first two class weeks shown. */
+const selectTwoWeeks = async (p: Page) => {
+  await click(/select class weeks/i)(p);
+  // A selected cell is named "Selected: ...", so the first unselected cell is first again.
+  const cells = p.getByRole('button', { name: /^Select: / });
+  await cells.nth(0).click();
+  await cells.nth(0).click();
+  await p.waitForTimeout(500);
+};
+
 /**
  * Made up Discord setup for the pictures: a server for Backend that is ready, its channels, and
  * usernames and channels for the test instructors (one not found, to show what that looks like).
@@ -229,8 +245,8 @@ const PICS: Pic[] = [
     file: 'classes-regions.png',
     path: '/classes',
     marks: [
-      (p) => p.getByRole('combobox', { name: 'Region' }),
-      (p) => p.getByRole('combobox', { name: 'Status' }),
+      (p) => p.getByRole('group', { name: 'Filters' }).getByRole('button', { name: /^Region/ }),
+      (p) => p.getByRole('group', { name: 'Filters' }).getByRole('button', { name: /^Status/ }),
       (p) => p.locator('tbody tr').first().locator('td').nth(1),
     ],
   },
@@ -238,6 +254,178 @@ const PICS: Pic[] = [
     file: 'connections.png',
     path: '/settings/connections',
     clip: (p) => p.locator('section', { hasText: 'Connection health' }).first(),
+  },
+  // The pictures below are for the rewritten guides (domains, admins, standards, cohorts, the board, problems,
+  // instructors and notifications). A guide shows each one once it has been made.
+  {
+    file: 'domain-discord-server.png',
+    path: '/setup/domains',
+    act: async (p) => {
+      await openDomain(p);
+      // The test data has one server waiting for approval ("New program server").
+      await p
+        .getByRole('dialog')
+        .getByRole('button', { name: /approve for this domain/i })
+        .first()
+        .scrollIntoViewIfNeeded()
+        .catch(() => {});
+      await p.waitForTimeout(300);
+    },
+    marks: [
+      (p) =>
+        p
+          .getByRole('dialog')
+          .getByRole('combobox', { name: /^Discord server/ })
+          .first(),
+      (p) =>
+        p
+          .getByRole('dialog')
+          .getByRole('button', { name: /approve for this domain/i })
+          .first(),
+      (p) => p.getByRole('dialog').getByText('Alert channel', { exact: true }).first(),
+    ],
+  },
+  {
+    file: 'admin-sign-in.png',
+    path: '/settings/admin',
+    marks: [button(/people on the beta list/i), button(/add to the beta list/i)],
+  },
+  {
+    file: 'admin-messages.png',
+    path: '/settings/admin',
+    clip: (p) =>
+      p.locator('section', { hasText: 'Checked for every person a message goes to' }).first(),
+  },
+  {
+    file: 'standard-new.png',
+    path: '/setup/standards',
+    act: click(/add standard schedule/i),
+    marks: [
+      (p) => p.getByRole('dialog').getByRole('textbox').first(),
+      (p) => p.getByRole('dialog').getByLabel('Module to add'),
+      (p) => p.getByRole('dialog').getByRole('button', { name: /^add a break$/i }),
+    ],
+  },
+  {
+    file: 'cohorts.png',
+    path: '/setup/domains',
+    act: openDomain,
+    clip: (p) =>
+      p.getByRole('dialog').locator('section', { hasText: 'Cohorts and regions' }).first(),
+  },
+  {
+    file: 'board.png',
+    path: '/board',
+    marks: [
+      button(/^by cohort$/i),
+      (p) => p.getByRole('heading', { name: 'Needs a decision' }),
+      button(/^hide legend$/i),
+      button(/select class weeks/i),
+    ],
+  },
+  {
+    file: 'board-legend.png',
+    path: '/board',
+    // The Legend shows by default (Release 3, C14).
+    clip: (p) => p.locator('section', { hasText: 'Badges on a class week' }).first(),
+  },
+  {
+    file: 'board-select.png',
+    path: '/board',
+    act: selectTwoWeeks,
+    marks: [
+      (p) => p.getByRole('region', { name: 'Selected class weeks' }),
+      button(/^move$/i),
+      button(/make one shared class/i),
+    ],
+  },
+  {
+    file: 'board-move.png',
+    path: '/board',
+    act: async (p) => {
+      await selectTwoWeeks(p);
+      await click(/^move$/i)(p);
+      // The preview comes from the database.
+      await p.waitForTimeout(1500);
+    },
+    marks: [
+      (p) => p.getByRole('dialog').getByLabel('Move by'),
+      (p) => p.getByRole('dialog').getByRole('button', { name: /^move$/i }),
+    ],
+  },
+  {
+    file: 'share-class.png',
+    path: '/board',
+    act: async (p) => {
+      await p
+        .getByRole('button', { name: /^Open / })
+        .first()
+        .click();
+      await p.waitForTimeout(800);
+      await click(/share with other cohorts/i)(p);
+      await p.waitForTimeout(700);
+    },
+    marks: [(p) => p.getByText('Class weeks of other cohorts').first(), button(/^share class$/i)],
+  },
+  {
+    file: 'add-break.png',
+    path: '/board',
+    act: async (p) => {
+      await click(/^cohort actions/i)(p);
+      await click(/^add a break$/i)(p);
+    },
+    marks: [
+      (p) => p.getByRole('dialog').getByLabel('What is the break for?'),
+      (p) => p.getByRole('dialog').getByLabel('First day').first(),
+      (p) => p.getByRole('dialog').getByLabel('Length of the break'),
+    ],
+  },
+  {
+    file: 'merge-cohorts.png',
+    path: '/setup/domains',
+    act: async (p) => {
+      await openDomain(p);
+      await click(/^merge cohorts$/i)(p);
+    },
+    marks: [
+      (p) => p.getByRole('group', { name: 'Cohorts to merge' }),
+      (p) => p.getByLabel('Name of the combined cohort'),
+      (p) => p.getByLabel('Merge date').first(),
+    ],
+  },
+  {
+    file: 'instructor-order.png',
+    path: '/setup/modules',
+    act: async (p) => {
+      await p.locator('tbody tr').first().click();
+      await p.waitForTimeout(800);
+      await p.getByRole('tab', { name: 'Instructor order' }).click();
+      await p.waitForTimeout(800);
+    },
+    marks: [
+      (p) => p.getByText('Primary instructor').first(),
+      (p) => p.getByLabel('Instructor to add'),
+      button(/review and save/i),
+    ],
+  },
+  {
+    file: 'team-member.png',
+    path: '/setup/team',
+    act: async (p) => {
+      await p.locator('tbody tr').first().click();
+      await p.waitForTimeout(800);
+      await p
+        .getByRole('dialog')
+        .getByText('Send a daily summary')
+        .first()
+        .scrollIntoViewIfNeeded();
+      await p.waitForTimeout(300);
+    },
+    marks: [
+      (p) => p.getByRole('dialog').getByLabel(/^Discord username/),
+      (p) => p.getByRole('dialog').getByText('Send a daily summary').first(),
+      button(/send test alert/i),
+    ],
   },
 ];
 

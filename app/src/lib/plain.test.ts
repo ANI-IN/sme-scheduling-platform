@@ -14,6 +14,10 @@ describe('plain language layer (docs/GLOSSARY.md)', () => {
     expect(plain('Checklist overdue: API Design')).toBe('Class tasks overdue: API Design');
     expect(plain('the module week ranking')).toBe('the class week instructor order');
     expect(plain('kill switch on')).toBe('pause on all messages on');
+    expect(plain('Need help from Maya: API Design')).toBe('Help requested by Maya: API Design');
+    expect(plain('New time not confirmed by Maya: API Design')).toBe(
+      'New class time not confirmed by Maya: API Design',
+    );
   });
   it('uses the words of the team for database values (UI-5)', () => {
     expect(plain('Not verified')).toBe('Contact details not checked');

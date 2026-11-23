@@ -5,6 +5,9 @@ import { Link } from 'react-router-dom';
 import { Globe2, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import { useAutosave } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { useDomain } from '@/lib/domain';
 import { useCohortScheduleStatus, useCohorts, useDomains, useTeam, type Domain } from '@/lib/data';
 import { CohortScheduleBadge, PlanFromStandardDialog, ResetToStandard } from './standardParts';
@@ -153,13 +156,7 @@ export default function Domains() {
           </table>
         </div>
       )}
-      {current && (
-        <DomainDrawer
-          key={`${current.id}:${current.version}`}
-          domain={current}
-          onClose={() => setOpen(null)}
-        />
-      )}
+      {current && <DomainDrawer key={current.id} domain={current} onClose={() => setOpen(null)} />}
       {creating && (
         <CreateDomain
           onClose={() => setCreating(false)}
@@ -240,7 +237,7 @@ function CreateDomain({
                 });
               setDomainId(d.id);
               toast.success('Domain created');
-              await qc.invalidateQueries();
+              refresh(qc, 'domain', 'setting', 'class_type', 'message_template');
               onCreated(d.id);
             } catch (e) {
               setErr(e);
@@ -263,11 +260,31 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
     queryFn: async () =>
       check(await supabase.from('domain_team').select('*').eq('domain_id', domain.id)),
   });
-  const [name, setName] = useState(domain.name);
-  const [alert, setAlert] = useState(domain.alert_discord_channel_id ?? '');
+  const stored = { name: domain.name, alert: domain.alert_discord_channel_id ?? '' };
+  const [f, setF] = useState(stored);
   const [err, setErr] = useState<unknown>(null);
   const v = useFormErrors({
-    name: !name.trim() ? 'Enter a name.' : undefined,
+    name: !f.name.trim() ? 'Enter a name.' : undefined,
+  });
+  // The name and alert channel save as they change (C15), like everything else in this drawer.
+  const auto = useAutosave({
+    value: { name: f.name.trim(), alert: f.alert },
+    instant: ['alert'],
+    stored,
+    version: domain.version,
+    valid: !v.hasErrors,
+    onReload: setF,
+    save: async (x, version) => {
+      const [row] = check(
+        await supabase
+          .from('domain')
+          .update({ name: x.name, alert_discord_channel_id: x.alert || null, version })
+          .eq('id', domain.id)
+          .select(),
+      );
+      refresh(qc, 'domain');
+      return row?.version;
+    },
   });
   const ids = (role: string) =>
     (roles.data ?? []).filter((r) => r.role === role).map((r) => r.team_member_id);
@@ -277,8 +294,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
     try {
       await fn();
       if (ok) toast.success(ok);
-      // The lists reload in the background, so the panel answers at once.
-      void qc.invalidateQueries();
+      refresh(qc, 'domain', 'domain_team');
     } catch (e) {
       setErr(e);
     }
@@ -328,7 +344,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
     try {
       await rpc('set_domain_status', { p_domain_id: domain.id, p_status: status });
       toast.success(`Status: ${statusLabel[status]}`);
-      void qc.invalidateQueries({ queryKey: ['domain'] });
+      refresh(qc, 'domain');
     } catch (e) {
       setStatusErr(e);
     }
@@ -338,15 +354,17 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
   const who = (id: string) => (team.data ?? []).find((t) => t.id === id)?.name ?? 'this person';
   const roleName = (r: string) => (r === 'Escalation' ? 'escalation contacts' : 'operations team');
   const role = (r: 'Escalation' | 'Operations') => ({
-    onAdd: (id: string) =>
+    onAdd: (ids: string[]) =>
       run(
         async () =>
           check(
             await supabase
               .from('domain_team')
-              .insert({ domain_id: domain.id, team_member_id: id, role: r }),
+              .insert(ids.map((id) => ({ domain_id: domain.id, team_member_id: id, role: r }))),
           ),
-        `${who(id)} added to the ${roleName(r)}`,
+        ids.length === 1
+          ? `${who(ids[0]!)} added to the ${roleName(r)}`
+          : `${ids.length} people added to the ${roleName(r)}`,
       ),
     onRemove: async (id: string) => {
       if (
@@ -364,7 +382,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
           `${who(id)} removed from the ${roleName(r)}`,
         )
       )
-        await qc.invalidateQueries();
+        refresh(qc, 'domain_team');
     },
   });
 
@@ -373,7 +391,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
       open
       onOpenChange={(o) => !o && onClose()}
       title={domain.name}
-      description="Changes save as you make them, except the name and alert channel."
+      description="Changes save as you make them."
     >
       <div className="space-y-5">
         <Section title="Status" description={STATUS_HELP[domain.status]}>
@@ -439,54 +457,31 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
           <TestingTargets domain={domain} />
         </div>
         <div id="domain-details">
-          <Section title="Details">
-            <div className="space-y-4">
-              <Field label="Name" required error={v.show('name')}>
-                <Input
-                  value={name}
-                  onBlur={v.touch('name')}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </Field>
-              <DomainDiscordServer domain={domain} />
-              <Field
+        <Section title="Details">
+          <div className="space-y-4">
+            <Field label="Name" required error={v.show('name')}>
+              <Input
+                value={f.name}
+                onBlur={() => (v.touch('name')(), auto.flush())}
+                onChange={(e) => setF({ ...f, name: e.target.value })}
+              />
+            </Field>
+            <DomainDiscordServer domain={domain} />
+            <Field
+              label="Alert channel"
+              hint="The Discord channel where the team is tagged about this domain."
+            >
+              <ChannelPicker
+                serverId={domain.discord_server_id}
                 label="Alert channel"
-                hint="The Discord channel where the team is tagged about this domain."
-              >
-                <ChannelPicker
-                  serverId={domain.discord_server_id}
-                  label="Alert channel"
-                  value={alert || null}
-                  noneLabel="No alert channel"
-                  onChange={(id) => setAlert(id ?? '')}
-                />
-              </Field>
-              <Button
-                variant="secondary"
-                disabled={name === domain.name && alert === (domain.alert_discord_channel_id ?? '')}
-                onClick={() =>
-                  v.submit() &&
-                  run(
-                    async () =>
-                      check(
-                        await supabase
-                          .from('domain')
-                          .update({
-                            name: name.trim(),
-                            alert_discord_channel_id: alert || null,
-                            version: domain.version,
-                          })
-                          .eq('id', domain.id)
-                          .select(),
-                      ),
-                    'Changes saved',
-                  )
-                }
-              >
-                Save changes
-              </Button>
-            </div>
-          </Section>
+                value={f.alert || null}
+                noneLabel="No alert channel"
+                onChange={(id) => setF({ ...f, alert: id ?? '' })}
+              />
+            </Field>
+            <SaveState status={auto.status} waiting={auto.dirty} />
+          </div>
+        </Section>
         </div>
         <Section
           title="Escalation contacts"
@@ -556,7 +551,7 @@ function ClassTypes({ domainId }: { domainId: string }) {
   });
   const [name, setName] = useState('');
   const [err, setErr] = useState<unknown>(null);
-  const refresh = () => qc.invalidateQueries({ queryKey: ['class_type'] });
+  const reload = () => refresh(qc, 'class_type');
   return (
     <Section
       title="Class types"
@@ -581,7 +576,7 @@ function ClassTypes({ domainId }: { domainId: string }) {
                     'Class type removed',
                   )
                 )
-                  await refresh();
+                  reload();
               }}
             >
               <X className="h-3.5 w-3.5" aria-hidden />
@@ -608,7 +603,7 @@ function ClassTypes({ domainId }: { domainId: string }) {
               );
               setName('');
               toast.success('Class type added');
-              await refresh();
+              reload();
             } catch (e) {
               setErr(e);
             }
@@ -634,11 +629,7 @@ function Cohorts({ domainId }: { domainId: string }) {
   const [touched, setTouched] = useState(false);
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   // The Standard or Custom badges are kept under the class weeks, so a new cohort needs both.
-  const refresh = () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: ['cohort'] }),
-      qc.invalidateQueries({ queryKey: ['module_week', 'schedule_status'] }),
-    ]);
+  const reload = () => refresh(qc, 'cohort');
   const nameErr = !adding.name.trim()
     ? 'Give the cohort a name, for example Weekend cohort.'
     : undefined;
@@ -655,6 +646,8 @@ function Cohorts({ domainId }: { domainId: string }) {
             <li key={c.id} className="rounded-md border border-border px-3 py-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {editing?.id === c.id ? (
+                  // Keeps its Save button (C15): a rename the person opens on purpose, where Go back cancels it.
+                  // The cohort name shows on every class of the cohort, so it is stored only when Save is pressed.
                   <span className="flex flex-wrap items-center gap-2">
                     <Input
                       aria-label="Cohort name"
@@ -679,7 +672,7 @@ function Cohorts({ domainId }: { domainId: string }) {
                           );
                           toast.success(`Cohort renamed to ${editing.name.trim()}`);
                           setEditing(null);
-                          await refresh();
+                          reload();
                         } catch (x) {
                           setErr(x);
                           toast.error('The cohort was not renamed');
@@ -731,7 +724,7 @@ function Cohorts({ domainId }: { domainId: string }) {
                       toast.success(
                         `${c.name} is now planned in ${e.target.value === 'India' ? 'India time' : 'US Pacific time'}`,
                       );
-                      await refresh();
+                      reload();
                     } catch (x) {
                       setErr(x);
                     }
@@ -796,7 +789,7 @@ function Cohorts({ domainId }: { domainId: string }) {
               toast.success(`Cohort ${adding.name.trim()} added`);
               setAdding({ name: '', region: adding.region, start: '' });
               setTouched(false);
-              await refresh();
+              reload();
             } catch (x) {
               setErr(x);
               toast.error('The cohort was not added');
@@ -844,7 +837,7 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
     date: !h.date ? 'Choose a date.' : undefined,
     name: !h.name.trim() ? 'Give the holiday a name.' : undefined,
   };
-  const refresh = () => qc.invalidateQueries({ queryKey: ['holiday'] });
+  const reload = () => refresh(qc, 'holiday', 'module_week');
   return (
     <Section
       title="Holidays"
@@ -894,7 +887,7 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
                         'Holiday removed',
                       )
                     )
-                      await refresh();
+                      reload();
                   }}
                 >
                   Remove
@@ -951,7 +944,7 @@ function Holidays({ domainId, domainName }: { domainId: string; domainName: stri
               setTouched(false);
               toast.success(editId ? 'Holiday saved' : 'Holiday added');
               setEditId(null);
-              await refresh();
+              reload();
             } catch (e) {
               setErr(e);
               toast.error(editId ? 'The holiday was not saved' : 'The holiday was not added');
@@ -1022,7 +1015,7 @@ function TestingTargets({ domain }: { domain: Domain }) {
                 toast.success('Testing channel and email saved');
                 setChan(null);
                 setMail(null);
-                void qc.invalidateQueries({ queryKey: ['domain'] });
+                refresh(qc, 'domain');
               } catch (e) {
                 setErr(e);
               }

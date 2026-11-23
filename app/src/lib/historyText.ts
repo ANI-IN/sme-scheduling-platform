@@ -1,6 +1,7 @@
-// Turns a History entry into a plain sentence plus readable before → after changes.
-// Raw values (ids, JSON) are only shown behind "Show details".
+// Turns a History entry into a plain sentence plus readable before → after changes, the plain list behind
+// "Show details" (historyDetails), and whether the app offers Undo (offersUndo). Ids and raw data are never shown.
 import { DateTime } from 'luxon';
+import { moduleStatusLabel } from './labels';
 import { messageName, plain, plainLabel } from './plain';
 
 /** "Discord (#alerts)" reads "Discord in #alerts"; "Email" reads "email". */
@@ -26,6 +27,7 @@ export type HistoryLike = {
   note: string | null;
   undo_of: number | null;
   entity_label?: string | null;
+  actor_team_member_id?: string | null;
 };
 
 export type NameBook = {
@@ -138,7 +140,7 @@ const FIELD: Record<string, string> = {
 
 const STATUS_WORD: Record<string, string> = { Test: 'Testing' };
 
-function value(v: unknown, book: NameBook, key?: string): string {
+function value(v: unknown, book: NameBook, key?: string, table?: string | null): string {
   if (v === null || v === undefined || v === '') return 'nothing';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (Array.isArray(v)) return v.map((x) => value(x, book)).join(', ') || 'nothing';
@@ -152,6 +154,12 @@ function value(v: unknown, book: NameBook, key?: string): string {
   if (/^\d{2}:\d{2}(:\d{2})?$/.test(s))
     return DateTime.fromFormat(s.slice(0, 5), 'HH:mm').toFormat('h:mm a');
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return DateTime.fromISO(s).toFormat('ccc LLL d, yyyy');
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) {
+    const t = DateTime.fromISO(s.replace(' ', 'T'));
+    if (t.isValid) return t.toLocal().toFormat('ccc LLL d, yyyy, h:mm a');
+  }
+  // A module is Draft, Live or Archived (glossary); the database keeps Inactive and Active.
+  if (key === 'status' && table === 'module') return moduleStatusLabel(s);
   if (key === 'status') return STATUS_WORD[s] ?? s;
   if (key === 'role')
     return s === 'Escalation' || s === 'Lead'
@@ -251,8 +259,8 @@ function changesOf(e: HistoryLike, book: NameBook): Change[] {
     .filter((k) => !hidden(k) && JSON.stringify(b[k]) !== JSON.stringify(a[k]))
     .map((k) => ({
       label: FIELD[k] ?? k.replace(/_/g, ' '),
-      from: value(b[k], book, k),
-      to: value(a[k], book, k),
+      from: value(b[k], book, k, e.entity_table),
+      to: value(a[k], book, k, e.entity_table),
     }));
 }
 
@@ -317,7 +325,7 @@ const rewrites: [
   [/^Booked (.+)$/, (m, c) => `${m[1]} is confirmed for ${c.module}`],
   [/^Booking released: (.+)$/, (m, c) => `${m[1]} was released from ${c.module}`],
   [
-    /^No reply from (.+) [—–] moving on$/,
+    /^No reply from (.+?)(?: [—–]|,) moving on$/,
     (m, c) => `${m[1]} did not reply about ${c.module}, so the next instructor was asked`,
   ],
   [/^Request withdrawn: (.+)$/, (m, c) => `The request to ${m[1]} for ${c.module} was withdrawn`],
@@ -546,4 +554,189 @@ function classTimeChange(e: HistoryLike): Change[] {
   const a = e.after as { shown?: string } | null;
   if (b?.shown && a?.shown) return [{ label: 'Time', from: plain(b.shown), to: plain(a.shown) }];
   return [];
+}
+
+// ------------------------------------------------------------------------------------ Show details
+/** One line behind "Show details": a field in plain words and its value, or what it was and what it became. */
+export type Detail = { label: string; from?: string; to: string };
+
+/** Fields that end in _id or _ids hold ids: shown only as the name they point to. */
+const ID_KEY = /(^|_)ids?$/;
+
+/** Fields that never mean anything to the team (versions, times the database keeps for itself). */
+const DETAIL_HIDDEN = new Set([...HIDDEN].filter((k) => !ID_KEY.test(k)));
+
+const DETAIL_FIELD: Record<string, string> = {
+  shown: 'Class time',
+  names: 'Instructor order',
+  cohorts: 'Cohorts',
+  schedule: 'Standard schedule',
+  class_weeks: 'Class weeks',
+  class_weeks_changed: 'Class weeks changed',
+  new_class_weeks: 'New class weeks',
+  not_updated: 'Not updated',
+  archived_at: 'Archived',
+  deleted_at: 'Deleted',
+  last_sign_in_at: 'Last sign in',
+  is_admin: 'Admin',
+};
+
+function detailLabel(k: string): string {
+  const known = FIELD[k] ?? DETAIL_FIELD[k];
+  if (known) return known;
+  const words = k
+    .replace(/_ids?$/, '')
+    .replace(/_at$/, '')
+    .replace(/_/g, ' ')
+    .trim();
+  return capitalise(words || k);
+}
+
+const EMPTY = 'nothing';
+
+function isUuid(v: unknown): v is string {
+  return typeof v === 'string' && UUID.test(v);
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** The readable name of a nested record, when it has one. */
+function nameOf(o: Record<string, unknown>): string | undefined {
+  for (const k of ['name', 'full_name', 'title', 'label']) {
+    const v = o[k];
+    if (typeof v === 'string' && v.trim() && !isUuid(v)) return plain(v);
+  }
+  return undefined;
+}
+
+/**
+ * A value in plain words: "nothing" when empty, and undefined when it cannot be said without an id or raw
+ * data (an id whose name is not known, a nested record with no name), so the line is left out.
+ */
+function plainValue(
+  k: string,
+  v: unknown,
+  book: NameBook,
+  table?: string | null,
+): string | undefined {
+  if (v === null || v === undefined || v === '') return EMPTY;
+  if (Array.isArray(v)) {
+    if (v.length === 0) return EMPTY;
+    const parts = v.map((x) =>
+      isRecord(x) ? nameOf(x) : isUuid(x) ? book.name(x) : plainValue(k, x, book, table),
+    );
+    if (parts.some((p) => p === undefined)) return undefined;
+    return parts.join(', ');
+  }
+  if (isRecord(v)) return nameOf(v);
+  if (isUuid(v)) return book.name(v);
+  if (ID_KEY.test(k)) return undefined;
+  if (k === 'key') return book.settingLabel(String(v));
+  return value(v, book, k, table);
+}
+
+function hiddenKey(k: string, row: Record<string, unknown>, table: string | null): boolean {
+  if (k === 'id' || DETAIL_HIDDEN.has(k)) return true;
+  if (k === 'label' && STANDARD_PARTS.has(table ?? '')) return true;
+  // An instructor order lists names next to their ids: the names say it all.
+  if (/_ids$/.test(k) && 'names' in row) return true;
+  return false;
+}
+
+/** Every field of one record (a new or a removed one), in plain words. */
+function fieldsOf(
+  row: Record<string, unknown>,
+  book: NameBook,
+  table: string | null,
+  depth = 0,
+): Detail[] {
+  const out: Detail[] = [];
+  for (const [k, v] of Object.entries(row)) {
+    if (hiddenKey(k, row, table)) continue;
+    if (isRecord(v) && !nameOf(v) && depth < 2) {
+      out.push(...fieldsOf(v, book, null, depth + 1));
+      continue;
+    }
+    const to = plainValue(k, v, book, table);
+    if (to === undefined || to === EMPTY) continue;
+    out.push({ label: detailLabel(k), to });
+  }
+  return out;
+}
+
+/** What changed between two versions of a record, field by field, in plain words. */
+function diffOf(
+  b: Record<string, unknown>,
+  a: Record<string, unknown>,
+  book: NameBook,
+  table: string | null,
+  depth = 0,
+): Detail[] {
+  const out: Detail[] = [];
+  const both = { ...b, ...a };
+  for (const k of Object.keys(both)) {
+    if (hiddenKey(k, both, table)) continue;
+    const bv = b[k];
+    const av = a[k];
+    if (JSON.stringify(bv) === JSON.stringify(av)) continue;
+    const nested = isRecord(bv) || isRecord(av);
+    if (nested && depth < 2 && !nameOf((isRecord(av) ? av : bv) as Record<string, unknown>)) {
+      out.push(...diffOf(isRecord(bv) ? bv : {}, isRecord(av) ? av : {}, book, null, depth + 1));
+      continue;
+    }
+    const from = plainValue(k, bv, book, table);
+    const to = plainValue(k, av, book, table);
+    if (from === undefined || to === undefined || from === to) continue;
+    out.push({ label: detailLabel(k), from, to });
+  }
+  return out;
+}
+
+/**
+ * The plain list behind "Show details": the type of change, then what changed (each field before and after),
+ * or the fields of a record that was added or removed. Never ids, raw data or database field names.
+ */
+export function historyDetails(e: HistoryLike, book: NameBook): Detail[] {
+  const out: Detail[] = [{ label: 'Type of change', to: e.category }];
+  const b = isRecord(e.before) ? e.before : null;
+  const a = isRecord(e.after) ? e.after : null;
+  if (b && a) out.push(...diffOf(b, a, book, e.entity_table));
+  else if (a) out.push(...fieldsOf(a, book, e.entity_table));
+  else if (b) out.push(...fieldsOf(b, book, e.entity_table));
+  // Outside setup changes the note is already shown under the sentence; an undo's note only names an entry number.
+  if (e.note && e.category === 'Setup changes' && e.undo_of === null)
+    out.push({ label: e.entity_table === 'setting' ? 'Reason' : 'Note', to: plain(e.note) });
+  return out;
+}
+
+// ------------------------------------------------------------------------------------ Undo
+/** Changes made by these are never a team member's own edit, whatever kind of actor they are logged as. */
+const NOT_A_PERSON = new Set([
+  'System',
+  'The system',
+  'Clock',
+  'Automation',
+  'Setup command',
+  'Test data',
+  'Sandbox data',
+  'Database admin',
+  'Integration test',
+]);
+
+/**
+ * Whether the app offers Undo. The database checks the same rule (private.can_undo): only a setup change a
+ * team member made in the app, not undone and not itself an undo, never creating or removing a domain, cohort
+ * or module, and never a change by the system, the clock, the automation, a setup command or test data.
+ */
+export function offersUndo(e: HistoryLike & { undoable?: boolean | null }): boolean {
+  if (!e.undoable) return false;
+  if (e.category !== 'Setup changes' || e.undo_of !== null) return false;
+  if (e.actor_kind !== 'TeamMember' || !e.actor_team_member_id) return false;
+  if (e.actor_label && NOT_A_PERSON.has(e.actor_label)) return false;
+  const core = ['domain', 'cohort', 'module'].includes(e.entity_table ?? '');
+  if (core && (e.before === null || e.after === null || / (added|removed)$/.test(e.action)))
+    return false;
+  return true;
 }

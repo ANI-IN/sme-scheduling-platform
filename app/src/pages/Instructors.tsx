@@ -5,14 +5,19 @@ import { toast } from 'sonner';
 import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, poke, rpc } from '@/lib/rpc';
+import { refresh } from '@/lib/live';
+import { useAutosave } from '@/lib/autosave';
+import { SaveState } from '@/components/SaveState';
 import { instructorStatusLabel } from '@/lib/labels';
 import { useBlockedMessages, useDomains, useInstructors, type Instructor } from '@/lib/data';
 import { BlockedMessages } from '@/components/BlockedMessages';
+import { InstructorChannel } from '@/components/InstructorChannel';
+import { useDomain } from '@/lib/domain';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt } from '@/lib/region';
 import { isEmail } from '@/lib/validation';
 import { cleanUsername, usernameProblem } from '@/lib/discord';
-import { ChannelPicker, DiscordStatus } from '@/components/Discord';
+import { DiscordStatus } from '@/components/Discord';
 import { useFormErrors } from '@/lib/useFormErrors';
 import { useConfirm } from '@/components/Confirm';
 import { DeleteButton } from '@/components/Lifecycle';
@@ -21,6 +26,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  DateInput,
   Drawer,
   Empty,
   ErrorText,
@@ -140,7 +146,6 @@ export default function Instructors() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, q, status, show, teachesIn, showTest, ctx.data],
   );
-  const unchecked = (data ?? []).filter(isUnchecked).length;
 
   return (
     <div>
@@ -149,20 +154,6 @@ export default function Instructors() {
           <Plus className="h-4 w-4" aria-hidden /> Add instructor
         </Button>
       </PageHeader>
-      {unchecked > 0 && show !== 'unchecked' && (
-        <div className="mb-4">
-          <Notice tone="warning">
-            {unchecked} instructor{unchecked === 1 ? ' has' : 's have'} not had their contact
-            details checked. They are not asked once a domain is live.{' '}
-            <button
-              className="font-medium underline underline-offset-2"
-              onClick={() => set('show', 'unchecked')}
-            >
-              Show them
-            </button>
-          </Notice>
-        </div>
-      )}
       <Toolbar>
         <Input
           placeholder="Search by name or email"
@@ -299,7 +290,7 @@ export default function Instructors() {
       {editing && (
         <InstructorDrawer
           instructor={
-            editing === 'new' ? null : ((data ?? []).find((i) => i.id === editing.id) ?? editing)
+            editing === 'new' ? null : (data?.find((x) => x.id === editing.id) ?? editing)
           }
           all={data ?? []}
           ranked={editing === 'new' ? [] : (ctx.data?.ranked.get(editing.id) ?? [])}
@@ -315,11 +306,8 @@ function StatusBadges({ i }: { i: InstructorRow }) {
   return (
     <div className="flex flex-wrap gap-1">
       {i.status !== 'Active' && <Badge>{instructorStatusLabel(i.status)}</Badge>}
-      {i.verified_at ? (
-        <Badge tone="success">Contact checked</Badge>
-      ) : (
-        <Badge tone="warning">Not checked yet</Badge>
-      )}
+      {/* Information only: instructors are asked whether or not their contact details were checked. */}
+      {i.verified_at && <Badge tone="success">Contact checked</Badge>}
       {i.is_test && <Badge tone="accent">Test instructor</Badge>}
       {i.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
       {i.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
@@ -368,6 +356,7 @@ export function InstructorDrawer({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const domains = useDomains();
+  const { domain } = useDomain();
   const [f, setF] = useState({
     full_name: instructor?.full_name ?? '',
     primary_email: instructor?.primary_email ?? '',
@@ -420,13 +409,67 @@ export function InstructorDrawer({
     !!instructor &&
     (instructor.primary_email !== f.primary_email.trim().toLowerCase() ||
       (instructor.discord_username ?? '') !== cleanUsername(f.discord_username));
-  const refresh = () => qc.invalidateQueries();
+  // Name, phone, notes, classes a month and Test instructor save as they change (C15).
+  const basic = (x: typeof f) => ({
+    full_name: x.full_name.trim(),
+    phone: x.phone.trim() || null,
+    notes: x.notes.trim() || null,
+    is_test: x.is_test,
+    monthly_class_limit: x.monthly_class_limit ? Number(x.monthly_class_limit) : null,
+  });
+  const auto = useAutosave({
+    enabled: !!instructor,
+    value: basic(f),
+    stored: {
+      full_name: instructor?.full_name ?? '',
+      phone: instructor?.phone ?? null,
+      notes: instructor?.notes ?? null,
+      is_test: instructor?.is_test ?? false,
+      monthly_class_limit: instructor?.monthly_class_limit ?? null,
+    },
+    version: instructor?.version,
+    instant: ['is_test'],
+    valid: !errors.full_name && !errors.monthly_class_limit,
+    onReload: (x) =>
+      setF((cur) => ({
+        ...cur,
+        full_name: x.full_name,
+        phone: x.phone ?? '',
+        notes: x.notes ?? '',
+        is_test: x.is_test,
+        monthly_class_limit: x.monthly_class_limit ? String(x.monthly_class_limit) : '',
+      })),
+    save: async (x, version) => {
+      const [row] = check(
+        await supabase
+          .from('instructor')
+          .update({ ...x, version })
+          .eq('id', instructor!.id)
+          .select(),
+      );
+      refresh(qc, 'instructor');
+      return row?.version;
+    },
+  });
+  // The emails and the Discord username keep a Save button: messages go to them, and saving them removes the
+  // contact check and starts a Discord check, so a half typed address must never be stored.
+  const extrasChanged =
+    !!instructor &&
+    extras
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+      .sort()
+      .join() !==
+      instructor.instructor_email
+        .filter((e) => !e.is_primary)
+        .map((e) => e.email)
+        .sort()
+        .join();
   const blocked = useBlockedMessages({ instructorId: instructor?.id });
   // New Discord channels come in by themselves (decision 331).
   useEffect(() => {
     if (instructor?.id) void rpc('request_channel_refresh', {}).catch(() => {});
   }, [instructor?.id]);
-  const [channelErr, setChannelErr] = useState<Record<string, unknown>>({});
   // Each domain lists only channels of the Discord servers approved for it (decision 331).
   const approved = useQuery({
     queryKey: ['discord_server_domain', 'approved'],
@@ -467,16 +510,32 @@ export function InstructorDrawer({
       };
       let id = instructor?.id;
       if (instructor) {
-        check(
+        const [saved] = check(
           await supabase
             .from('instructor')
-            .update({ ...row, version: instructor.version })
+            .update({
+              primary_email: row.primary_email,
+              discord_username: row.discord_username,
+              version: auto.version,
+            })
             .eq('id', instructor.id)
             .select(),
         );
+        if (saved) auto.adoptVersion(saved.version);
       } else {
         const created = check(await supabase.from('instructor').insert(row).select().single())!;
         id = created.id;
+        // A short welcome by email (once per instructor), with the rules of the domain being worked in.
+        try {
+          const welcome = (await rpc('send_welcome_message', {
+            p_instructor_id: created.id,
+            p_domain_id: domain?.id,
+          })) as unknown as string;
+          if (welcome.startsWith('blocked: '))
+            toast.message(`Welcome message not sent: ${welcome.slice('blocked: '.length)}`);
+        } catch {
+          // The instructor is saved either way; Activity history shows whether a welcome went.
+        }
       }
       const current = instructor?.instructor_email.filter((e) => !e.is_primary) ?? [];
       const wanted = extras.map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -486,13 +545,12 @@ export function InstructorDrawer({
         check(await supabase.from('instructor_email').insert({ instructor_id: id!, email: e }));
       toast.success(
         contactChanged
-          ? 'Saved. The contact details changed, so send a new contact check.'
+          ? 'Saved. The contact details changed, so the contact check was cleared.'
           : instructor
-            ? 'Changes saved'
+            ? 'Email and Discord saved'
             : 'Instructor added',
       );
-      // The list refreshes in the background, so Save closes at once (decision 329).
-      void refresh();
+      refresh(qc, 'instructor');
       if (another) {
         // Save and add another: an empty form for the next person (decision 259).
         setF({
@@ -525,7 +583,7 @@ export function InstructorDrawer({
       await fn();
       void poke();
       toast.success(ok);
-      void refresh();
+      refresh(qc, 'instructor', 'request');
     } catch (e) {
       setErr(e);
     }
@@ -551,7 +609,7 @@ export function InstructorDrawer({
       `${instructor.full_name} is now ${status === 'Inactive' ? 'not in use' : 'archived'}`,
     );
     setDeact(null);
-    void refresh();
+    refresh(qc, 'instructor', 'booking');
   }
 
   return (
@@ -566,22 +624,36 @@ export function InstructorDrawer({
       }
       footer={
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
-            {instructor ? 'Save changes' : 'Add instructor'}
-          </Button>
-          {!instructor && (
-            <Button
-              variant="secondary"
-              onClick={() => void save(true)}
-              loading={saving}
-              disabled={!!dup}
-            >
-              Save and add another
-            </Button>
+          {instructor ? (
+            <>
+              {(contactChanged || extrasChanged) && (
+                <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
+                  Save email and Discord
+                </Button>
+              )}
+              <Button variant="secondary" onClick={onClose}>
+                Done
+              </Button>
+              <SaveState status={auto.status} waiting={auto.dirty} />
+            </>
+          ) : (
+            <>
+              <Button onClick={() => void save()} loading={saving} disabled={!!dup}>
+                Add instructor
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void save(true)}
+                loading={saving}
+                disabled={!!dup}
+              >
+                Save and add another
+              </Button>
+              <Button variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+            </>
           )}
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
           {/* UI-9: the reason a save failed shows next to the Save button. */}
           <div className="basis-full">
             <ErrorText error={err} />
@@ -602,7 +674,7 @@ export function InstructorDrawer({
           <Field label="Full name" required error={v.show('full_name')}>
             <Input
               value={f.full_name}
-              onBlur={v.touch('full_name')}
+              onBlur={() => (v.touch('full_name')(), auto.flush())}
               onChange={(e) => setF({ ...f, full_name: e.target.value })}
             />
           </Field>
@@ -656,7 +728,11 @@ export function InstructorDrawer({
             </Button>
           </div>
           <Field label="Phone" hint="Only for the team, for example to call in an emergency.">
-            <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            <Input
+              value={f.phone}
+              onBlur={auto.flush}
+              onChange={(e) => setF({ ...f, phone: e.target.value })}
+            />
           </Field>
           <Field
             label="Classes a month (optional)"
@@ -668,7 +744,7 @@ export function InstructorDrawer({
               min={1}
               max={100}
               value={f.monthly_class_limit}
-              onBlur={v.touch('monthly_class_limit')}
+              onBlur={() => (v.touch('monthly_class_limit')(), auto.flush())}
               onChange={(e) => setF({ ...f, monthly_class_limit: e.target.value })}
               className="w-28"
             />
@@ -688,7 +764,11 @@ export function InstructorDrawer({
             </Select>
           </Field>
           <Field label="Notes">
-            <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+            <Textarea
+              value={f.notes}
+              onBlur={auto.flush}
+              onChange={(e) => setF({ ...f, notes: e.target.value })}
+            />
           </Field>
           <Checkbox
             label="Test instructor"
@@ -760,56 +840,20 @@ export function InstructorDrawer({
             <div className="space-y-2">
               <p className="text-sm font-medium">Their channel in each domain</p>
               {(domains.data ?? []).map((d) => (
-                <div key={d.id} className="space-y-1">
-                  <div className="text-xs text-muted-foreground">{d.name}</div>
-                  {/* Only servers approved for this domain, its own server first (decisions 263 and 331). */}
-                  {approved.data && !(approved.data.get(d.id) ?? []).length ? (
-                    <p className="text-sm text-muted-foreground">
-                      No Discord server is approved for {d.name} yet. An admin chooses and approves
-                      it on{' '}
-                      <a className="underline" href="/setup/domains">
-                        Setup, Domains
-                      </a>
-                      .
-                    </p>
-                  ) : (
-                    <ChannelPicker
-                      serverId="all"
-                      onlyServerIds={approved.data?.get(d.id)}
-                      preferServerId={d.discord_server_id}
-                      label={`Channel of ${instructor.full_name} in ${d.name}`}
-                      value={
-                        instructor.instructor_channel.find((c) => c.domain_id === d.id)
-                          ?.channel_id ?? null
-                      }
-                      storedName={
-                        instructor.instructor_channel.find((c) => c.domain_id === d.id)
-                          ?.channel_name
-                      }
-                      onChange={async (id) => {
-                        setChannelErr((x) => ({ ...x, [d.id]: null }));
-                        try {
-                          await rpc('set_instructor_channel', {
-                            p_instructor_id: instructor.id,
-                            p_domain_id: d.id,
-                            p_channel_id: id as string,
-                          });
-                          void poke();
-                          toast.success(
-                            id
-                              ? 'Channel saved'
-                              : 'Channel removed: they get direct messages instead',
-                          );
-                          void refresh();
-                        } catch (e) {
-                          // Said right under this domain's channel, with what to do (decision 331).
-                          setChannelErr((x) => ({ ...x, [d.id]: e }));
-                        }
-                      }}
-                    />
-                  )}
-                  <ErrorText error={channelErr[d.id] ?? null} />
-                </div>
+                // Choose, paste or take the suggested channel; it is checked in Discord before it is saved (decision 330).
+                <InstructorChannel
+                  key={d.id}
+                  person={instructor}
+                  domain={d}
+                  approvedServerIds={approved.data?.get(d.id)}
+                  takenIds={
+                    new Set(
+                      all
+                        .filter((o) => o.id !== instructor.id)
+                        .flatMap((o) => o.instructor_channel.filter((c) => c.domain_id === d.id).map((c) => c.channel_id)),
+                    )
+                  }
+                />
               ))}
             </div>
           ) : (
@@ -822,20 +866,21 @@ export function InstructorDrawer({
         {instructor && (
           <Group
             title="Contact check"
-            description="A short message on Discord and by email that they confirm with one tap. Only checked instructors are asked in a live domain."
+            description="Optional. A short message on Discord and by email that they confirm with one tap. Instructors are asked whether or not they are checked."
           >
             <div className="flex flex-wrap items-center gap-2">
               {instructor.verified_at ? (
                 <Badge tone="success">Checked {fmtLocal(instructor.verified_at)}</Badge>
               ) : (
-                <Badge tone="warning">Not checked yet</Badge>
+                <Badge>Not checked</Badge>
               )}
               {instructor.email_bounced_at && <Badge tone="danger">Email bounced</Badge>}
               {instructor.discord_failed_at && <Badge tone="danger">Discord message failed</Badge>}
             </div>
             {contactChanged && (
               <Notice tone="warning">
-                Saving new email or Discord details removes the check, so send a new one afterwards.
+                Saving new email or Discord details clears the check. You can send a new one if you
+                like.
               </Notice>
             )}
             <div className="flex flex-wrap gap-2">
@@ -1041,7 +1086,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
               onClick={async () => {
                 check(await supabase.from('instructor_unavailability').delete().eq('id', u.id));
                 toast.success('Dates removed');
-                await qc.invalidateQueries();
+                refresh(qc, 'instructor', 'request');
               }}
             >
               Remove
@@ -1054,20 +1099,14 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
       </ul>
       <div className="flex flex-wrap items-start gap-2">
         <Field label="First day" error={v.show('from')}>
-          <Input
-            type="date"
+          <DateInput
             value={r.from}
             onBlur={v.touch('from')}
-            onChange={(e) => setR({ ...r, from: e.target.value })}
+            onChange={(from) => setR({ ...r, from })}
           />
         </Field>
         <Field label="Last day" error={v.show('to')}>
-          <Input
-            type="date"
-            value={r.to}
-            onBlur={v.touch('to')}
-            onChange={(e) => setR({ ...r, to: e.target.value })}
-          />
+          <DateInput value={r.to} onBlur={v.touch('to')} onChange={(to) => setR({ ...r, to })} />
         </Field>
         <Field label="Reason (optional)">
           <Input value={r.reason} onChange={(e) => setR({ ...r, reason: e.target.value })} />
@@ -1090,7 +1129,7 @@ function Unavailability({ instructor }: { instructor: InstructorRow }) {
               setR({ from: '', to: '', reason: '' });
               v.reset();
               toast.success('Dates added');
-              await qc.invalidateQueries();
+              refresh(qc, 'instructor', 'request');
             } catch (e) {
               setErr(e);
             }

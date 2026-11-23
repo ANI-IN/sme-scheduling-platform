@@ -13,7 +13,7 @@ select tests.make_week(:'m1', '2027-02-28') as w5 \gset
 select tests.make_week(:'m1', '2027-03-07') as w6 \gset
 select tests.raw_book(:'w1', :'i1');
 insert into public.request (module_week_id, instructor_id, kind, status, time_version, sent_at, deadline_at)
-values (:'w2', :'i2', 'Outreach', 'Sent', 1, now(), now() + interval '1 day');
+values (:'w2', :'i2', 'Outreach', 'Sent', 1, now(), now() + interval '6 hours');
 update public.module_week set status = 'NeedsInstructor', at_risk = true where id = :'w3';
 update public.module_week set paused = true where id = :'w4';
 select public.cancel_module_week(:'w5');
@@ -31,7 +31,7 @@ $$;
 
 select is(tests.cell(:'b', :'w1') ->> 'status' || ' ' || (tests.cell(:'b', :'w1') ->> 'instructor'), 'Confirmed SB Instr1', '1. a confirmed class week');
 select is(tests.cell(:'b', :'w2') ->> 'status' || ' ' || (tests.cell(:'b', :'w2') ->> 'instructor'), 'Waiting SB Instr2', '2. waiting for an answer, with who');
-select ok(tests.cell(:'b', :'w2') -> 'badges' ? 'answer_due_soon', '3. under 2 days left to answer is a badge');
+select ok(tests.cell(:'b', :'w2') -> 'badges' ? 'answer_due_soon', '3. under 12 hours left to answer is a badge');
 select is(tests.cell(:'b', :'w3') ->> 'status', 'Needs instructor', '4. needs an instructor');
 select is(tests.cell(:'b', :'w4') ->> 'status', 'Paused', '5. paused');
 select is(tests.cell(:'b', :'w5') ->> 'status', 'Cancelled', '6. cancelled');

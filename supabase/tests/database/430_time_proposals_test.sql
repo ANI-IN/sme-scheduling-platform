@@ -37,7 +37,7 @@ select alike(public.submit_response_page_text(:'tok1', tests.form(:'tok1', :'liv
 select alike(public.submit_response_page_text(:'tok1', tests.form(:'tok1', :'live1', '2027-03-14', '02:30', '06:00', :'rev1', '2027-02-04', '18:00', '20:00')),
   '%does not exist in US Pacific time%', '5. a time that does not exist is refused');
 select alike(public.submit_response_page_text(:'tok1', tests.form(:'tok1', :'live1', '2027-01-31', '10:00', '14:00', :'rev1', '2027-02-04', '18:00', '20:00')),
-  '%Thanks! The team checks your proposed time with the cohort and replies to you soon.%', '6. a new time is sent');
+  '%<h1>Thanks!</h1><p>The team checks your proposed time with the cohort and replies to you soon.%', '6. a new time is sent');
 select id as p1 from public.time_proposal where module_week_id = :'w1' \gset
 select is((select status || ' ' || jsonb_array_length(proposed) || ' ' || (select count(*) from jsonb_array_elements(proposed) x where (x ->> 'changed')::boolean)
              from public.time_proposal where id = :'p1'), 'Pending 2 1', '7. the proposal keeps each class, as it is and as proposed');

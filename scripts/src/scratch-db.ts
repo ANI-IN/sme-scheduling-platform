@@ -25,6 +25,12 @@ create table if not exists auth.identities (id uuid primary key default gen_rand
 create table if not exists auth.sessions (id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade);
 grant usage on schema auth, extensions to anon, authenticated, service_role;
+-- Supabase also has the publication that Realtime reads, so the live updates of the migrations are checked too.
+do $$ begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end $$;
 `;
 
 export type Scratch = { url: string; drop: () => Promise<void> };

@@ -6,8 +6,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CalendarOff, Pause, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { plain } from '@/lib/plain';
+import { WEEK_STATUS } from '@/lib/status';
 import { useCohorts } from '@/lib/data';
 import { useConfirm } from '@/components/Confirm';
 import { WarningsDialog, type CheckWarning } from '@/components/WarningsDialog';
@@ -26,6 +27,7 @@ import {
   SkeletonRows,
   formatDateValue,
 } from '@/components/ui';
+import { deliverNow, refresh, refreshClasses } from '@/lib/live';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -174,9 +176,17 @@ function BreakView({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{plain(w.label)}</span>
                     {w.instructor && (
-                      <Badge tone={w.instructor.status === 'Confirmed' ? 'success' : 'accent'}>
-                        {w.instructor.status === 'Confirmed' ? 'Confirmed' : 'Being asked'}:{' '}
-                        {w.instructor.name}
+                      <Badge
+                        tone={
+                          w.instructor.status === 'Confirmed'
+                            ? WEEK_STATUS.Confirmed.tone
+                            : WEEK_STATUS.Waiting.tone
+                        }
+                      >
+                        {w.instructor.status === 'Confirmed'
+                          ? WEEK_STATUS.Confirmed.word
+                          : WEEK_STATUS.Waiting.word}
+                        : {w.instructor.name}
                       </Badge>
                     )}
                   </div>
@@ -264,12 +274,9 @@ function BreakChangeDialog({
       toast.success(done(r));
       onClose();
       // The preview is for the change just saved (a removed break would be refused), so it is dropped, not fetched again.
-      const others = {
-        predicate: (q: { queryKey: readonly unknown[] }) => q.queryKey[0] !== 'break_preview',
-      };
       qc.removeQueries({ queryKey: ['break_preview'] });
-      await qc.invalidateQueries(others);
-      void poke().then(() => qc.invalidateQueries(others));
+      refreshClasses(qc);
+      deliverNow(qc);
     } catch (e) {
       setErr(e);
     } finally {
@@ -535,8 +542,7 @@ export function AddCohortHolidayDialog({
                     p_name: name.trim(),
                   })) as unknown as { classes: { title: string; when: string }[] };
                   setOnIt(r.classes);
-                  await qc.invalidateQueries({ queryKey: ['cohort_holiday'] });
-                  await qc.invalidateQueries({ queryKey: ['module_week'] });
+                  refresh(qc, 'cohort_holiday');
                 } catch (e) {
                   setErr(e);
                 } finally {
@@ -679,8 +685,7 @@ export function BreaksAndHolidays({ domainId }: { domainId: string }) {
                   try {
                     await rpc('remove_cohort_holiday', { p_id: h.id });
                     toast.success('Cohort holiday removed');
-                    await qc.invalidateQueries({ queryKey: ['cohort_holiday'] });
-                    await qc.invalidateQueries({ queryKey: ['module_week'] });
+                    refresh(qc, 'cohort_holiday');
                   } catch (e) {
                     setErr(e);
                   }
@@ -785,7 +790,7 @@ export function BreakAndHolidayNotices({ weekId }: { weekId: string }) {
                 toast.success('Class kept on the holiday');
                 setKeeping(null);
                 setReason('');
-                await qc.invalidateQueries({ queryKey: ['module_week'] });
+                refresh(qc, 'class_session');
               } catch (e) {
                 setErr(e);
               } finally {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, CircleAlert, CircleCheck, UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -20,8 +20,11 @@ import {
   Select,
 } from '@/components/ui';
 import { InstructorDrawer } from '../Instructors';
-import { PatternEditor, RankingEditor, dayLabel, type ModuleRow } from './moduleParts';
-import { Owners } from './ModuleDetail';
+import { DEFAULT_CLASS_TIMES, classTimeText } from '@/lib/classTimes';
+import { PatternEditor, RankingEditor, type ModuleRow } from './moduleParts';
+import { OperationsTeam, Owners } from './ModuleDetail';
+import { refresh } from '@/lib/live';
+import { useMinInstructors } from './Modules';
 
 const STEPS = [
   'Module details',
@@ -31,7 +34,7 @@ const STEPS = [
   'Review and save',
 ];
 
-/** Guided setup for a new module. The module is saved as "not in use" until the last step. */
+/** Guided setup for a new module. The module is saved as a Draft until the last step. */
 export default function ModuleNew() {
   const { domain, domains } = useDomain();
   const navigate = useNavigate();
@@ -48,7 +51,7 @@ export default function ModuleNew() {
     try {
       await fn();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      refresh(qc, 'module', 'module_operations', 'domain_team');
     } catch (e) {
       setErr(e);
     }
@@ -117,7 +120,7 @@ export default function ModuleNew() {
           {step === 1 && (
             <Section
               title="Class times"
-              description="The classes of one class week, in the local time of each cohort (US Pacific or India). The planner uses them to create classes."
+              description="The classes of one class week, in the local time of each cohort (US Pacific or India). They start with the usual times: the live class on Sunday from 9:00 AM to 1:00 PM and the assignment review on Thursday from 6:00 PM to 8:00 PM. Change them if this module differs."
             >
               <PatternEditor module={m} run={run} />
             </Section>
@@ -152,10 +155,10 @@ export default function ModuleNew() {
               .eq('id', m.id)
               .select(),
           ),
-        'Module saved and in use',
+        'Module saved and live',
       );
     } else {
-      toast.success('Module saved as not in use');
+      toast.success('Module saved as a draft');
     }
     if (another) {
       // Save and add another: start the wizard again for the next module (decision 259).
@@ -195,7 +198,7 @@ function DetailsStep({
   return (
     <Section
       title="Module details"
-      description="Saved as not in use until you finish, so it is not planned or used for requests yet."
+      description="Saved as a draft until you finish, so it is not planned and nobody is asked yet."
     >
       <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
         <Field label="Name" required error={v.show('name')}>
@@ -254,7 +257,8 @@ function DetailsStep({
                     .eq('id', m.id)
                     .select(),
                 );
-                await qc.invalidateQueries();
+                // The next step reads the module from the list, so only that list is waited for.
+                await qc.invalidateQueries({ queryKey: ['module'] });
                 onSaved(m.id);
               } else {
                 const created = check(
@@ -269,7 +273,19 @@ function DetailsStep({
                     .select()
                     .single(),
                 )!;
-                await qc.invalidateQueries();
+                // Every new module starts with the usual class times, which the next step shows to change (B10).
+                check(
+                  await supabase.from('class_pattern_item').insert(
+                    DEFAULT_CLASS_TIMES.map((d, i) => ({
+                      module_id: created.id,
+                      ...d,
+                      title_template: '{module}: {class_type}',
+                      sort_order: i + 1,
+                    })),
+                  ),
+                );
+                // The next step reads the new module and its class times from this list (decision 331).
+                await qc.invalidateQueries({ queryKey: ['module'] });
                 onSaved(created.id);
               }
             } catch (e) {
@@ -324,36 +340,11 @@ function PeopleStep({
   module: ModuleRow;
   run: (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 }) {
-  const team = useTeam();
-  const ops = useQuery({
-    queryKey: ['domain_team', m.domain_id],
-    queryFn: async () =>
-      check(
-        await supabase
-          .from('domain_team')
-          .select('*')
-          .eq('domain_id', m.domain_id)
-          .eq('role', 'Operations'),
-      ),
-  });
-  const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   return (
     <div className="space-y-4">
       <Owners module={m} run={run} />
-      <Section
-        title="Operations team"
-        description="Shared by every module of the domain. They handle checklists, failed messages and written replies."
-      >
-        <p className="text-sm">
-          {(ops.data ?? [])
-            .map((r) => names.get(r.team_member_id))
-            .filter(Boolean)
-            .join(', ') || 'Nobody yet.'}{' '}
-          <Link to="/setup/domains" className="text-link hover:underline">
-            Change on the Domains page
-          </Link>
-        </p>
-      </Section>
+      {/* The module's own operations team; empty uses the domain's default team (shown when empty). */}
+      <OperationsTeam module={m} run={run} moduleOnly />
     </div>
   );
 }
@@ -368,6 +359,7 @@ function Review({
   const team = useTeam();
   const instructors = useInstructors();
   const settings = useSettings(m.domain_id);
+  const minActive = useMinInstructors(m.domain_id);
   const names = new Map((team.data ?? []).map((t) => [t.id, t.name]));
   const byId = new Map((instructors.data ?? []).map((i) => [i.id, i]));
   const order = [...m.module_ranking]
@@ -376,8 +368,8 @@ function Review({
   const required = [
     { ok: m.class_pattern_item.length > 0, text: 'At least one class time' },
     {
-      ok: order.some((i) => i?.status === 'Active'),
-      text: 'At least one instructor in use in the order',
+      ok: order.filter((i) => i?.status === 'Active').length >= minActive,
+      text: `At least ${minActive} instructor${minActive === 1 ? '' : 's'} in use in the order`,
     },
     { ok: m.module_owner.length > 0, text: 'At least one owner' },
   ];
@@ -423,11 +415,12 @@ function Review({
             'Class times (local time of each cohort)',
             m.class_pattern_item.length
               ? [...m.class_pattern_item]
-                  .sort((a, b) => a.day_offset - b.day_offset)
-                  .map(
-                    (p) =>
-                      `${p.class_type}, ${dayLabel(p.day_offset)} ${p.start_time.slice(0, 5)}, ${p.duration_minutes} minutes`,
+                  .filter((p) => !p.cohort_id)
+                  .sort(
+                    (a, b) =>
+                      a.day_offset - b.day_offset || a.start_time.localeCompare(b.start_time),
                   )
+                  .map(classTimeText)
                   .join('; ')
               : 'None',
           )}
@@ -468,19 +461,19 @@ function Review({
       </Section>
       {!ready && (
         <Notice tone="warning">
-          Finish the required items to start using this module. You can also save it now and finish
-          later.
+          Finish the required items to make this module live. You can also save it as a draft now
+          and finish later.
         </Notice>
       )}
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={() => onFinish(false)}>
-          Save as not in use
+          Save as draft
         </Button>
         <Button variant="secondary" disabled={!ready} onClick={() => onFinish(true, true)}>
           Save and add another
         </Button>
         <Button disabled={!ready} onClick={() => onFinish(true)}>
-          Save and start using
+          Save and make live
         </Button>
       </div>
     </div>

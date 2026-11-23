@@ -114,11 +114,11 @@ Every workflow starts with a **Config** Code node. It is the only node you chang
 |---|---|---|
 | `supabaseUrl` | WF1 to WF6 | The Supabase project address |
 | `pokeUrl` | WF1 to WF5 | WF4's poke webhook (production URL) |
-| `pokeKey` | WF1 to WF5 | The same value as the `Poke Secret Sandbox` credential. WF2, WF3 and WF5 send it; WF1 no longer pokes |
 
-The export fills in `supabaseUrl` and `pokeUrl`. `pokeKey` stays a placeholder in every file, so **after each import
-or update, set `pokeKey` again** in WF2, WF3, WF4 and WF5 before you publish. Never write its value in a file, a doc
-or a chat.
+The export fills in both, so nothing in a Config node needs setting by hand. The poke key is in no Config node: the
+**Poke WF4** nodes of WF2, WF3 and WF5 send it from the `Poke Secret Sandbox` credential (Header Auth, name
+`x-poke-key`), the same credential WF4's poke webhook checks (decision 316). Never write its value in a file, a doc or
+a chat.
 
 The export also fills in two values outside the Config node: the backup folder (WF3, **Upload to Google Drive** and
 **List backups**) and the Gmail label ID of "SME Scheduling/Processed" (WF4, **Label as processed**). The +scheduling
@@ -147,7 +147,7 @@ by hand.
    history. A new setup imports each file as a new workflow instead, **WF5 first** (the others point to it).
 4. Open every node with a red credential warning and choose the credential with the same name (n8n usually matches
    them by itself).
-5. Set `pokeKey` in the Config node (see above).
+5. Nothing to set in the Config node: the export fills it in, and the poke key comes from its credential.
 6. If the schedule trigger of WF1 or WF4 is switched off in the live workflow, switch it off again in the imported
    copy: the base files still have both triggers.
 7. Check the error workflow: the **…** menu, **Settings**, **Error workflow** = **[Production] WF5 Error handler**, for
@@ -167,7 +167,7 @@ The paths keep the word sandbox on purpose: links in messages already sent use t
 |---|---|---|---|---|
 | WF2 | `GET` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond?t=<token>` | None; **Ignore Bots** is on, so link preview bots get no page | `RESPONSE_BASE_URL` in `.env.production`, written into the database by `npm run configure:production -w scripts` (docs/SETUP_GUIDE.md, 1.4). The app shows it read only on Settings, Connections, Advanced: links |
 | WF2 | `POST` | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` | None; the form on the answer page posts here | The same |
-| WF4 | `POST` | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | Header `x-poke-key` (`Poke Secret Sandbox`) | The app's `VITE_N8N_POKE_URL` and `VITE_N8N_POKE_KEY` (Vercel), the `pokeUrl` and `pokeKey` Config settings, and the database clock (`npm run clock -w scripts -- on <address>`, the key in Vault) |
+| WF4 | `POST` | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | Header `x-poke-key` (`Poke Secret Sandbox`); browsers only from `https://your-app.vercel.app` (Allowed Origins) | The app's `VITE_N8N_POKE_URL` and `VITE_N8N_POKE_KEY` (Vercel), the Poke WF4 nodes of WF2, WF3 and WF5 (the credential), and the database clock (`npm run clock -w scripts -- on <address>`, the key in Vault) |
 
 The test URLs (`/webhook-test/...`) work only while you press "Listen for test event" in n8n. Never put a test URL in
 the app or the database.
@@ -212,7 +212,7 @@ Inside the workflows:
 | What you see | Likely cause | What to do |
 |---|---|---|
 | Messages stay waiting to send | Messages are paused, the clock is off or cannot poke, or WF4 is not published | Check for the red paused bar in the app. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go ("no poke key in Vault", "no poke address", "no pg_net"). Check that WF4 is published and its last executions succeeded. Run WF4 by hand once |
-| WF4 refuses pokes (403) | The `x-poke-key` value differs between the caller and `Poke Secret Sandbox` | Check that the Config nodes (`pokeKey`), the app's `VITE_N8N_POKE_KEY` and the Vault secret `n8n_poke_key` all hold the credential's value. After an update from the files, `pokeKey` is back to its placeholder |
+| WF4 refuses pokes (403) | The `x-poke-key` value differs between the caller and `Poke Secret Sandbox` | Check that the app's `VITE_N8N_POKE_KEY` and the Vault secret `n8n_poke_key` hold the credential's value, and that the Poke WF4 nodes use the `Poke Secret Sandbox` credential. A poke from a browser on another site is refused by Allowed Origins on purpose |
 | The automatic check on Settings, Connections is old | The clock is off, or the Supabase project is paused | Run `npm run clock -w scripts -- status`. If the clock is off and WF1's schedule trigger is off too, nothing runs the check: switch the clock on, or turn WF1's schedule trigger back on and publish |
 | A typed reply does not show in Needs your attention | No conversation is open, reply reading slowed down, or the reply went elsewhere | Replies are read within about 10 minutes only while the app sent that instructor something in the last 3 days, and less often above 8,000 runs a month. Email replies count only when sent to the +scheduling address; Discord replies only in the instructor's own channel in an approved server, written by that instructor. Run WF4 by hand to read at once |
 | A bounce changed nothing | It was not in the Gmail thread of an email the app sent to that address (decision 311) | Activity history says "Bounce ignored". This is on purpose: a fake "Undeliverable" email cannot mark an address as broken |

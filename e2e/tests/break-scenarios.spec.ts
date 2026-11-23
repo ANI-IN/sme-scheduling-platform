@@ -4,7 +4,7 @@
 // class is kept with a reason; removing the break moves the class week back. The rules behind each step are covered
 // in depth by the database test 420.
 import type { Page } from '@playwright/test';
-import { a11y, expect, loadDemoData, noDashes, ready, sql, test } from './fixtures.ts';
+import { a11y, expect, loadDemoData, noDashes, ready, setFilter, sql, test } from './fixtures.ts';
 
 test.describe.configure({ mode: 'serial' });
 test.beforeAll(() => loadDemoData());
@@ -130,7 +130,7 @@ test('a cohort holiday shows on its class, which can be kept with a reason', asy
 
   await page.goto('/classes');
   await ready(page);
-  await page.getByRole('combobox', { name: 'Cohort' }).selectOption({ label: COHORT });
+  await setFilter(page, 'Cohort', [COHORT]);
   await ready(page);
   await page
     .getByRole('button', { name: /^Open Database Design, week of/ })

@@ -34,6 +34,7 @@ import {
   Section,
   Select,
 } from '@/components/ui';
+import { refreshAll } from '@/lib/live';
 
 /** What the automatic check reports, in plain words. */
 const RESULT_LABEL: Record<string, string> = {
@@ -100,9 +101,9 @@ function TestingBody({ domain }: { domain: Domain }) {
     try {
       const r = await fn();
       if (r && typeof r === 'object' && !Array.isArray(r)) setResult(r as Record<string, unknown>);
-      await poke();
+      void poke();
       if (ok) toast.success(ok);
-      await qc.invalidateQueries();
+      refreshAll(qc);
     } catch (e) {
       setErr(e);
     }
@@ -341,8 +342,8 @@ function TestingBody({ domain }: { domain: Domain }) {
           description={`Turn off testing for ${domain.name}. From the next automatic check, real instructors receive messages.`}
         >
           <Notice tone="warning">
-            Before going live: every instructor has had their contact details checked, the
-            instructor order is reviewed by each owner, and at least 8 weeks of classes are planned.
+            Before going live: each owner has reviewed the instructor order, and at least 8 weeks of
+            classes are planned. A contact check for each instructor is optional.
           </Notice>
           <Button
             variant="destructive"

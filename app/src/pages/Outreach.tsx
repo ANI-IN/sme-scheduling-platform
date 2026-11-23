@@ -27,7 +27,8 @@ import { ActionMenu } from '@/components/ActionMenu';
 import { ago, fmtLocal } from '@/lib/time';
 import { fmtAt, fmtDay, weekRegion } from '@/lib/region';
 import { RegionBadge } from '@/components/ClassTime';
-import { weekState } from '@/lib/status';
+import { WEEK_STATUS, weekState, weeksById } from '@/lib/status';
+import { PANEL_BADGE } from './boardBadges';
 import { plain } from '@/lib/plain';
 import { supabase } from '@/lib/supabase';
 import { fetchByIds } from '@/lib/rpc';
@@ -113,6 +114,7 @@ export default function Outreach() {
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
     [instructors.data],
   );
+  const byId = useMemo(() => weeksById(weeks.data), [weeks.data]);
   const domainNow = useDomainNow();
   const now = domainNow.toUTC().toISO()!;
 
@@ -192,15 +194,19 @@ export default function Outreach() {
     .slice()
     .sort((a, b) => b - a);
 
+  // The status in the same words as everywhere else, with what else matters on this page.
   const statusOf = (w: WeekRow, p?: Preview) => {
-    if (w.shared_with) return <Badge tone="accent">Shared class</Badge>;
-    if (w.paused) return <Badge tone="accent">Requests paused</Badge>;
-    if (w.status === 'NeedsInstructor') return <Badge tone="danger">Needs an instructor</Badge>;
-    if (w.status === 'NotReady') return <Badge tone="warning">Setup not finished</Badge>;
-    if (w.status === 'Planned') return <Badge tone="neutral">Not started yet</Badge>;
-    if (p?.asking && !p.next) return <Badge tone="warning">Last person to ask</Badge>;
-    if (p?.asking) return <Badge tone="info">Waiting for a reply</Badge>;
-    return <Badge tone="neutral">{w.at_risk ? 'At risk' : 'Ready to ask'}</Badge>;
+    const st = weekState(w, names, byId);
+    return (
+      <div className="flex flex-wrap gap-1">
+        <Badge tone={st.tone}>{st.short}</Badge>
+        {st.shared && <Badge tone="accent">{PANEL_BADGE.sharedClass}</Badge>}
+        {st.atRisk && st.status !== 'Confirmed' && (
+          <Badge tone="danger">{PANEL_BADGE.atRisk}</Badge>
+        )}
+        {p?.asking && !p.next && <Badge tone="warning">Last person to ask</Badge>}
+      </div>
+    );
   };
 
   return (
@@ -251,10 +257,10 @@ export default function Outreach() {
       </Toolbar>
       <div className="flex flex-wrap gap-3">
         <Stat
-          label="Asking now"
+          label={WEEK_STATUS.Waiting.word}
           value={allFinding.filter(isAsking).length}
           tone="info"
-          hint="Waiting for a reply"
+          hint="Asked and not answered yet"
           onClick={() => toggleFocus('asking')}
           active={focus === 'asking'}
         />
@@ -341,7 +347,7 @@ export default function Outreach() {
                   </th>
                   <th className={`${th} min-w-44`}>Class week</th>
                   <th className={`${th} hidden lg:table-cell`}>Who to ask</th>
-                  <th className={th}>Asking now</th>
+                  <th className={th}>{WEEK_STATUS.Waiting.word}</th>
                   <th className={`${th} hidden md:table-cell`}>Moves on</th>
                   <th className={`${th} hidden md:table-cell`}>Next to ask</th>
                   <th className={th}>Status</th>
@@ -437,7 +443,7 @@ export default function Outreach() {
                                   onClick={() =>
                                     run(
                                       () => rpc('start_asking_now', { p_module_week_id: w.id }),
-                                      'Asking now',
+                                      'Started asking',
                                     )
                                   }
                                 >
@@ -488,7 +494,9 @@ export default function Outreach() {
                                           p_module_week_id: w.id,
                                           p_paused: !w.paused,
                                         }),
-                                      w.paused ? 'Requests resumed' : 'Requests paused',
+                                      w.paused
+                                        ? 'Requests for this class week resumed'
+                                        : 'Requests for this class week are paused',
                                     ),
                                 },
                               ]}
@@ -584,7 +592,7 @@ export default function Outreach() {
               </thead>
               <tbody>
                 {confirmed.map((w) => {
-                  const st = weekState(w, names);
+                  const st = weekState(w, names, byId);
                   const booking = w.booking.find((b) => b.status === 'Active')!;
                   const lastCheckin = checkinMsgs.data?.find((m) => m.module_week_id === w.id);
                   return (

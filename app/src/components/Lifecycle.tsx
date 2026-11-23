@@ -2,12 +2,13 @@
 // The database decides what a delete affects (delete_preview) and does all of it (delete_item); this only
 // shows it in plain words, asks for the name when other data goes with the item, and reports the result.
 import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import { rpc } from '@/lib/rpc';
 import { useConfirm } from './Confirm';
 import { Button, ErrorText, Field, Input, Modal, Spinner } from './ui';
+import { refresh, refreshAll, refreshClasses } from '@/lib/live';
 
 export type ItemKind =
   'domain' | 'cohort' | 'module' | 'class_week' | 'instructor' | 'team_member' | 'discord_server';
@@ -141,7 +142,7 @@ function DeleteDialog({
             try {
               await rpc('delete_item', { p_kind: kind, p_id: id, p_typed_name: typed });
               toast.success(`${preview!.name} deleted`);
-              await qc.invalidateQueries();
+              refreshKind(qc, kind);
               onClose();
               onDeleted?.();
             } catch (e) {
@@ -208,7 +209,7 @@ export function ArchiveButton({
           try {
             await rpc('set_archived', { p_kind: kind, p_id: id, p_archived: !archived });
             toast.success(archived ? `${name} restored` : `${name} archived`);
-            await qc.invalidateQueries();
+            refreshKind(qc, kind);
             onDone?.();
           } catch (e) {
             setErr(e);
@@ -231,6 +232,18 @@ export function ArchiveButton({
       <ErrorText error={err} />
     </span>
   );
+}
+
+/** What a delete, archive or restore of each kind can change: a domain reaches almost everything. */
+function refreshKind(qc: QueryClient, kind: ItemKind) {
+  if (kind === 'domain') return refreshAll(qc);
+  if (kind === 'class_week' || kind === 'cohort' || kind === 'module') refreshClasses(qc);
+  if (kind === 'cohort') refresh(qc, 'cohort', 'setting');
+  if (kind === 'module') refresh(qc, 'module', 'module_operations');
+  if (kind === 'instructor') refresh(qc, 'instructor', 'booking', 'request', 'module');
+  if (kind === 'team_member')
+    refresh(qc, 'team_member', 'domain_team', 'module_operations', 'module');
+  if (kind === 'discord_server') refresh(qc, 'discord_server', 'domain');
 }
 
 /** Ask before removing a small part of an item (a class time, a holiday, a role), then report it. */
