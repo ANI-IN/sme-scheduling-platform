@@ -259,6 +259,16 @@ test('a pasted link is checked first; a channel they cannot see is not saved; th
   );
   expect(none.n).toBe(0);
   // After the fix in Discord: take the suggestion, it passes, and one welcome tags them in the channel.
+  // Backend is in Testing, so its welcome goes to Backend's testing channel (decisions 330 and 339): one in the
+  // domain's own approved server.
+  await sql(
+    `insert into public.discord_channel (id, server_id, name, bot_can_post) values ('900000000000000014', $1, 'backend-testing', true)
+     on conflict (id) do nothing`,
+    [SERVER],
+  );
+  await sql(
+    `update public.domain set test_discord_channel_id = '900000000000000014' where name = 'Backend'`,
+  );
   await dlg.getByRole('button', { name: 'Use #test-instructor-e' }).click();
   await answer(
     'discord_channel',
@@ -269,7 +279,7 @@ test('a pasted link is checked first; a channel they cannot see is not saved; th
     `select count(*)::int n, min(m.discord_channel_id) c from public.message m join public.instructor i on i.id = m.instructor_id
       where i.full_name = 'Test Instructor E' and m.template_id = 'M22' and m.channel = 'Discord' and m.status <> 'Cancelled'`,
   );
-  expect(w).toEqual({ n: 1, c: '900000000000000012' });
+  expect(w).toEqual({ n: 1, c: '900000000000000014' });
   // The suggestion is gone once the channel is ready. A second check of the same channel sends no second welcome
   // (database test 620, check 23).
   await expect(dlg.getByRole('button', { name: 'Use #test-instructor-e' })).toHaveCount(0);
