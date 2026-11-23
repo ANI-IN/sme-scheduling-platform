@@ -242,7 +242,7 @@ step; this is the short version.
    | Webhook | Production | Where it goes |
    |---|---|---|
    | WF2 answer pages | `https://your-instance.app.n8n.cloud/webhook/sandbox-respond` | `RESPONSE_BASE_URL` (already in `.env.sandbox.example`) |
-   | WF4 poke | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | `VITE_N8N_POKE_URL` (already in `app/.env.sandbox.example`), the Config nodes and the database clock |
+   | WF4 poke | `https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke` | the Config nodes and the database clock |
 
 ### 5.1 Who reads replies, and when n8n runs
 
@@ -321,8 +321,8 @@ repository; the site is built from `main`.
    | `VITE_SUPABASE_URL` | The project URL | The new project URL |
    | `VITE_SUPABASE_PUBLISHABLE_KEY` | The publishable key | The new publishable key |
    | `VITE_ALLOWED_EMAIL_DOMAIN` | Your company domain | Your company domain |
-   | `VITE_N8N_POKE_URL` | The WF4 address (`/webhook/sandbox-sme-poke`) | The new WF4 address |
-   | `VITE_N8N_POKE_KEY` | The poke secret | The new poke secret |
+   | `VITE_N8N_POKE_URL` | Not used since decision 334 (the app no longer pokes WF4) | Nothing |
+   | `VITE_N8N_POKE_KEY` | Not used since decision 334 (the app no longer pokes WF4) | Nothing |
    | `VITE_DISCORD_CLIENT_ID` | The bot Application ID (4.2) | The new bot Application ID (4.2) |
 
    Never set `VITE_ENABLE_DEV_LOGIN` here; it is for your own computer only.
@@ -445,10 +445,10 @@ Tick each line when it is done. **Do not write secret values in this table**: fo
 | 21 | Server Members Intent and Message Content Intent on | Developer Portal → Bot | | | | ☐ |
 | 22 | Bot invited and can see channels | Invite link on Connections (7.5) | Discord server | | | ☐ |
 | 23 | Admin, alert and testing channels | Chosen from the lists in the app (7.5) | App Connections, Domains, Testing | | | ☐ |
-| 24 | Poke key (low sensitivity: it is visible in the app's files) | Password manager generator | n8n `Poke Secret Sandbox`, `VITE_N8N_POKE_KEY`, Vault `n8n_poke_key` | in password manager | in password manager | ☐ |
+| 24 | Poke key (only in n8n and Supabase Vault since decision 334) | Password manager generator | n8n `Poke Secret Sandbox`, Vault `n8n_poke_key` | in password manager | in password manager | ☐ |
 | 25 | Workflows imported and published | `n8n/sandbox/` (the `[Production]` workflows) | n8n | | | ☐ |
 | 26 | WF2 confirm page address | n8n WF2 webhook | `RESPONSE_BASE_URL` (1.4) | | | ☐ |
-| 27 | WF4 poke address | n8n WF4 webhook | Vercel `VITE_N8N_POKE_URL`; n8n Config `pokeUrl` | | | ☐ |
+| 27 | WF4 poke address | n8n WF4 webhook | n8n Config `pokeUrl` | | | ☐ |
 | 28 | Error workflow set | n8n workflow Settings | WF1 to WF4 | | | ☐ |
 | 29 | OpenAI key (optional, secret) | platform.openai.com → API keys | n8n `OpenAI Sandbox` | skip | in password manager | ☐ |
 | 30 | Hosting project | Vercel Pro or Cloudflare Pages | | | | ☐ |
