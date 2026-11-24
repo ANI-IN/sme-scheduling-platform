@@ -1658,7 +1658,7 @@ isOneToOne: false
 { Args: { "p_module_week_id": string,"p_paused": boolean }; Returns: undefined
                            },
 "planned_instructors_for_domain":
-{ Args: { "p_domain_id": string }; Returns: Json
+{ Args: { "p_domain_id": string,"p_part"?: number,"p_parts"?: number }; Returns: Json
                            },
 "planned_instructors":
 { Args: { "p_module_week_ids": (string)[] }; Returns: Json

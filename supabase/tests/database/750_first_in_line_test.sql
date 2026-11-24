@@ -3,7 +3,7 @@
 -- asked now, a chosen list that stops, a chosen list that continues with the order, a sooner class, nobody left.
 begin;
 \ir ../helpers/helpers.psql
-select plan(11);
+select plan(12);
 
 select tests.scenario('FL', 'Live', '2027-01-31', 4) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as mod, (:'j'::jsonb ->> 'mw') as w1,
@@ -63,6 +63,8 @@ select is((select count(*)::int from jsonb_array_elements(public.planned_instruc
             join jsonb_array_elements(public.planned_instructors(array(select id from cmp))) p
               on p ->> 'module_week_id' = d ->> 'module_week_id'
            where p is distinct from d), 0, '11. with the same answer for each as planned_instructors');
+select is((select count(*)::int from generate_series(0, 3) k, jsonb_array_elements(public.planned_instructors_for_domain(:'dom', k, 4))),
+  6, '12. four parts at once give every class week once');
 select tests.as_postgres();
 
 select * from finish();

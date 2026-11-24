@@ -46,13 +46,23 @@ export function useDomainPlanned(domainId: string | undefined) {
   return useQuery({
     queryKey: ['module_week', 'planned', 'domain', domainId],
     enabled: !!domainId,
+    // Four parts at the same time: the database works on them together (decision 342).
     queryFn: async () =>
       new Map(
         (
-          (await rpc('planned_instructors_for_domain', {
-            p_domain_id: domainId!,
-          })) as unknown as Planned[]
-        ).map((p) => [p.module_week_id, p]),
+          await Promise.all(
+            [0, 1, 2, 3].map(
+              async (part) =>
+                (await rpc('planned_instructors_for_domain', {
+                  p_domain_id: domainId!,
+                  p_part: part,
+                  p_parts: 4,
+                })) as unknown as Planned[],
+            ),
+          )
+        )
+          .flat()
+          .map((p) => [p.module_week_id, p]),
       ),
   });
 }

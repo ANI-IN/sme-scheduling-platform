@@ -130,21 +130,26 @@ grant execute on function public.next_in_line_many(uuid[]) to authenticated;
 -- The planned instructors of a whole domain (decision 342): every coming class week nobody is confirmed for, chosen by
 -- the database, so the Schedule board and Upcoming classes ask for them at once, alongside their other lists, instead
 -- of after them. The same answer per class week as public.planned_instructors.
-create or replace function public.planned_instructors_for_domain(p_domain_id uuid)
+-- p_part of p_parts: the app asks for the parts at the same time, so the database works on them together.
+create or replace function public.planned_instructors_for_domain(p_domain_id uuid, p_part int default 0, p_parts int default 1)
 returns jsonb language plpgsql stable security definer set search_path = ''
 as $$
 declare
   v_now timestamptz;
 begin
   perform private.require_team();
+  if p_parts not between 1 and 16 or p_part not between 0 and p_parts - 1 then
+    raise exception 'Choose a part from 0 to %.', p_parts - 1 using errcode = '22023';
+  end if;
   v_now := private.domain_now(p_domain_id);
   return (select coalesce(jsonb_agg(private.planned_instructor(w.id, v_now) order by w.first_class_at, w.id), '[]')
             from public.module_week w
            where w.domain_id = p_domain_id and w.status not in ('Cancelled', 'Completed')
              and w.first_class_at > v_now
+             and abs(hashtext(w.id::text)) % greatest(p_parts, 1) = p_part
              and not exists (select 1 from public.booking b where b.module_week_id = coalesce(w.shared_with, w.id)
                               and b.status = 'Active'));
 end;
 $$;
-revoke all on function public.planned_instructors_for_domain(uuid) from public, anon;
-grant execute on function public.planned_instructors_for_domain(uuid) to authenticated;
+revoke all on function public.planned_instructors_for_domain(uuid, int, int) from public, anon;
+grant execute on function public.planned_instructors_for_domain(uuid, int, int) to authenticated;
