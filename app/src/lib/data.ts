@@ -107,6 +107,13 @@ export const useModules = (domainId: string | undefined) =>
       ),
   });
 
+const WEEK_CLASS_COLS =
+  'id, module_week_id, class_type, title, starts_at, ends_at, status, region, cancelled_reason, problem_flag, holiday_kept_on, holiday_kept_reason, previous_starts_at, previous_ends_at, moved_at, shared_class_id, notes, version';
+const WEEK_BOOKING_COLS =
+  'id, module_week_id, instructor_id, status, confirmed_at, confirmed_via, released_at, release_reason';
+const WEEK_REQUEST_COLS =
+  'id, module_week_id, instructor_id, booking_id, kind, check_in_days, status, answer, close_reason, sent_at, reminded_at, deadline_at, answered_at, created_at';
+
 export const useWeeks = (domainId: string | undefined) =>
   useQuery({
     queryKey: ['module_week', domainId],
@@ -117,7 +124,8 @@ export const useWeeks = (domainId: string | undefined) =>
         supabase
           .from('module_week')
           .select(
-            '*, module(name), class_session(*), booking(*), request(*), help_request(id, status), manual_queue_item(*), time_proposal(id, status)',
+            // Only the columns the lists use (decision 342): the full rows made this the slowest read at scale.
+            `*, module(name), class_session(${WEEK_CLASS_COLS}), booking(${WEEK_BOOKING_COLS}), request(${WEEK_REQUEST_COLS}), help_request(id, status), manual_queue_item(*), time_proposal(id, status)`,
           )
           .eq('domain_id', domainId!)
           .order('week_start_date')
