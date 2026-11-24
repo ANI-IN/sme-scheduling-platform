@@ -51,7 +51,7 @@ test('Check needed: a task says what to check, and It arrived marks the message 
   await expect(row).toContainText('reached Test Instructor A');
   await expect(row).toContainText('not sent again by itself');
   await row.getByRole('button', { name: 'It arrived, mark as sent' }).click();
-  await expect(page.getByText('Marked as sent')).toBeVisible();
+  await expect(page.getByText('Marked as sent', { exact: true })).toBeVisible();
   expect(await status(m.id)).toBe('Sent');
   const copies = await one<{ n: number }>(
     `select count(*)::int n from public.message where unique_key like 'e2e-check-arrived%'`,
@@ -80,7 +80,7 @@ test('Check needed in the class week panel: the message shows it, and Send again
   const item = dlg.locator('li').filter({ hasText: 'Not known whether it arrived' }).first();
   await expect(item.getByText('Check needed', { exact: true })).toBeVisible();
   await item.getByRole('button', { name: 'Send again' }).click();
-  await expect(page.getByText('Sent again')).toBeVisible();
+  await expect(page.getByText('Sent again', { exact: true })).toBeVisible();
   expect(await status(m.id)).toBe('Failed');
   const again = await sql<{ status: string }>(
     `select status from public.message where unique_key like 'e2e-check-again:resend:%'`,
