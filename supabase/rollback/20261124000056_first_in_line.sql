@@ -54,3 +54,33 @@ end;
 $$;
 
 drop function if exists private.first_in_line(uuid);
+
+-- private.week_clash as in 20261112000002_r2_regions_time_zones.sql.
+create or replace function private.week_clash(p_instructor uuid, p_mw uuid)
+returns text language sql stable security definer set search_path = ''
+as $$
+  select private.clash_text(p_instructor, c.starts_at, c.ends_at, c.region, p_mw)
+    from public.class_session c
+   where c.module_week_id = p_mw and c.status <> 'Cancelled'
+     and private.clash_text(p_instructor, c.starts_at, c.ends_at, c.region, p_mw) is not null
+   order by c.starts_at limit 1;
+$$;
+
+-- private.clash_text as in 20261112000002_r2_regions_time_zones.sql.
+create or replace function private.clash_text(p_instructor uuid, p_start timestamptz, p_end timestamptz, p_region text,
+  p_exclude_week uuid default null)
+returns text language sql stable security definer set search_path = ''
+as $$
+  select 'Teaching ' || m.name || ' (' || coalesce(co.name || ', ', '') || d.name || ') on '
+      || private.fmt_class_range(c.starts_at, c.ends_at, c.region)
+      || ', the same time as this class (' || private.fmt_class_range(p_start, p_end, coalesce(p_region, 'US')) || ')'
+    from public.booking_slot s
+    join public.class_session c on c.id = s.class_id
+    join public.module_week w on w.id = c.module_week_id
+    join public.module m on m.id = w.module_id
+    join public.domain d on d.id = w.domain_id
+    left join public.cohort co on co.id = w.cohort_id
+   where s.instructor_id = p_instructor and s.active and (p_exclude_week is null or w.id <> p_exclude_week)
+     and s.time_range && tstzrange(p_start, p_end, '[)')
+   order by c.starts_at limit 1;
+$$;

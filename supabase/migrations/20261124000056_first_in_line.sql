@@ -153,3 +153,44 @@ end;
 $$;
 revoke all on function public.planned_instructors_for_domain(uuid, int, int) from public, anon;
 grant execute on function public.planned_instructors_for_domain(uuid, int, int) to authenticated;
+
+-- private.clash_text and private.week_clash, the same answers, much faster (decision 342). Both were SQL functions
+-- marked security definer, which the database cannot fold into the query that calls them, so it planned clash_text's
+-- six table query again on every call; eligibility runs it for every class of every class week it checks. As PL/pgSQL
+-- functions their plans are kept. At scale (185 class weeks): eligibility 436 ms to 20 ms, a whole asking line 2.4 s to
+-- 0.4 s, planned instructors 558 ms to 244 ms; the clock's own asking gains the same way. pgTAP 750 compares both with
+-- their old forms on every instructor and class week.
+create or replace function private.clash_text(p_instructor uuid, p_start timestamptz, p_end timestamptz, p_region text,
+  p_exclude_week uuid default null)
+returns text language plpgsql stable security definer set search_path = ''
+as $$
+begin
+  return (
+    select 'Teaching ' || m.name || ' (' || coalesce(co.name || ', ', '') || d.name || ') on '
+        || private.fmt_class_range(c.starts_at, c.ends_at, c.region)
+        || ', the same time as this class (' || private.fmt_class_range(p_start, p_end, coalesce(p_region, 'US')) || ')'
+      from public.booking_slot s
+      join public.class_session c on c.id = s.class_id
+      join public.module_week w on w.id = c.module_week_id
+      join public.module m on m.id = w.module_id
+      join public.domain d on d.id = w.domain_id
+      left join public.cohort co on co.id = w.cohort_id
+     where s.instructor_id = p_instructor and s.active and (p_exclude_week is null or w.id <> p_exclude_week)
+       and s.time_range && tstzrange(p_start, p_end, '[)')
+     order by c.starts_at limit 1);
+end;
+$$;
+
+create or replace function private.week_clash(p_instructor uuid, p_mw uuid)
+returns text language plpgsql stable security definer set search_path = ''
+as $$
+begin
+  -- Each class of the week is tested once.
+  return (
+    select z.t
+      from public.class_session c
+      cross join lateral (select private.clash_text(p_instructor, c.starts_at, c.ends_at, c.region, p_mw) as t) z
+     where c.module_week_id = p_mw and c.status <> 'Cancelled' and z.t is not null
+     order by c.starts_at limit 1);
+end;
+$$;

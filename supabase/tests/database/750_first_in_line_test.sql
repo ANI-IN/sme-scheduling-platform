@@ -3,7 +3,7 @@
 -- asked now, a chosen list that stops, a chosen list that continues with the order, a sooner class, nobody left.
 begin;
 \ir ../helpers/helpers.psql
-select plan(12);
+select plan(14);
 
 select tests.scenario('FL', 'Live', '2027-01-31', 4) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as mod, (:'j'::jsonb ->> 'mw') as w1,
@@ -66,6 +66,43 @@ select is((select count(*)::int from jsonb_array_elements(public.planned_instruc
 select is((select count(*)::int from generate_series(0, 3) k, jsonb_array_elements(public.planned_instructors_for_domain(:'dom', k, 4))),
   6, '12. four parts at once give every class week once');
 select tests.as_postgres();
+
+-- private.week_clash in its new form gives the old form's answer for every instructor and class week (decision 342),
+-- including real clashes: Instr2 is booked for another module's class week at the same times as w3.
+select tests.make_module(:'dom', 'FL Two', 2) as mod2 \gset
+select tests.make_week(:'mod2', '2027-02-14') as w3b \gset
+select tests.raw_book(:'w3b', :'i2');
+-- The old forms, as SQL functions (20261112000002_r2_regions_time_zones.sql).
+create function tests.clash_text_old(p_instructor uuid, p_start timestamptz, p_end timestamptz, p_region text,
+  p_exclude_week uuid default null)
+returns text language sql stable as $f$
+  select 'Teaching ' || m.name || ' (' || coalesce(co.name || ', ', '') || d.name || ') on '
+      || private.fmt_class_range(c.starts_at, c.ends_at, c.region)
+      || ', the same time as this class (' || private.fmt_class_range(p_start, p_end, coalesce(p_region, 'US')) || ')'
+    from public.booking_slot s
+    join public.class_session c on c.id = s.class_id
+    join public.module_week w on w.id = c.module_week_id
+    join public.module m on m.id = w.module_id
+    join public.domain d on d.id = w.domain_id
+    left join public.cohort co on co.id = w.cohort_id
+   where s.instructor_id = p_instructor and s.active and (p_exclude_week is null or w.id <> p_exclude_week)
+     and s.time_range && tstzrange(p_start, p_end, '[)')
+   order by c.starts_at limit 1;
+$f$;
+create function tests.week_clash_old(p_instructor uuid, p_mw uuid)
+returns text language sql stable as $f$
+  select tests.clash_text_old(p_instructor, c.starts_at, c.ends_at, c.region, p_mw)
+    from public.class_session c
+   where c.module_week_id = p_mw and c.status <> 'Cancelled'
+     and tests.clash_text_old(p_instructor, c.starts_at, c.ends_at, c.region, p_mw) is not null
+   order by c.starts_at limit 1;
+$f$;
+select is((select count(*)::int from public.module_week w cross join public.instructor i
+            where w.domain_id = :'dom' and i.full_name like 'FL Instr%'
+              and private.week_clash(i.id, w.id) is distinct from tests.week_clash_old(i.id, w.id)), 0,
+  '13. the faster clash check gives the same answer for every instructor and class week');
+select ok((select count(*) from public.module_week w where w.domain_id = :'dom' and private.week_clash(:'i2', w.id) is not null) > 0,
+  '14. and it still finds the real clash');
 
 select * from finish();
 rollback;
