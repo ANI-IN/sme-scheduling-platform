@@ -4,11 +4,12 @@
 //   npm run e2e -- --project=scenarios            Playwright options after --
 //   npm run e2e -- --keep --project=scenarios     keep the test stack running afterwards (faster reruns)
 //   npm run e2e:scale                             time limits per page with 60 cohorts and 160 instructors
+//   npm run e2e -- --pages                        only the warm up and the page tests
 //
 // It starts the test stack (scripts/src/test-stack.ts, ports 5552x) or empties it if it is running, loads
 // the test data, runs Playwright against an app server on port 5174 that talks to the test stack, and
 // stops the test stack and deletes its data at the end (unless --keep).
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import pg from 'pg';
 import { down, keys, TEST_APP_URL, TEST_DB_URL, up } from './test-stack.ts';
@@ -17,7 +18,9 @@ const ROOT = join(import.meta.dirname, '..', '..');
 const all = process.argv.slice(2);
 const keep = all.includes('--keep') || process.env.E2E_KEEP_STACK === '1';
 const scale = all.includes('--scale');
-const args = all.filter((a) => a !== '--keep' && a !== '--scale');
+// --pages: only the warm up and the page tests (the first phase of a full run).
+const pagesOnly = all.includes('--pages');
+const args = all.filter((a) => a !== '--keep' && a !== '--scale' && a !== '--pages');
 
 up();
 const k = keys();
@@ -71,8 +74,51 @@ async function settle() {
   await c.end();
 }
 
+/**
+ * The app server for every phase (Playwright reuses it): started once here, so the code it compiles on the first
+ * visit of each page stays compiled for the whole run.
+ */
+async function startApp() {
+  const vite = spawn(
+    process.execPath,
+    [
+      join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'),
+      join(ROOT, 'app'),
+      '--config',
+      join(ROOT, 'app', 'vite.config.ts'),
+      '--port',
+      '5174',
+      '--strictPort',
+    ],
+    {
+      cwd: join(ROOT, 'e2e'),
+      stdio: 'ignore',
+      env: {
+        ...env,
+        VITE_SUPABASE_URL: k.api,
+        VITE_SUPABASE_PUBLISHABLE_KEY: k.publishable,
+        VITE_ALLOWED_EMAIL_DOMAIN: 'example.com',
+        VITE_ENABLE_DEV_LOGIN: 'false',
+      },
+    },
+  );
+  for (let i = 0; i < 120; i++) {
+    if (
+      await fetch(TEST_APP_URL).then(
+        (r) => r.ok,
+        () => false,
+      )
+    )
+      break;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return vite;
+}
+
+let app: ReturnType<typeof spawn> | undefined;
 if (status === 0) {
   await settle();
+  app = await startApp();
   if (args.length > 0) {
     status = playwright(args);
   } else {
@@ -82,13 +128,22 @@ if (status === 0) {
       `${w}-light`,
       `${w}-dark`,
     ]);
-    status = playwright([...pages.map((p) => `--project=${p}`), '--workers=4'], 'pages');
-    const rest = playwright(
-      ['--project=crawl-desktop', '--project=crawl-mobile', '--project=scenarios'],
-      'flows',
+    // Warm up first (not counted): the development server compiles each page's code on its first visit, and four
+    // workers doing that at once starved the machine for the first tests (24 November: plain reads took 5 to 16 s).
+    playwright(
+      ['--project=desktop-light', '--workers=1', '--reporter=dot', '-g', 'page /'],
+      'warmup',
     );
+    status = playwright([...pages.map((p) => `--project=${p}`), '--workers=4'], 'pages');
+    const rest = pagesOnly
+      ? 0
+      : playwright(
+          ['--project=crawl-desktop', '--project=crawl-mobile', '--project=scenarios'],
+          'flows',
+        );
     status = status || rest;
   }
 }
+app?.kill();
 if (!keep) down();
 process.exit(status);
