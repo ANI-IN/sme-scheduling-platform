@@ -255,10 +255,8 @@ step; this is the short version.
   `sme-clock` runs every 2 minutes and pokes WF4 only when there is work, and about every 10 minutes to read replies
   while a conversation is open (every 20 minutes above 8,000 n8n runs in the month, and none above 9,300). Typed
   replies show in the app within about 10 minutes.
-- **Before 23 November 2026, 17:36 UTC:** WF1 (every hour) and WF4 (every 6 minutes) keep their own n8n schedule
-  triggers as a safety net while the clock runs its first 24 hours.
-- **After 23 November 2026, 17:36 UTC:** the owner's plan is to switch those two schedule triggers off. WF1 then runs
-  only if someone runs it, and WF4 runs on pokes.
+- **Since 23 November 2026:** WF1 is not published (it runs only if someone runs it), and WF4 runs on pokes plus a
+  safety run every 15 minutes.
 - **Unchanged:** WF2 Response handler (the answer pages, a webhook), WF3 Daily jobs (every day at 09:00 IST) and WF5
   (the error workflow).
 - **If the clock is switched off** (`npm run clock -w scripts -- off`), turn the schedule triggers of WF1 and WF4 back

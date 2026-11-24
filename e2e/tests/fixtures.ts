@@ -28,7 +28,7 @@ export const test = base.extend<{
       if (helpPanel === 'closed')
         await page.addInitScript(() => {
           for (const k of ['board', 'classes']) {
-            const key = `help-panel:${k}:ops.placeholder@example.com`;
+            const key = `helpPanel:${k}:ops.placeholder@example.com`;
             if (localStorage.getItem(key) === null) localStorage.setItem(key, 'closed');
           }
         });

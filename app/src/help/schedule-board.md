@@ -1,13 +1,13 @@
 title: The Schedule board
-summary: Every cohort's class weeks at a glance: views, filters, the Legend, Needs a decision, the side panel, changing several class weeks at once, and the download.
+summary: Every cohort's class weeks at a glance: views, filters, the Legend and help panel, Needs a decision, the side panel, changing several class weeks at once, and the download.
 order: 8
 group: Daily work
-keywords: schedule board, board, by cohort, by instructor, list, filter, filters, clear all, cohort, standard schedule, track, module, region, instructor, badge, hide legend, show legend, legend, badges, status, needs a decision, only problems, side panel, select class weeks, bulk, move, cancel, add a break, shared class, download, spreadsheet, compare to standard
+keywords: schedule board, board, by cohort, by instructor, list, filter, filters, clear all, cohort, standard schedule, track, module, region, instructor, badge, legend and help, legend, what is this, how to read the board, board controls, badges, status, needs a decision, only problems, side panel, select class weeks, bulk, move, cancel, add a break, shared class, download, spreadsheet, compare to standard
 ---
 
 Open the [Schedule board](/board). Each cell is one class week of a cohort. It shows the module, its status, its instructor and anything unusual about it. Select a cell to open the class week in the side panel, where every action is.
 
-![The Schedule board by cohort, with Needs a decision, the Legend and Select class weeks](/help/board.png)
+![The Schedule board by cohort, with Legend and help, Needs a decision and Select class weeks](/help/board.png)
 
 ## Views
 
@@ -51,11 +51,25 @@ Each cell has one status, always shown with its colour, icon and word:
 
 A week without classes during a cohort's break shows **Break** and the reason. A program break is one row across the board.
 
-## The Legend
+## Legend and help
 
-The Legend shows above the board. It lists every status and every badge the board, the cohort headers and the side panel can show, each with one sentence about what it means. Press **Hide legend** to fold it away, and **Show legend** to see it again. The board remembers your choice.
+**Legend and help**, first in the board's toolbar, opens a panel on the right side of the screen. It slides in over
+the board without moving it: the columns, where you scrolled to and the class weeks you selected stay as they were.
+Close it with the same button, the **X** or the Escape key. The board remembers your choice on this browser; the
+first time, the panel is open. On a phone or tablet it covers the screen, with a **Close** button.
 
-![The Legend of the Schedule board](/help/board-legend.png)
+The panel has three tabs:
+
+- **Legend**: every status and every badge, one line each. Search it, or switch on **Only what's on this board** to
+  see only what the board shows now.
+- **How to read the board**: rows, columns and cells, Needs a decision, what to do for each problem, and how Sooner
+  class first, breaks, shared classes and cohort holidays look.
+- **Board controls**: what each button and filter does, and when to use it.
+
+Hold the pointer on a cell, or move to it with the keyboard, to read what its status and badges mean. In a class
+week's side panel, the **?** next to a status or badge opens the Legend at it. Upcoming classes has the same panel.
+
+![The Legend and help panel](/help/board-legend.png)
 
 Badges on a cell say what is unusual, such as **Clash**, **Holiday**, **Answer due soon**, **Help request open**, **Moved**, **Extra class** or **Message failed**. Red badges need a fix now, and amber ones are worth a look. A cell shows up to three, and **+2** means there are two more inside. What each one means and how to fix it is in [Fixing problems on a class week](/help/fixing-problems).
 

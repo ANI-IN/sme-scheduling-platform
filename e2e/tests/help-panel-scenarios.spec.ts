@@ -69,7 +69,7 @@ test('the panel opens the first time, with every status and badge in one line ea
   ])
     await expect(panel.locator('li').filter({ hasText: label }).first()).toBeVisible();
   // One line each: a badge and its meaning.
-  const items = panel.locator('li[id^="legend-item-"]');
+  const items = panel.locator('li[id^="legendItem_"]');
   expect(await items.count()).toBeGreaterThan(50);
   await expect(items.locator('[data-badge]')).toHaveCount(await items.count());
   await a11y(page, 'legend and help panel');
@@ -135,10 +135,10 @@ test('search the legend, and Only what is on this board', async ({ page }) => {
   if (!(await panelOf(page).isVisible())) await helpButton(page).click();
   const panel = panelOf(page);
   await panel.getByRole('searchbox', { name: 'Search the legend' }).fill('holiday');
-  const labels = () => panel.locator('li[id^="legend-item-"] [data-badge]').allInnerTexts();
+  const labels = () => panel.locator('li[id^="legendItem_"] [data-badge]').allInnerTexts();
   const found = await labels();
   expect(found).toEqual(expect.arrayContaining(['Holiday', 'Cohort holiday']));
-  for (const line of await panel.locator('li[id^="legend-item-"]').allInnerTexts())
+  for (const line of await panel.locator('li[id^="legendItem_"]').allInnerTexts())
     expect(line.toLowerCase()).toContain('holiday');
   await panel.getByRole('searchbox', { name: 'Search the legend' }).fill('nothing like this');
   await expect(panel.getByText('Nothing matches. Try another word.')).toBeVisible();
@@ -166,7 +166,7 @@ test("a badge's What is this? opens the panel on the Legend at that item", async
   const panel = panelOf(page);
   await expect(panel).toBeVisible();
   await expect(panel.getByRole('tab', { name: 'Legend' })).toHaveAttribute('aria-selected', 'true');
-  const item = panel.locator('#legend-item-waitingforananswer');
+  const item = panel.locator('#legendItem_waitingforananswer');
   await expect(item).toBeFocused();
   await expect(item).toBeInViewport();
 });
@@ -212,7 +212,7 @@ test('Upcoming classes has the same panel, remembered on its own', async ({ page
     'Page controls',
   ]);
   await panel.getByRole('switch', { name: "Only what's on this page" }).click();
-  await expect(panel.locator('li[id^="legend-item-"]').first()).toBeVisible();
+  await expect(panel.locator('li[id^="legendItem_"]').first()).toBeVisible();
   await panel.getByRole('tab', { name: 'Page controls' }).click();
   await expect(panel.getByText('Plan classes', { exact: true })).toBeVisible();
   await a11y(page, 'Upcoming classes legend and help');

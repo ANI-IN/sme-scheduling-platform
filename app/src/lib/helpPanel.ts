@@ -38,10 +38,10 @@ export function meaningOf(groups: readonly LegendGroup[], label: string): string
 }
 
 /** A stable id for a Legend item, so "What is this?" can scroll to it. */
-export const legendItemId = (label: string): string => `legend-item-${squashLabel(label)}`;
+export const legendItemId = (label: string): string => `legendItem_${squashLabel(label)}`;
 
 /** The localStorage key of the panel's open or closed state for one page and one person. */
-export const panelKey = (page: string, who: string): string => `help-panel:${page}:${who}`;
+export const panelKey = (page: string, who: string): string => `helpPanel:${page}:${who}`;
 
 /** Open the first time (nothing saved yet), then whatever the person chose last on this browser. */
 export function readPanelOpen(saved: string | null): boolean {

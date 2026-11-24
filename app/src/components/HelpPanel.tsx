@@ -60,8 +60,8 @@ export function HelpPanelProvider({ page, children }: { page: string; children: 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-const buttonId = (page: string) => `help-panel-button-${page}`;
-const panelId = (page: string) => `help-panel-${page}`;
+const buttonId = (page: string) => `helpPanelButton_${page}`;
+const panelId = (page: string) => `helpPanel_${page}`;
 
 /** The toolbar button that opens and closes the panel. */
 export function HelpPanelButton() {
@@ -101,14 +101,13 @@ export function WhatIsThis({ label, onBefore }: { label: string; onBefore?: () =
   );
 }
 
+/** Below 1024 pixels (phones and tablets) the panel is a full height sheet. */
 function useSmallScreen() {
-  const q = '(max-width: 1023.98px)';
-  const [small, setSmall] = useState(() => window.matchMedia(q).matches);
+  const [small, setSmall] = useState(() => window.innerWidth < 1024);
   useEffect(() => {
-    const m = window.matchMedia(q);
-    const on = () => setSmall(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
+    const on = () => setSmall(window.innerWidth < 1024);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
   }, []);
   return small;
 }
@@ -116,8 +115,8 @@ function useSmallScreen() {
 /** The statuses and badges shown on the page now (each Badge carries data-badge), outside this panel. */
 function shownOnPage(): Set<string> {
   return new Set(
-    [...document.querySelectorAll<HTMLElement>('main [data-badge]')].map((b) =>
-      (b.textContent ?? '').trim(),
+    [...(document.querySelector('main')?.querySelectorAll<HTMLElement>('[data-badge]') ?? [])].map(
+      (b) => (b.textContent ?? '').trim(),
     ),
   );
 }

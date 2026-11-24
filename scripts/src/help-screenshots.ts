@@ -316,18 +316,24 @@ const PICS: Pic[] = [
   {
     file: 'board.png',
     path: '/board',
+    // The Legend and help panel opens the first time (decision 344); this picture shows the board with it closed.
+    act: async (p) => {
+      const panel = p.getByRole('dialog', { name: 'Legend and help' });
+      if (await panel.isVisible()) await p.keyboard.press('Escape');
+      await panel.waitFor({ state: 'detached' });
+    },
     marks: [
+      button(/^legend and help$/i),
       button(/^by cohort$/i),
       (p) => p.getByRole('heading', { name: 'Needs a decision' }),
-      button(/^hide legend$/i),
       button(/select class weeks/i),
     ],
   },
   {
     file: 'board-legend.png',
     path: '/board',
-    // The Legend shows by default (Release 3, C14).
-    clip: (p) => p.locator('section', { hasText: 'Badges on a class week' }).first(),
+    // The Legend and help panel, open on a first visit (decision 344).
+    clip: (p) => p.getByRole('dialog', { name: 'Legend and help' }),
   },
   {
     file: 'board-select.png',

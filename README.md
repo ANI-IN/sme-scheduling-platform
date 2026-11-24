@@ -78,17 +78,16 @@ module or instructor names.
 
 | Workflow             | When                                                                                                                                 | What it does                                                                                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WF1 Hourly engine    | Every hour; after 23 November 2026, 17:36 UTC its schedule trigger is to be switched off (then only when run by hand)                | Runs `engine_tick_all`, the automatic check for every domain. The database clock runs the same check itself every hour                                                                                        |
+| WF1 Hourly engine    | Not published since 23 November 2026: the database clock runs the same check (runs only if someone runs it by hand) | Runs `engine_tick_all`, the automatic check for every domain. The database clock runs the same check itself every hour                                                                                        |
 | WF2 Response handler | Webhook, when an instructor opens an answer link                                                                                     | Shows the answer page (`response_page`) and records the answer only when the button on the page is pressed (`submit_response_page`)                                                                           |
 | WF3 Daily jobs       | Every day at 09:00 IST                                                                                                               | Runs `daily_jobs` (the daily system summary) and saves the nightly backup to Google Drive, keeping the newest 30                                                                                              |
-| WF4 Action runner    | Webhook (a poke) and every 6 minutes; after 23 November 2026, 17:36 UTC its schedule trigger is to be switched off (then pokes only) | The only place messages are sent: delivers queued Discord and Gmail messages, runs app actions and the Discord checks people asked for, and reads typed replies (see [Gmail through n8n](#gmail-through-n8n)) |
+| WF4 Action runner    | Webhook (a poke from the database, within seconds of any queued message or Discord check) and a safety run every 15 minutes | The only place messages are sent: delivers queued Discord and Gmail messages, runs app actions and the Discord checks people asked for, and reads typed replies (see [Gmail through n8n](#gmail-through-n8n)) |
 | WF5 Error handler    | When another workflow fails                                                                                                          | Records the failure in Activity history and alerts the admin channel                                                                                                                                          |
 | WF6 Discord checks   | Not published                                                                                                                        | Off, kept as a spare. WF4 does the Discord checks                                                                                                                                                             |
 
 n8n runs on the owner's n8n Cloud Pro plan: 10,000 executions a month, shared with the other workflows in the same n8n
-account. WF1 and WF4 keep their own schedule triggers as a safety net while the database clock runs its first 24 hours
-(it was switched on at 17:36 UTC on 22 November 2026); after 23 November 2026, 17:36 UTC, the owner's plan is to
-switch those two off. WF2, WF3 and WF5 do not change. There is one workflow set: edit the base files in `n8n/`, run
+account. Since 23 November 2026 the database clock does WF1's work (WF1 is not published) and WF4 runs on pokes plus a
+safety run every 15 minutes. WF2, WF3 and WF5 do not change. There is one workflow set: edit the base files in `n8n/`, run
 `npm run n8n-export -w scripts`, then import or update the live workflow from `n8n/sandbox/` (n8n/README.md).
 
 ### Web app
@@ -499,7 +498,8 @@ docs/PROGRESS.md says which changes are live.
 - **Google sign in only**, through Supabase Auth, with a company Google Workspace account (yourcompany.com).
   Email sign in is switched off. The hook `hook_before_user_created` refuses accounts outside the company domain and
   records the attempt.
-- **Who may sign in** is either "Allowed email domain" or "Beta list" (the beta setting). It is checked on every
+- **Who may sign in** is either "Allowed email domain" or "Beta list" (the beta setting; live: "Beta list", 5 people
+  on 24 November 2026). It is checked on every
   request, so taking someone off the list locks them out at once. A refusal is in Activity history.
 - **The beta list** is on Settings, Admin. Only addresses at the company domain can be on it.
 - **The first sign in** adds the person to the Team page by itself and asks once for their Discord username.
