@@ -109,11 +109,18 @@ export const SHOTS: Shot[] = [
   { name: 'board', path: '/board' },
   { name: 'board-by-instructor', path: '/board', act: click(/^by instructor$/i) },
   { name: 'board-list', path: '/board', act: click(/^list$/i) },
-  // The Legend shows by default (Release 3, C14); this picture is scrolled to it.
+  // The Legend and help panel (decision 344): the shots start with it closed; these open it (Escape closes it again).
   {
     name: 'board-legend',
     path: '/board',
-    act: async (p) => p.getByRole('region', { name: 'Legend' }).scrollIntoViewIfNeeded(),
+    act: async (p) => {
+      // The shot before leaves the List view on; this one shows the usual grid.
+      await p.getByRole('button', { name: 'By cohort', exact: true }).click();
+      await p.waitForTimeout(500);
+      await p.getByRole('button', { name: 'Legend and help', exact: true }).click();
+      await p.getByRole('dialog', { name: 'Legend and help' }).waitFor();
+      await p.waitForTimeout(500);
+    },
   },
   { name: 'board-filter-list', path: '/board', act: click(/^badge/i) },
   { name: 'classes-filter-list', path: '/classes', act: click(/^cohort/i) },
@@ -128,6 +135,15 @@ export const SHOTS: Shot[] = [
     act: steps(selectTwo, click(/^make one shared class$/i)),
   },
   { name: 'classes', path: '/classes' },
+  {
+    name: 'classes-legend',
+    path: '/classes',
+    act: async (p) => {
+      await p.getByRole('button', { name: 'Legend and help', exact: true }).click();
+      await p.getByRole('dialog', { name: 'Legend and help' }).waitFor();
+      await p.waitForTimeout(500);
+    },
+  },
   { name: 'classes-plan-dialog', path: '/classes', act: click(/plan classes/i) },
   { name: 'classes-add-class', path: '/classes', act: click(/add one class/i) },
   { name: 'classes-class-drawer', path: '/classes', act: clickRow('tbody tr') },
@@ -373,8 +389,12 @@ async function main() {
         colorScheme: theme,
       });
       await ctx.addInitScript(
-        ({ t, r }) => {
+        ({ t, r, e }) => {
           localStorage.setItem('ik-theme', t);
+          // The Legend and help panel opens on a first visit (decision 344); the shots start as someone who closed it.
+          for (const k of ['board', 'classes'])
+            if (localStorage.getItem(`helpPanel:${k}:${e}`) === null)
+              localStorage.setItem(`helpPanel:${k}:${e}`, 'closed');
           if (r) {
             if (r.domain) localStorage.setItem('ik-domain', r.domain);
             localStorage.setItem(r.board, JSON.stringify(r.prefs));
@@ -386,7 +406,7 @@ async function main() {
             document.head.appendChild(st);
           });
         },
-        { t: theme, r: review },
+        { t: theme, r: review, e: EMAIL },
       );
       const page = await ctx.newPage();
       await page.goto(await signInLink(api, secret, EMAIL, APP));
