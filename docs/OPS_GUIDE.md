@@ -15,6 +15,10 @@ Pictures of every page are in `docs/screenshots/final/` (see its index).
 
 ## What the words and colours mean
 
+On the Schedule board and Upcoming classes, **Legend and help** (first in the toolbar) opens a panel with every status
+and badge in one line each, how to read the page and what each control does. Hold the pointer on a board cell, or
+move to it with the keyboard, to read what its status and badges mean.
+
 ### The status of a class week
 
 | You see | Colour | What it means | What you do |
