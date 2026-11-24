@@ -166,7 +166,8 @@ All of these are enforced in the database, so the screen can never save what the
 Nobody has two open requests for classes that overlap in real time (UTC), across cohorts, domains and regions. The
 class week whose first class is sooner gets the instructor first; on a tie, the cohort that started first, then the
 cohort's name. A later class week skips them with "Being asked for a sooner class" and asks its next instructor. A
-confirmed booking is never taken away.
+confirmed booking is never taken away. The clock handles requests sooner classes first and reads each request as it
+is now, so a request withdrawn earlier in the same run is never reopened or marked No reply (decision 340).
 
 ### Time zones and regions
 
@@ -282,7 +283,11 @@ not call n8n for emails that must wait.
 - Test instructors are for trying things out. In a live domain they are asked only while the beta setting is on;
   with "Anyone" they are never asked or booked there.
 - A domain in **Testing** sends every message only to its testing channel and testing email, with a practice clock.
-- Two people saving the same record: the second sees "This changed, reload".
+- Two people saving the same record: the second sees "This changed, reload". Class weeks change only through
+  database functions that lock the week, so a second conflicting action is refused with a reason.
+- A message the automation took 15 minutes ago without saying whether it was sent is never sent again by itself: it
+  shows as **Check needed**, the team gets a task, and chooses **It arrived, mark as sent** or **Send again**
+  (decision 341).
 - Cancelling a class week withdraws open requests and tells a confirmed instructor. A permanent delete can never be
   undone; Undo is for edits only.
 
@@ -312,7 +317,7 @@ not call n8n for emails that must wait.
 
 ### Migrations and rollback files
 
-- `supabase/migrations/` holds 58 migrations, applied in file name order. The latest definition of a function is in
+- `supabase/migrations/` holds 80 migrations, applied in file name order. The latest definition of a function is in
   the last migration that creates or replaces it.
   - `20261110*`: the first build (tables, engine, pages, actions)
   - `20261111*`: Release 1 (people and cohorts, flexible classes, access, audit, environments)
@@ -320,11 +325,14 @@ not call n8n for emails that must wait.
   - `20261122*`: Release 3 (baseline fixes, the database clock, admins, the beta guard, server approval, the schedule
     checks, standard schedules, breaks, proposed times, shared classes, merges, the Schedule board, Usage, connection
     tests, trusted bounces, the domain server picker, bulk actions)
-- `supabase/rollback/` has one rollback file for every Release 3 migration (24 files, same names). Each is proved by
+  - `20261123*` and `20261124*`: the beta recipients and database pokes, the High live fixes, messages at any hour,
+    the Draft rule, the r3-m6 merge (status words, setup, channels, Contact instructor), the clock's current rows,
+    Check needed and faster lists (decisions 329 to 342)
+- `supabase/rollback/` has one rollback file for every Release 3 migration (46 files, same names). Each is proved by
   `npm run check-rollbacks -w scripts`.
 - `supabase/seed.sql` sets only the sender name; the app starts empty. `supabase/seed.local.sql` is for your own
   computer only and runs with `npm run db:reset`.
-- `supabase/tests/database/` holds the pgTAP tests (52 files, `010` to `510`), and `supabase/tests/fixtures/` the test
+- `supabase/tests/database/` holds the pgTAP tests (75 files, `010` to `750`), and `supabase/tests/fixtures/` the test
   data for the end to end and scale tests.
 
 To understand a rule, search the migrations for its function name (for example `confirm_booking` or `week_problems`)
