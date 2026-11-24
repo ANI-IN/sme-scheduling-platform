@@ -55,6 +55,9 @@ import { BulkChangeDialog } from './boardBulk';
 import { AddClassDialog } from './AddClassDialog';
 import { ClassDrawer, useRun } from './ClassDrawer';
 import { StartAskingDialog, useDomainPlanned } from './startAsking';
+import { HelpPanel, HelpPanelButton, HelpPanelProvider } from '@/components/HelpPanel';
+import { ClassesControls, ClassesReading } from './helpPanelText';
+import { legendGroups } from './boardBadges';
 
 /** The statuses of a class week nobody is confirmed or asked for, which show who is planned instead. */
 const PLANNED_FOR: string[] = [
@@ -87,6 +90,16 @@ type Row = {
 const col = createColumnHelper<Row>();
 
 export default function Schedule() {
+  return (
+    <HelpPanelProvider page="classes">
+      <SchedulePage />
+    </HelpPanelProvider>
+  );
+}
+
+const legend = legendGroups();
+
+function SchedulePage() {
   const { domain } = useDomain();
   const auth = useAuth();
   const weeks = useWeeks(domain?.id);
@@ -492,7 +505,17 @@ export default function Schedule() {
           <Plus className="h-4 w-4" aria-hidden /> Plan classes
         </Button>
       </PageHeader>
+      <HelpPanel
+        groups={legend}
+        readTitle="How to read this page"
+        read={<ClassesReading />}
+        controlsTitle="Page controls"
+        controls={<ClassesControls />}
+        onlyLabel="Only what's on this page"
+      />
       <Toolbar>
+        {/* First in the toolbar: the panel covers only the right side of the screen, never this button. */}
+        <HelpPanelButton />
         <Input
           placeholder="Search classes"
           aria-label="Search classes"

@@ -14,7 +14,28 @@ export type Problems = {
   allowed: string[];
 };
 
-export const test = base.extend<{ problems: Problems }>({
+export const test = base.extend<{
+  problems: Problems;
+  helpPanel: 'closed' | 'unset';
+  helpPanelInit: void;
+}>({
+  // The Legend and help panel opens the first time someone opens the board or Upcoming classes (decision 344). Most
+  // tests are about the page under it, so they start with it closed, as a person who closed it before; the panel's
+  // own scenarios use test.use({ helpPanel: 'unset' }) for a first visit.
+  helpPanel: ['closed', { option: true }],
+  helpPanelInit: [
+    async ({ page, helpPanel }, use) => {
+      if (helpPanel === 'closed')
+        await page.addInitScript(() => {
+          for (const k of ['board', 'classes']) {
+            const key = `help-panel:${k}:ops.placeholder@example.com`;
+            if (localStorage.getItem(key) === null) localStorage.setItem(key, 'closed');
+          }
+        });
+      await use();
+    },
+    { auto: true },
+  ],
   problems: [
     async ({ page }, use, testInfo) => {
       const p: Problems = { list: [], allow: [], allowed: [] };

@@ -10,6 +10,10 @@ import { rpc } from '@/lib/rpc';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
+import { Tooltip as Tip } from 'radix-ui';
+import { meaningOf } from '@/lib/helpPanel';
+import { HelpPanel, HelpPanelButton, HelpPanelProvider } from '@/components/HelpPanel';
+import { BoardControls, BoardReading } from './helpPanelText';
 import { useBlockedMessages, useInstructors, useWeek } from '@/lib/data';
 import { asRegion, REGIONS } from '@/lib/region';
 import {
@@ -136,8 +140,6 @@ type Prefs = {
   weeks: number;
   onlyProblems: boolean;
   compare?: boolean;
-  /** False after Hide legend. Saved views from before the Legend was shown by default have nothing, so it shows. */
-  legend?: boolean;
 };
 
 /** Filters remembered per person on this device. */
@@ -164,6 +166,17 @@ function usePrefs(key: string) {
 const sunday = (d: DateTime) => d.minus({ days: d.weekday % 7 }).startOf('day');
 
 export default function Board() {
+  return (
+    <HelpPanelProvider page="board">
+      <Tip.Provider delayDuration={400}>
+        <BoardPage />
+      </Tip.Provider>
+    </HelpPanelProvider>
+  );
+}
+
+function BoardPage() {
+  const legend = useMemo(() => legendGroups(), []);
   const { domain } = useDomain();
   const auth = useAuth();
   const [prefs, setPrefs] = usePrefs(`board:${auth.account?.member?.email ?? 'me'}`);
@@ -175,7 +188,6 @@ export default function Board() {
   const [menu, setMenu] = useState<{ kind: 'break' | 'holiday' | 'merge'; cohort?: string } | null>(
     null,
   );
-  const legend = prefs.legend !== false;
   // Cohort, standard schedule, module, region, status, instructor and badge: remembered per person and domain.
   const [filters, setFilters] = useRememberedFilters(
     filtersKey('board', auth.account?.member?.email),
@@ -377,20 +389,50 @@ export default function Board() {
         </div>
       );
     const picked = selecting && selected.includes(c.id);
+    // Hover or keyboard focus shows what the status and each badge mean (decision 344).
+    const meanings = [
+      STATUS[c.status].word,
+      ...(differs ? [c.standard_position === null ? MARK.notInStandard : MARK.differs] : []),
+      ...shown.map((x) => badgeLabel(x)).filter((x): x is string => !!x),
+    ]
+      .map((label) => ({ label, text: meaningOf(legend, label) }))
+      .filter((m) => m.text);
     return (
-      <button
-        type="button"
-        onClick={() => (selecting ? toggle(c.id) : setOpenWeek(c.id))}
-        aria-pressed={selecting ? picked : undefined}
-        className={cn(
-          'w-full rounded-md border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
-          differs ? 'border-warning-strong' : 'border-border',
-          picked && 'ring-2 ring-ring',
+      <Tip.Root delayDuration={400}>
+        <Tip.Trigger asChild>
+          <button
+            type="button"
+            onClick={() => (selecting ? toggle(c.id) : setOpenWeek(c.id))}
+            aria-pressed={selecting ? picked : undefined}
+            className={cn(
+              'w-full rounded-md border bg-card p-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring',
+              differs ? 'border-warning-strong' : 'border-border',
+              picked && 'ring-2 ring-ring',
+            )}
+          >
+            {selecting && <span className="sr-only">{picked ? 'Selected: ' : 'Select: '}</span>}
+            {body}
+          </button>
+        </Tip.Trigger>
+        {meanings.length > 0 && (
+          <Tip.Portal>
+            <Tip.Content
+              side="top"
+              sideOffset={6}
+              collisionPadding={8}
+              className="z-50 max-w-xs rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-card-foreground shadow-md"
+            >
+              <ul className="space-y-1">
+                {meanings.map((m) => (
+                  <li key={m.label}>
+                    <span className="font-semibold">{m.label}:</span> {m.text}
+                  </li>
+                ))}
+              </ul>
+            </Tip.Content>
+          </Tip.Portal>
         )}
-      >
-        {selecting && <span className="sr-only">{picked ? 'Selected: ' : 'Select: '}</span>}
-        {body}
-      </button>
+      </Tip.Root>
     );
   };
 
@@ -465,6 +507,8 @@ export default function Board() {
         description="Every cohort's class weeks at a glance. Each cell shows its status, its instructor and anything that needs a decision. Select a cell for details and actions."
       />
       <Toolbar>
+        {/* First in the toolbar: the panel covers only the right side of the screen, never this button. */}
+        <HelpPanelButton />
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="View">
           {(
             [
@@ -525,15 +569,6 @@ export default function Board() {
           checked={!!prefs.compare}
           onChange={(v) => setPrefs({ compare: v })}
         />
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-expanded={legend}
-          aria-controls={legend ? 'board-legend-section' : undefined}
-          onClick={() => setPrefs({ legend: !legend })}
-        >
-          {legend ? 'Hide legend' : 'Show legend'}
-        </Button>
         <Button size="sm" variant="secondary" disabled={cells.length === 0} onClick={download}>
           <Download className="h-4 w-4" aria-hidden /> Download as spreadsheet
         </Button>
@@ -610,7 +645,14 @@ export default function Board() {
 
       <FilterBar fields={filterFields} value={filters} onChange={setFilters} />
 
-      {legend && <Legend />}
+      <HelpPanel
+        groups={legend}
+        readTitle="How to read the board"
+        read={<BoardReading />}
+        controlsTitle="Board controls"
+        controls={<BoardControls />}
+        onlyLabel="Only what's on this board"
+      />
 
       <section aria-label="Needs a decision" className="mb-4">
         <h2 className="mb-2 text-sm font-semibold">Needs a decision</h2>
@@ -937,42 +979,6 @@ export default function Board() {
         />
       )}
     </div>
-  );
-}
-
-/** Every status and badge the board and its side panel can show, each with one sentence. */
-function Legend() {
-  return (
-    <section
-      id="board-legend-section"
-      aria-labelledby="board-legend"
-      className="mb-4 rounded-md border border-border p-3"
-    >
-      <h2 id="board-legend" className="text-sm font-semibold">
-        Legend
-      </h2>
-      {legendGroups().map((g) => (
-        <div key={g.title} className="mt-3">
-          <h3 className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{g.title}</h3>
-          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
-            {g.items.map((i) => {
-              const Icon = i.icon;
-              return (
-                <div key={i.label} className="min-w-0">
-                  <dt className="inline">
-                    <Badge tone={i.tone}>
-                      {Icon && <Icon className="h-3.5 w-3.5" aria-hidden />}
-                      {i.label}
-                    </Badge>
-                  </dt>
-                  <dd className="ml-1.5 inline text-muted-foreground">{i.text}</dd>
-                </div>
-              );
-            })}
-          </dl>
-        </div>
-      ))}
-    </section>
   );
 }
 

@@ -321,6 +321,8 @@ export function Badge({
   return (
     <span
       title={title}
+      // The Legend and help panel reads the statuses and badges shown on a page by this mark (decision 344).
+      data-badge=""
       className={cn(
         'inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium break-words',
         tones[tone],

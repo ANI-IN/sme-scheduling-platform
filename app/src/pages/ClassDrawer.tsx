@@ -14,6 +14,7 @@ import { fmtLocal } from '@/lib/time';
 import { asRegion, localParts, timeFieldLabel } from '@/lib/region';
 import { COHORT_BADGE, MSG_STATUS, PANEL_BADGE, STATUS } from './boardBadges';
 import { MessageCheckActions } from '@/components/MessageCheckActions';
+import { WhatIsThis } from '@/components/HelpPanel';
 import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
 import { weekState, weeksById } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
@@ -193,21 +194,53 @@ export function ClassDrawer({
     >
       <div className="space-y-6 text-sm">
         {timeline.data && <BlockedMessages messages={currentBlocked(timeline.data.messages)} />}
-        <div className="flex flex-wrap gap-2">
-          <Badge tone={state.tone}>{state.short}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* "What is this?" opens the Legend and help panel at each one, on pages that have it (decision 344). */}
+          <span className="inline-flex items-center gap-0.5">
+            <Badge tone={state.tone}>{state.short}</Badge>
+            <WhatIsThis label={state.short} onBefore={onClose} />
+          </span>
           {week.at_risk && state.status !== 'Confirmed' && (
-            <Badge tone="danger">{PANEL_BADGE.atRisk}</Badge>
+            <span className="inline-flex items-center gap-0.5">
+              <Badge tone="danger">{PANEL_BADGE.atRisk}</Badge>
+              <WhatIsThis label={PANEL_BADGE.atRisk} onBefore={onClose} />
+            </span>
           )}
-          <Badge>
-            {week.outreach_mode === 'Manual' ? PANEL_BADGE.chosenList : PANEL_BADGE.instructorOrder}
-          </Badge>
+          <span className="inline-flex items-center gap-0.5">
+            <Badge>
+              {week.outreach_mode === 'Manual'
+                ? PANEL_BADGE.chosenList
+                : PANEL_BADGE.instructorOrder}
+            </Badge>
+            <WhatIsThis
+              label={
+                week.outreach_mode === 'Manual'
+                  ? PANEL_BADGE.chosenList
+                  : PANEL_BADGE.instructorOrder
+              }
+              onBefore={onClose}
+            />
+          </span>
           {week.shared_with ? (
-            <Badge tone="accent">{PANEL_BADGE.sharedClass}</Badge>
+            <span className="inline-flex items-center gap-0.5">
+              <Badge tone="accent">{PANEL_BADGE.sharedClass}</Badge>
+              <WhatIsThis label={PANEL_BADGE.sharedClass} onBefore={onClose} />
+            </span>
           ) : (
             week.paused &&
-            state.status !== 'Paused' && <Badge tone="neutral">{STATUS.Paused.word}</Badge>
+            state.status !== 'Paused' && (
+              <span className="inline-flex items-center gap-0.5">
+                <Badge tone="neutral">{STATUS.Paused.word}</Badge>
+                <WhatIsThis label={STATUS.Paused.word} onBefore={onClose} />
+              </span>
+            )
           )}
-          {openHelp && <Badge tone="warning">{PANEL_BADGE.helpOpen}</Badge>}
+          {openHelp && (
+            <span className="inline-flex items-center gap-0.5">
+              <Badge tone="warning">{PANEL_BADGE.helpOpen}</Badge>
+              <WhatIsThis label={PANEL_BADGE.helpOpen} onBefore={onClose} />
+            </span>
+          )}
         </div>
         {week.at_risk && week.at_risk_reason && (
           <p className="-mt-4 text-danger-strong">{plain(week.at_risk_reason)}</p>

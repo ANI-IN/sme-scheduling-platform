@@ -70,6 +70,23 @@ for (const tab of MODULE_TABS) {
   });
 }
 
+// The Legend and help panel (decision 344), each tab, on the board and Upcoming classes, at every width and theme.
+for (const path of ['/board', '/classes']) {
+  test(`legend and help panel on ${path}`, async ({ page }) => {
+    await visit(page, path);
+    await page.getByRole('button', { name: 'Legend and help', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: 'Legend and help' });
+    await expect(panel).toBeVisible();
+    for (const tab of await panel.getByRole('tab').all()) {
+      await tab.click();
+      const name = `${path} legend panel, ${await tab.innerText()}`;
+      await a11y(page, name);
+      await noDashes(page, name);
+      await layoutOk(page, name);
+    }
+  });
+}
+
 test('automation settings for a cohort', async ({ page }) => {
   const [c] = await sql<{ id: string }>(`select id from public.cohort order by name limit 1`);
   await visit(page, `/settings/automation?scope=Cohort&id=${c!.id}`);

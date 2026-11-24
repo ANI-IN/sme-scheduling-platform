@@ -76,7 +76,7 @@ test('Add a break starts from the selection, and one shared class needs two clas
   await expect(dlg.getByRole('textbox', { name: 'First day', exact: true })).not.toHaveValue('');
 });
 
-// Release 3 board review, items 6, 8, 9 and 10: the Legend, the first week shown, By instructor on a phone, and the
+// Release 3 board review, items 6, 8, 9 and 10: the first week shown, By instructor on a phone, and the
 // group of cohorts without a standard schedule.
 test('the board opens at this week, and Earlier still shows the weeks before', async ({ page }) => {
   await page.goto('/board');
@@ -92,68 +92,7 @@ test('the board opens at this week, and Earlier still shows the weeks before', a
   await expect(rows.first()).toHaveAttribute('aria-current', 'date');
 });
 
-// Release 3, C14: the Legend shows by default; Hide legend is remembered per person.
-test('the Legend shows at first and explains every badge in one sentence each', async ({
-  page,
-}) => {
-  await page.goto('/board');
-  await ready(page);
-  const legend = page.getByRole('region', { name: 'Legend' });
-  await expect(legend.getByRole('heading', { level: 2, name: 'Legend' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Hide legend', exact: true })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
-  await expect(page.getByRole('button', { name: 'Show legend', exact: true })).toHaveCount(0);
-  for (const label of [
-    'Answer due soon',
-    'Help request open',
-    'Declined or no reply before',
-    'Clash',
-    'Shared class',
-    'Merged into',
-    'Moved',
-    'Holiday',
-    'Extra class',
-    'Custom',
-    'Message failed',
-    'Sooner class first',
-    'Waiting for an answer',
-    'Break',
-  ])
-    await expect(legend.locator('dt').getByText(label, { exact: true })).toBeVisible();
-  const terms = await legend.locator('dt').count();
-  expect(terms).toBeGreaterThan(50);
-  await expect(legend.locator('dd')).toHaveCount(terms);
-  await a11y(page, 'board legend');
-  await noDashes(page, 'board legend');
-});
-
-test('Hide legend is remembered after a reload, and Show legend brings it back', async ({
-  page,
-}) => {
-  await page.goto('/board');
-  await ready(page);
-  const legend = page.getByRole('region', { name: 'Legend' });
-  await expect(legend).toBeVisible();
-  await page.getByRole('button', { name: 'Hide legend', exact: true }).click();
-  await expect(legend).toHaveCount(0);
-  const show = page.getByRole('button', { name: 'Show legend', exact: true });
-  await expect(show).toHaveAttribute('aria-expanded', 'false');
-  await page.reload();
-  await ready(page);
-  await expect(legend).toHaveCount(0);
-  await expect(show).toBeVisible();
-  await show.click();
-  await expect(legend).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Hide legend', exact: true })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
-  await page.reload();
-  await ready(page);
-  await expect(legend).toBeVisible();
-});
+// The Legend moved to the Legend and help panel (decision 344): help-panel-scenarios.spec.ts.
 
 test('cohorts without a standard schedule are grouped as No standard schedule', async ({
   page,
