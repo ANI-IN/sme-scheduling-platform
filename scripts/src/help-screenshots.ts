@@ -332,7 +332,13 @@ const PICS: Pic[] = [
   {
     file: 'board-legend.png',
     path: '/board',
-    // The Legend and help panel, open on a first visit (decision 344).
+    // The Legend and help panel (decision 344). The board picture before closed it, and the choice is remembered.
+    act: async (p) => {
+      const panel = p.getByRole('dialog', { name: 'Legend and help' });
+      if (!(await panel.isVisible()))
+        await p.getByRole('button', { name: 'Legend and help', exact: true }).click();
+      await panel.waitFor();
+    },
     clip: (p) => p.getByRole('dialog', { name: 'Legend and help' }),
   },
   {
