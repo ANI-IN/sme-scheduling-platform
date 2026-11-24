@@ -190,6 +190,11 @@ export function useLiveUpdates(): void {
       timer = setTimeout(flush, now - firstAt >= MAX_WAIT_MS ? 0 : DEBOUNCE_MS);
     };
     const everything = () => LIVE_TABLES.forEach((t) => pending.add(t));
+    const loadedBeforeListening = () =>
+      qc
+        .getQueryCache()
+        .getAll()
+        .some((q) => q.state.dataUpdatedAt > 0 && !isPreview(q.queryKey));
 
     const startPolling = () => {
       if (poll) return;
@@ -222,6 +227,12 @@ export function useLiveUpdates(): void {
       if (status === 'SUBSCRIBED') {
         connected = true;
         stopPolling();
+        // The first time: anything the page read before we were listening may have changed in between (found by
+        // the full run of 24 November: a change made just after a page loaded never showed). Read it once more.
+        if (!everConnected && loadedBeforeListening()) {
+          everything();
+          flush();
+        }
         // Back after a break: changes made meanwhile were not sent, so look at everything once.
         if (everConnected && missed) {
           missed = false;
