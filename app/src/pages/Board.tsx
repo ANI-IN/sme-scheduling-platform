@@ -10,7 +10,7 @@ import { rpc } from '@/lib/rpc';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { useDomain } from '@/lib/domain';
 import { useAuth } from '@/lib/auth';
-import { useBlockedMessages, useInstructors, useWeeks } from '@/lib/data';
+import { useBlockedMessages, useInstructors, useWeek } from '@/lib/data';
 import { asRegion, REGIONS } from '@/lib/region';
 import {
   applyFilters,
@@ -200,7 +200,6 @@ export default function Board() {
         p_to: to,
       })) as unknown as Board,
   });
-  const weeks = useWeeks(domain?.id);
   const instructors = useInstructors();
   const names = useMemo(
     () => new Map((instructors.data ?? []).map((i) => [i.id, i.full_name])),
@@ -283,7 +282,15 @@ export default function Board() {
     [start, prefs.weeks],
   );
   const thisWeek = sunday(DateTime.now()).toISODate();
-  const open = (weeks.data ?? []).find((w) => w.id === openWeek);
+  // Only the class week opened, not every class week of the domain (decision 342).
+  const openRow = useWeek(openWeek);
+  const open = openRow.data ?? undefined;
+  // Sharing a class: the earliest selected class week is the host (read alone, like the opened one).
+  const shareChosen = (raw?.weeks ?? [])
+    .filter((c) => selected.includes(c.id))
+    .sort((x, y) => x.week_start_date.localeCompare(y.week_start_date))
+    .map((c) => c.id);
+  const shareHost = useWeek(bulk === 'share' ? shareChosen[0] : null);
 
   const cellsAt = (cohort: string, row: DateTime) =>
     cells.filter(
@@ -893,15 +900,12 @@ export default function Board() {
       {bulk === 'share' &&
         (() => {
           // The earliest selected class week hosts the shared class; the others join it.
-          const chosen = (weeks.data ?? [])
-            .filter((w) => selected.includes(w.id))
-            .sort((x, y) => x.week_start_date.localeCompare(y.week_start_date));
-          const host = chosen[0];
+          const host = shareHost.data;
           return (
             host && (
               <ShareDialog
                 week={host}
-                guests={chosen.slice(1).map((w) => w.id)}
+                guests={shareChosen.slice(1)}
                 onClose={() => {
                   setBulk(null);
                   setSelected([]);

@@ -140,6 +140,23 @@ export const useWeeks = (domainId: string | undefined) =>
 
 export type WeekRow = NonNullable<ReturnType<typeof useWeeks>['data']>[number];
 
+/** One class week, with the same parts as useWeeks (decision 342): the board opens one without reading them all. */
+export const useWeek = (id: string | null | undefined) =>
+  useQuery({
+    queryKey: ['module_week', 'one', id],
+    enabled: !!id,
+    queryFn: async (): Promise<WeekRow | null> =>
+      check(
+        await supabase
+          .from('module_week')
+          .select(
+            `${WEEK_COLS}, module(name), class_session(${WEEK_CLASS_COLS}), booking(${WEEK_BOOKING_COLS}), request(${WEEK_REQUEST_COLS}), help_request(id, status), manual_queue_item(*), time_proposal(id, status)`,
+          )
+          .eq('id', id!)
+          .maybeSingle(),
+      ),
+  });
+
 /** A domain's standard schedules with their module order, breaks and own class times (decision 298). */
 export const useStandards = (domainId: string | undefined) =>
   useQuery({
