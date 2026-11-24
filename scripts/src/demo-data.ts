@@ -50,7 +50,18 @@ async function load() {
   if (env.e !== 'Development')
     throw new Error(`Test data only goes into a local test stack, not ${env.e}.`);
   // Empty it, then load the test data (Backend and Fullstack, weekend and weekday cohorts).
-  await c.query(`select public.reset_sandbox_data('RESET')`);
+  // Emptying 31 tables can deadlock with a clock run or a page still open from the last test that touches two of
+  // them in the other order (the full run of 24 November): the database cancels one side, so try again.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await c.query(`select public.reset_sandbox_data('RESET')`);
+      break;
+    } catch (e) {
+      if ((e as { code?: string }).code !== '40P01' || attempt >= 4) throw e;
+      console.log(`The reset met a deadlock (attempt ${attempt}); trying again.`);
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
   await c.query(readFileSync(join(ROOT, 'supabase/tests/fixtures/starting_data.sql'), 'utf8'));
   await c.query(`select tests.load_starting_data()`);
   // A bot in 16 Discord servers (decision 261): most ready, some with a problem or not checked yet, and the
