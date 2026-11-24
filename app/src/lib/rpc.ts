@@ -70,30 +70,6 @@ export async function fetchAll<T>(
 
 const PARALLEL_PAGES = 3;
 
-/**
- * Every row of a big list in smaller pages, several at the same time from the start (decision 342): for the class
- * week list, whose rows are large, the database builds the pages together instead of one long page. Asks `parallel`
- * pages at a time until one comes back short.
- */
-export async function fetchAllParallel<T>(
-  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
-  pageRows = 150,
-  parallel = 4,
-): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += pageRows * parallel) {
-    const batch = await Promise.all(
-      Array.from({ length: parallel }, (_, k) =>
-        page(from + k * pageRows, from + (k + 1) * pageRows - 1).then(check),
-      ),
-    );
-    for (const rows of batch) {
-      out.push(...rows);
-      if (rows.length < pageRows) return out;
-    }
-  }
-}
-
 /** How many IDs go in one `in(...)` filter: each is 37 characters of the address, which must stay short. */
 export const IDS_PER_REQUEST = 100;
 

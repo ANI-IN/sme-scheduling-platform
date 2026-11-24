@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { currentBlocked } from './blocked';
 import { supabase, type Tables } from './supabase';
-import { check, fetchAllParallel, rpc } from './rpc';
+import { check, fetchAll, rpc } from './rpc';
 import { useAuth } from './auth';
 
 /** While the automation is checking Discord for someone, look again every few seconds. */
@@ -120,9 +120,9 @@ export const useWeeks = (domainId: string | undefined) =>
   useQuery({
     queryKey: ['module_week', domainId],
     enabled: !!domainId,
-    // Every class week of the domain, in pages of 150 asked four at a time (decision 342).
+    // Every class week of the domain, a page at a time (the database returns at most 1,000 rows at once).
     queryFn: () =>
-      fetchAllParallel((from, to) =>
+      fetchAll((from, to) =>
         supabase
           .from('module_week')
           .select(
