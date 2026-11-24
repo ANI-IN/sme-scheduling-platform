@@ -10,6 +10,7 @@
 // stops the test stack and deletes its data at the end (unless --keep).
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+import pg from 'pg';
 import { down, keys, TEST_APP_URL, TEST_DB_URL, up } from './test-stack.ts';
 
 const ROOT = join(import.meta.dirname, '..', '..');
@@ -47,7 +48,31 @@ let status = run(
   ],
   join(ROOT, 'scripts'),
 );
+/**
+ * Wait until the freshly reset test database is quiet: no other session busy and no lock waits for two seconds in a
+ * row (at most a minute). Right after a reset the stack's own services run their setup, and on 24 November the very
+ * first page test waited behind them until its 8 second limit.
+ */
+async function settle() {
+  const c = new pg.Client({ connectionString: TEST_DB_URL });
+  await c.connect();
+  let quiet = 0;
+  for (let i = 0; i < 120 && quiet < 4; i++) {
+    const r = await c.query<{ busy: number; waiting: number }>(
+      `select count(*) filter (where state = 'active' and pid <> pg_backend_pid() and backend_type = 'client backend'
+                                 and query not ilike '%pg_sleep%' and query not ilike '%LISTEN%'
+                                 and query not ilike 'START_REPLICATION%')::int busy,
+              count(*) filter (where wait_event_type = 'Lock')::int waiting
+         from pg_stat_activity`,
+    );
+    quiet = r.rows[0]!.busy === 0 && r.rows[0]!.waiting === 0 ? quiet + 1 : 0;
+    await new Promise((res) => setTimeout(res, 500));
+  }
+  await c.end();
+}
+
 if (status === 0) {
+  await settle();
   if (args.length > 0) {
     status = playwright(args);
   } else {
