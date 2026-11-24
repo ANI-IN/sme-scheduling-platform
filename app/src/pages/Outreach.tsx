@@ -59,8 +59,8 @@ import { ClassDrawer, useRun } from './ClassDrawer';
 type Preview = {
   asking: { name: string; sent_at: string; reminded: boolean; deadline_at: string } | null;
   next: string | null;
-  line: { instructor_id: string; name: string; reason: string | null }[];
 };
+type Line = { instructor_id: string; name: string; reason: string | null }[];
 type Eligible = {
   instructor_id: string;
   name: string;
@@ -80,6 +80,27 @@ const label = (w: WeekRow) =>
     .join(' + ')}`;
 
 /** Cohort, region and the first class time in its own time zone, under each class week. */
+/** The whole order for one class week, with why someone cannot be asked: read when its row is opened. */
+function FullLine({ weekId }: { weekId: string }) {
+  const line = useQuery({
+    queryKey: ['request', 'preview', weekId],
+    queryFn: async () =>
+      ((await rpc('preview_next', { p_module_week_id: weekId })) as unknown as { line: Line }).line,
+  });
+  if (!line.data) return null;
+  return (
+    <div className="mt-2 text-xs text-muted-foreground">
+      Order for this week:{' '}
+      {line.data.map((l) => (
+        <span key={l.instructor_id} className={l.reason ? 'text-muted-foreground' : ''}>
+          {l.name}
+          {l.reason ? ` (${plain(l.reason)})` : ''} ·{' '}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function WeekMeta({ w }: { w: WeekRow }) {
   const first = [...w.class_session]
     .filter((c) => c.status !== 'Cancelled')
@@ -159,7 +180,8 @@ export default function Outreach() {
     ],
     enabled: finding.length > 0,
     // Class weeks in groups of 25, the groups at the same time (decision 334): far fewer requests than one per class
-    // week, and the database still works on several groups at once (one group of all of them was slower).
+    // week, and the database still works on several groups at once (one group of all of them was slower). Only who
+    // is asked and who is next (decision 342); the whole order loads when a row is opened.
     queryFn: async () => {
       const groups: string[][] = [];
       for (let i = 0; i < finding.length; i += 25)
@@ -167,7 +189,7 @@ export default function Outreach() {
       const parts = await Promise.all(
         groups.map(
           async (g) =>
-            (await rpc('preview_next_many', { p_module_week_ids: g })) as unknown as Record<
+            (await rpc('next_in_line_many', { p_module_week_ids: g })) as unknown as Record<
               string,
               Preview
             >,
@@ -539,20 +561,7 @@ export default function Outreach() {
                                 ))}
                               </ol>
                             )}
-                            {p && (
-                              <div className="mt-2 text-xs text-muted-foreground">
-                                Order for this week:{' '}
-                                {p.line.map((l) => (
-                                  <span
-                                    key={l.instructor_id}
-                                    className={l.reason ? 'text-muted-foreground' : ''}
-                                  >
-                                    {l.name}
-                                    {l.reason ? ` (${plain(l.reason)})` : ''} ·{' '}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            <FullLine weekId={w.id} />
                           </td>
                         </tr>
                       )}

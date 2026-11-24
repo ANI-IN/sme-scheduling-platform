@@ -1663,6 +1663,9 @@ isOneToOne: false
 "preview_message_template":
 { Args: { "p_body": string,"p_domain_id": string,"p_subject": string,"p_template_id": string }; Returns: Json
                            },
+"next_in_line_many":
+{ Args: { "p_module_week_ids": string[] }; Returns: Json
+                           },
 "preview_next_many":
 { Args: { "p_module_week_ids": string[] }; Returns: Json
                            },
