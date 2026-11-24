@@ -36,6 +36,8 @@ Each test arrives within a minute and is saved in Activity history. Use it after
 3. Open the class week, open **More options** and press **Send last message again**.
 4. Press **Mark done** on the task.
 
+A task **Check if a message arrived** is different: the message may have gone out, so nothing is sent again by itself. Look for it, then press **It arrived, mark as sent** or **Send again**. See **Check needed** in [Fixing problems on a class week](/help/fixing-problems).
+
 On Instructors, **Only show** with **Messages failing** lists everyone whose messages fail, with **Email bounced** or **Discord message failed**. See [Fixing problems on a class week](/help/fixing-problems).
 
 ## When Discord is not working

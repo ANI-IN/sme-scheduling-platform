@@ -27,6 +27,7 @@ keywords: glossary, words, meaning, definition, terms, status
 - **Automatic check:** the regular run, every hour, that sends messages and moves requests on.
 - **Backup 1, Backup 2:** the next instructors asked after the Primary instructor.
 - **Beta list:** the colleagues who may sign in while sign in is limited.
+- **Check needed:** the automation took a message but never said whether it was sent. It is not sent again by itself: look for it, then press **It arrived, mark as sent** or **Send again**.
 - **Chosen list:** instructors you pick by hand for one class week, asked one at a time.
 - **Clash:** an instructor in two classes at the same time.
 - **Class week:** the classes of one module taught by the same instructor. It starts on the day of its first class.

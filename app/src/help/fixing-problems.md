@@ -1,8 +1,8 @@
 title: Fixing problems on a class week
-summary: Each problem the board and Home can show, what it means and how to fix it: clash, shared class, merge, breaks, holidays, proposed time, moved class, needs instructor, message failed, answer due soon and help requests.
+summary: Each problem the board and Home can show, what it means and how to fix it: clash, shared class, merge, breaks, holidays, proposed time, moved class, needs instructor, message failed, check needed, answer due soon and help requests.
 order: 12
 group: Fixing problems
-keywords: problem, edge case, fix, clash, shared class, merge, break, program break, cohort holiday, proposed time, moved, needs instructor, message failed, not delivered, answer due soon, help request, need help, treat as a cancellation
+keywords: problem, edge case, fix, clash, shared class, merge, break, program break, cohort holiday, proposed time, moved, needs instructor, message failed, not delivered, check needed, did it arrive, mark as sent, answer due soon, help request, need help, treat as a cancellation
 ---
 
 Most problems show in three places: as a badge or status on the [Schedule board](/board), as a count under **Needs a decision**, and often as a task on [Home](/). You always fix them from the class week's side panel. Press **Legend** on the board to see every badge with one sentence about it.
@@ -86,6 +86,16 @@ While a confirmed instructor has not confirmed the new time, the class week show
 4. Press **Mark done** on the task.
 
 If many messages fail at once, Discord or email may be down. See [Troubleshooting](/help/troubleshooting).
+
+## Check needed
+
+**Check needed** (amber) means the automation took a message more than 15 minutes ago and never said whether it was sent. It may or may not have arrived, so it is **never sent again by itself**: that could send it twice. Home shows the task **Check if a message arrived**, and the operations team gets an alert. The class week's **Activity** shows the message as **Check needed**.
+
+1. Look where it should be: the instructor's Discord channel, or the email the task names.
+2. If it is there, press **It arrived, mark as sent**. The message reads **Sent**.
+3. If it is not, press **Send again**. One new copy goes out, and the old one reads **Not delivered**.
+
+Both buttons are on the task and on the message in the class week's **Activity**. The task closes by itself, and Activity history keeps who checked. If the automation answers late, the check settles by itself.
 
 ## Answer due soon
 

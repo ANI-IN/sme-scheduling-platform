@@ -51,6 +51,7 @@ Press **Legend** on the board to see every mark with its meaning. The ones that 
 | Needs instructor | Phone people. Then open the class week and press **Assign and confirm instructor**, or add instructors to the module's order |
 | A written reply | Read it and decide. Press **Reply** to answer the instructor in Discord and by email |
 | A message was not delivered | Do what the task says (for example choose a new channel). Then open the class week and press **Send again** |
+| Check if a message arrived | The automation never said whether it was sent, so it is not sent again by itself. Look in the instructor's channel or the email. Press **It arrived, mark as sent** or **Send again** (on the task or in the class week's Activity) |
 | An email bounced | Fix the email on Setup, Instructors. Discord is still used meanwhile |
 | An instructor cannot teach any more | Open the class week and press **Release instructor**. The app asks the next person |
 | A proposed time | Open the class week, look at the new time and any problems, then **Accept proposed time** or **Reject** |
