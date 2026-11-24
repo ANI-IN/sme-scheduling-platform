@@ -172,6 +172,7 @@ export function useLiveUpdates(): void {
     let everConnected = false;
     let missed = false;
     let disposed = false;
+    let catchUp = false;
 
     const flush = () => {
       timer = undefined;
@@ -202,6 +203,10 @@ export function useLiveUpdates(): void {
         if (hidden()) return;
         everything();
         flush();
+        if (connected && catchUp) {
+          catchUp = false;
+          stopPolling();
+        }
       }, FALLBACK_POLL_MS);
     };
     const stopPolling = () => {
@@ -226,13 +231,11 @@ export function useLiveUpdates(): void {
       if (disposed) return;
       if (status === 'SUBSCRIBED') {
         connected = true;
-        stopPolling();
         // The first time: anything the page read before we were listening may have changed in between (found by
-        // the full run of 24 November: a change made just after a page loaded never showed). Read it once more.
-        if (!everConnected && loadedBeforeListening()) {
-          everything();
-          flush();
-        }
+        // the full run of 24 November: a change made just after a page loaded never showed). The 60 second check
+        // then runs once more before it stops, so such a change shows within a minute, without reading at once.
+        if (!everConnected && loadedBeforeListening()) catchUp = true;
+        else stopPolling();
         // Back after a break: changes made meanwhile were not sent, so look at everything once.
         if (everConnected && missed) {
           missed = false;

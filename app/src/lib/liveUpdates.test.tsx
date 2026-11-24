@@ -36,14 +36,20 @@ const stale = (qc: QueryClient) =>
 afterEach(() => vi.useRealTimers());
 
 describe('useLiveUpdates', () => {
-  it('reads again what was loaded before listening started', () => {
+  it('reads again, within a minute, what was loaded before listening started, then stops checking', () => {
     vi.useFakeTimers();
     const qc = new QueryClient();
     qc.setQueryData(['module', 'd1'], [{ name: 'Old name' }]);
     const h = mount(qc);
     onStatus('SUBSCRIBED');
     vi.advanceTimersByTime(500);
+    expect(stale(qc)).toEqual([]);
+    vi.advanceTimersByTime(60_000);
     expect(stale(qc)).toContain('module');
+    // Then no more checks while connected.
+    qc.setQueryData(['module', 'd1'], [{ name: 'Newer' }]);
+    vi.advanceTimersByTime(120_000);
+    expect(stale(qc)).toEqual([]);
     h.unmount();
   });
 
@@ -53,7 +59,7 @@ describe('useLiveUpdates', () => {
     const h = mount(qc);
     onStatus('SUBSCRIBED');
     qc.setQueryData(['module', 'd1'], [{ name: 'Name' }]);
-    vi.advanceTimersByTime(500);
+    vi.advanceTimersByTime(120_000);
     expect(stale(qc)).toEqual([]);
     h.unmount();
   });
@@ -65,7 +71,7 @@ describe('useLiveUpdates', () => {
     onStatus('SUBSCRIBED');
     qc.setQueryData(['module', 'd1'], [{ name: 'Name' }]);
     onStatus('SUBSCRIBED');
-    vi.advanceTimersByTime(500);
+    vi.advanceTimersByTime(120_000);
     expect(stale(qc)).toEqual([]);
     h.unmount();
   });
