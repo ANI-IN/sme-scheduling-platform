@@ -41,7 +41,7 @@ import { AddBreakDialog, AddCohortHolidayDialog } from './setup/breakParts';
 import { MergeCohortsDialog } from './setup/mergeParts';
 import { ShareDialog } from './sharedParts';
 import { BulkChangeDialog } from './boardBulk';
-import { StartAskingDialog, usePlanned } from './startAsking';
+import { StartAskingDialog, useDomainPlanned } from './startAsking';
 import { plannedLine, type Planned } from '@/lib/planned';
 import {
   COHORT_BADGE,
@@ -208,9 +208,8 @@ export default function Board() {
   );
   const raw = board.data;
   // Who is planned for the class weeks nobody is confirmed or asked for yet: the database's own next person.
-  const planned = usePlanned(
-    (raw?.weeks ?? []).filter((c) => !c.past && PLANNED_FOR.includes(c.status)).map((c) => c.id),
-  );
+  // Loaded at once with the board (decision 342); used only for the statuses above.
+  const planned = useDomainPlanned(domain?.id);
   const withPlanned = useMemo(
     () =>
       raw && {

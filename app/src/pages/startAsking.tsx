@@ -38,6 +38,25 @@ export function usePlanned(ids: string[]) {
   });
 }
 
+/**
+ * The planned instructor of every coming class week of a domain nobody is confirmed for (decision 342). The database
+ * picks the class weeks, so this loads at once, alongside the page's other lists, not after them.
+ */
+export function useDomainPlanned(domainId: string | undefined) {
+  return useQuery({
+    queryKey: ['module_week', 'planned', 'domain', domainId],
+    enabled: !!domainId,
+    queryFn: async () =>
+      new Map(
+        (
+          (await rpc('planned_instructors_for_domain', {
+            p_domain_id: domainId!,
+          })) as unknown as Planned[]
+        ).map((p) => [p.module_week_id, p]),
+      ),
+  });
+}
+
 type Outcome = { label: string; text: string; ok: boolean };
 
 /**

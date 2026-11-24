@@ -1,4 +1,5 @@
 -- Rollback of 20261124000056_first_in_line.sql.
+drop function if exists public.planned_instructors_for_domain(uuid);
 drop function if exists public.next_in_line_many(uuid[]);
 
 create or replace function private.planned_instructor(p_mw uuid, p_now timestamptz)

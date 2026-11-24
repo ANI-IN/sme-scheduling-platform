@@ -54,7 +54,7 @@ import { PlanDialog } from './PlanDialog';
 import { BulkChangeDialog } from './boardBulk';
 import { AddClassDialog } from './AddClassDialog';
 import { ClassDrawer, useRun } from './ClassDrawer';
-import { StartAskingDialog, usePlanned } from './startAsking';
+import { StartAskingDialog, useDomainPlanned } from './startAsking';
 
 /** The statuses of a class week nobody is confirmed or asked for, which show who is planned instead. */
 const PLANNED_FOR: string[] = [
@@ -131,16 +131,22 @@ export default function Schedule() {
   }, [holidays.data]);
   const weekIds = (weeks.data ?? []).map((w) => w.id);
   // Who is planned for each coming class week nobody is confirmed or asked for yet (the database's own line).
-  const planned = usePlanned(
-    (weeks.data ?? [])
-      .filter(
-        (w) =>
-          PLANNED_FOR.includes(weekState(w, names, byId).kind) &&
-          !!w.first_class_at &&
-          new Date(w.first_class_at) > new Date(),
-      )
-      .map((w) => w.id),
+  const plannedIds = useMemo(
+    () =>
+      new Set(
+        (weeks.data ?? [])
+          .filter(
+            (w) =>
+              PLANNED_FOR.includes(weekState(w, names, byId).kind) &&
+              !!w.first_class_at &&
+              new Date(w.first_class_at) > new Date(),
+          )
+          .map((w) => w.id),
+      ),
+    [weeks.data, names, byId],
   );
+  // Loaded at once with the class weeks (decision 342); shown only for the class weeks above.
+  const planned = useDomainPlanned(domain?.id);
   const checklist = useQuery({
     queryKey: ['checklist_item', 'grid', domain?.id, weekIds.length],
     enabled: weekIds.length > 0,
@@ -354,7 +360,7 @@ export default function Schedule() {
           const s = weekState(r.week, names, byId);
           if (s.confirmed) return `${WEEK_STATUS.Confirmed.word}: ${s.confirmed}`;
           if (s.asking) return `${WEEK_STATUS.Waiting.word}: ${s.asking}`;
-          const p = planned.data?.get(r.week.id);
+          const p = plannedIds.has(r.week.id) ? planned.data?.get(r.week.id) : undefined;
           return (p && plannedLine(p, DateTime.now(), weekRegion(r.week.class_session))) ?? '';
         },
         {
@@ -407,7 +413,7 @@ export default function Schedule() {
           ) : null,
       }),
     ],
-    [selected, names, byId, checklistByWeek, planned.data],
+    [selected, names, byId, checklistByWeek, planned.data, plannedIds],
   );
 
   // TanStack Table manages its own memoisation; the React Compiler skips this component.

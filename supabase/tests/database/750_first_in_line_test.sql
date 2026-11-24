@@ -3,7 +3,7 @@
 -- asked now, a chosen list that stops, a chosen list that continues with the order, a sooner class, nobody left.
 begin;
 \ir ../helpers/helpers.psql
-select plan(9);
+select plan(11);
 
 select tests.scenario('FL', 'Live', '2027-01-31', 4) as j \gset
 select (:'j'::jsonb ->> 'domain') as dom, (:'j'::jsonb ->> 'module') as mod, (:'j'::jsonb ->> 'mw') as w1,
@@ -56,6 +56,13 @@ select is((select count(*)::int from jsonb_array_elements(public.planned_instruc
 select is((select count(*)::int from cmp c
             where (public.next_in_line_many(array[c.id]) -> c.id::text ->> 'next') is distinct from (public.preview_next(c.id) ->> 'next')),
   0, '9. Instructor requests shows the same next person as the whole line');
+-- The domain's planned instructors in one call: every coming class week nobody is confirmed for, same answers.
+select is((select count(*)::int from jsonb_array_elements(public.planned_instructors_for_domain(:'dom'))), 6,
+  '10. the domain call covers every coming class week nobody is confirmed for');
+select is((select count(*)::int from jsonb_array_elements(public.planned_instructors_for_domain(:'dom')) d
+            join jsonb_array_elements(public.planned_instructors(array(select id from cmp))) p
+              on p ->> 'module_week_id' = d ->> 'module_week_id'
+           where p is distinct from d), 0, '11. with the same answer for each as planned_instructors');
 select tests.as_postgres();
 
 select * from finish();
