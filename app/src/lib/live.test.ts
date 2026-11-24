@@ -1,11 +1,11 @@
 // Release 3, C15: a change marks only the lists that read the changed table, never the previews.
 import { describe, expect, it, vi } from 'vitest';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 
 vi.mock('./supabase', () => ({ supabase: {} }));
 vi.mock('./rpc', () => ({ poke: () => Promise.resolve() }));
 
-const { LIVE_TABLES, READERS, refresh, refreshAll } = await import('./live');
+const { LIVE_TABLES, READERS, refresh, refreshAll, refreshNow } = await import('./live');
 
 function client(keys: unknown[][]) {
   const qc = new QueryClient();
@@ -48,5 +48,31 @@ describe('refresh', () => {
 
   it('knows which lists read every live table', () => {
     for (const t of LIVE_TABLES) expect(READERS[t].length).toBeGreaterThan(0);
+  });
+});
+
+describe('refreshNow', () => {
+  it('finishes only after the marked lists have loaded again', async () => {
+    const qc = new QueryClient();
+    let release: (v: string[]) => void = () => undefined;
+    let calls = 0;
+    const queryFn = () => {
+      calls++;
+      return calls === 1 ? Promise.resolve(['a']) : new Promise<string[]>((r) => (release = r));
+    };
+    // A list on screen (it has an observer), so marking it loads it again.
+    const stop = new QueryObserver(qc, {
+      queryKey: ['module_operations', 'm1'],
+      queryFn,
+    }).subscribe(() => undefined);
+    await vi.waitFor(() => expect(qc.getQueryData(['module_operations', 'm1'])).toEqual(['a']));
+    let done = false;
+    const p = refreshNow(qc, 'module_operations').then(() => (done = true));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(done).toBe(false);
+    release(['a', 'b']);
+    await p;
+    expect(qc.getQueryData(['module_operations', 'm1'])).toEqual(['a', 'b']);
+    stop();
   });
 });

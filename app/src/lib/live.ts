@@ -99,8 +99,18 @@ const startsWith = (key: QueryKey, p: Prefix) => p.every((part, i) => key[i] ===
  * again in the background; nothing waits for them, so a drawer can close and "Saved" can show at once.
  */
 export function refresh(qc: QueryClient, ...what: (LiveTable | OtherList)[]): void {
+  void refreshNow(qc, ...what);
+}
+
+/**
+ * The same as refresh, but finishes when the lists have loaded again. A save that shows its result as it runs (a
+ * faded chip) waits for this, so the result does not disappear between the save and the reload.
+ */
+export function refreshNow(qc: QueryClient, ...what: (LiveTable | OtherList)[]): Promise<void> {
   const prefixes = prefixesFor(what);
-  void qc.invalidateQueries({ predicate: (q) => prefixes.some((p) => startsWith(q.queryKey, p)) });
+  return qc.invalidateQueries({
+    predicate: (q) => prefixes.some((p) => startsWith(q.queryKey, p)),
+  });
 }
 
 /** After a change to class weeks: the weeks, their classes, requests, bookings, tasks and timelines. */

@@ -68,14 +68,17 @@ test('a module renamed somewhere else shows on its page without reloading', asyn
   );
   await page.goto(`/setup/modules/${m!.id}`);
   await ready(page);
-  await expect(page.getByLabel('Name').first()).toHaveValue(m!.name);
+  // The text field itself: the title's help button is labelled "Help for <module name>", and the new
+  // name below contains "name", so a loose label match would find that button first.
+  const nameField = page.getByRole('textbox', { name: /^Name\b/ });
+  await expect(nameField).toHaveValue(m!.name);
   await sql(`update public.module set name = $2 where id = $1`, [m!.id, 'E2E live module name']);
   // Live updates, or the 60 second check if Realtime is not connected.
   await expect(page.getByRole('heading', { name: 'E2E live module name' })).toBeVisible({
     timeout: 75_000,
   });
   // The form has no unsaved edits, so it shows the new name too.
-  await expect(page.getByLabel('Name').first()).toHaveValue('E2E live module name');
+  await expect(nameField).toHaveValue('E2E live module name');
 });
 
 test('notes on an instructor save by themselves, with a Saved mark', async ({ page }) => {

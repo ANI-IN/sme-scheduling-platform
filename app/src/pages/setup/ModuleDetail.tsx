@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { check } from '@/lib/rpc';
-import { refresh } from '@/lib/live';
+import { refresh, refreshNow } from '@/lib/live';
 import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
 import { useDomain } from '@/lib/domain';
@@ -69,7 +69,8 @@ export default function ModuleDetail() {
     try {
       await fn();
       if (ok) toast.success(ok);
-      refresh(qc, 'module', 'module_operations');
+      // Wait for the reload, so a person just added stays shown until the list has them.
+      await refreshNow(qc, 'module', 'module_operations');
     } catch (e) {
       setErr(e);
     }

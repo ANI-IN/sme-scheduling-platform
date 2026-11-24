@@ -316,6 +316,8 @@ test('owners and the operations team can be reassigned', async ({ page }) => {
   const ownerList = page.getByRole('listbox', { name: 'Add an owner' });
   await ownerList.getByRole('option', { name: 'Sandbox Escalation' }).click();
   await expect(page.getByRole('button', { name: 'Remove Sandbox Escalation' })).toBeVisible();
+  // The chip shows (faded) as soon as the person is ticked; the save is done when the toast says so.
+  await expect(page.getByText('Owner added')).toBeVisible();
   await expect(ownerList.getByRole('option', { name: 'Sandbox Escalation' })).toHaveAttribute(
     'aria-selected',
     'true',
@@ -329,6 +331,7 @@ test('owners and the operations team can be reassigned', async ({ page }) => {
   await addPerson.fill('Sandbox Owner');
   await addPerson.press('Enter');
   await expect(page.getByRole('button', { name: 'Remove Sandbox Owner' }).first()).toBeVisible();
+  await expect(page.getByText('Added to the operations team')).toBeVisible();
   const owners = await sql<{ name: string }>(
     `select t.name from public.module_owner o join public.team_member t on t.id = o.team_member_id
       where o.module_id = $1`,

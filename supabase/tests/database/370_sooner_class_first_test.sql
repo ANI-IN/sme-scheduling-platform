@@ -69,8 +69,11 @@ insert into public.request (module_week_id, instructor_id, kind, status, close_r
 values (:'wx', :'i3', 'Outreach', 'Declined', 'Clash', 1);
 select is(private.week_history_reason(:'i3', :'wx'), null,
   '12. once the clash is gone, the instructor can be asked for that class week again');
-select is(private.week_history_reason(:'i2', :'wb'), 'Did not reply earlier',
-  '13. other history reasons stay as they were (Backup 1 did not answer in time for 6 February)');
+-- Backup 1's request for the later 6 February week was withdrawn when the sooner week took them (section 1's next
+-- run). Before decision 340 the clock's old copy of that request then marked it "No reply" and sent Backup 1 a "no
+-- reply" message; it now stays withdrawn for the sooner class.
+select is(private.week_history_reason(:'i2', :'wb'), 'Taken off this class week earlier',
+  '13. other history reasons stay as they were (Backup 1 was taken off the later 6 February week for the sooner one)');
 
 -- =============================================================== 6. across domains
 select tests.scenario('SD', 'Live', '2027-01-31', 1) as k \gset
