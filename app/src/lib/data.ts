@@ -107,6 +107,8 @@ export const useModules = (domainId: string | undefined) =>
       ),
   });
 
+const WEEK_COLS =
+  'id, domain_id, module_id, cohort, cohort_id, week_start_date, outreach_mode, manual_end_behaviour, status, at_risk, at_risk_reason, paused, first_class_at, last_class_end_at, same_instructor, standard_position, customized_at, shared_with, created_at, updated_at, updated_by, version';
 const WEEK_CLASS_COLS =
   'id, module_week_id, class_type, title, starts_at, ends_at, status, region, cancelled_reason, problem_flag, holiday_kept_on, holiday_kept_reason, previous_starts_at, previous_ends_at, moved_at, shared_class_id, notes, version';
 const WEEK_BOOKING_COLS =
@@ -125,7 +127,7 @@ export const useWeeks = (domainId: string | undefined) =>
           .from('module_week')
           .select(
             // Only the columns the lists use (decision 342): the full rows made this the slowest read at scale.
-            `*, module(name), class_session(${WEEK_CLASS_COLS}), booking(${WEEK_BOOKING_COLS}), request(${WEEK_REQUEST_COLS}), help_request(id, status), manual_queue_item(*), time_proposal(id, status)`,
+            `${WEEK_COLS}, module(name), class_session(${WEEK_CLASS_COLS}), booking(${WEEK_BOOKING_COLS}), request(${WEEK_REQUEST_COLS}), help_request(id, status), manual_queue_item(*), time_proposal(id, status)`,
           )
           .eq('domain_id', domainId!)
           .order('week_start_date')
