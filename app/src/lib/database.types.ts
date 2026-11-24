@@ -1711,6 +1711,9 @@ isOneToOne: false
 "report_message_result":
 { Args: { "p_error"?: string,"p_external_id"?: string,"p_message_id": string,"p_ok": boolean,"p_permanent"?: boolean }; Returns: Json
                            },
+"resolve_message_check":
+{ Args: { "p_arrived": boolean,"p_message_id": string }; Returns: Json
+                           },
 "resend_message":
 { Args: { "p_message_id": string }; Returns: Json
                            },

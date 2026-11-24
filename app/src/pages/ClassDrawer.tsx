@@ -13,6 +13,7 @@ import { describeHistory } from '@/lib/historyText';
 import { fmtLocal } from '@/lib/time';
 import { asRegion, localParts, timeFieldLabel } from '@/lib/region';
 import { COHORT_BADGE, MSG_STATUS, PANEL_BADGE, STATUS } from './boardBadges';
+import { MessageCheckActions } from '@/components/MessageCheckActions';
 import { ClassTime, RegionBadge, RegionSelect, TimeCheck, timeReady } from '@/components/ClassTime';
 import { weekState, weeksById } from '@/lib/status';
 import { helpCategories } from '@/lib/labels';
@@ -660,7 +661,9 @@ export function ClassDrawer({
                             ? 'success'
                             : m.status === 'Failed'
                               ? 'danger'
-                              : 'neutral'
+                              : m.status === 'CheckNeeded'
+                                ? 'warning'
+                                : 'neutral'
                         }
                       >
                         {MSG_STATUS[m.status] ?? m.status}
@@ -675,6 +678,11 @@ export function ClassDrawer({
                     </div>
                     {m.last_error && (
                       <div className="text-danger-strong">Problem: {plain(m.last_error)}</div>
+                    )}
+                    {m.status === 'CheckNeeded' && (
+                      <div className="mt-2">
+                        <MessageCheckActions messageId={m.id} run={run} />
+                      </div>
                     )}
                   </li>
                 ))}

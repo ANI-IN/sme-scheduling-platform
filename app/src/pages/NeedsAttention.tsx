@@ -18,6 +18,7 @@ import { discordNames } from '@/lib/discordNames';
 import { messageTitle, plain, plainLabel } from '@/lib/plain';
 import { attentionTypeLabel, helpCategories, helpStatusLabel } from '@/lib/labels';
 import { useConfirm } from '@/components/Confirm';
+import { MessageCheckActions } from '@/components/MessageCheckActions';
 import {
   Badge,
   Button,
@@ -298,7 +299,10 @@ export function TaskList({ cohortId }: { cohortId?: string } = {}) {
                           Release and find a replacement
                         </Button>
                       )}
-                    {a.instructor_id && !a.help_request_id && (
+                    {a.type === 'MessageCheck' && a.message_id && (
+                      <MessageCheckActions messageId={a.message_id} run={run} />
+                    )}
+                    {a.instructor_id && !a.help_request_id && a.type !== 'MessageCheck' && (
                       <Button
                         size="sm"
                         variant="secondary"

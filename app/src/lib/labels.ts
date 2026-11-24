@@ -6,6 +6,7 @@ export const attentionTypeLabel: Record<string, string> = {
   ReadinessFailed: 'Setup check failed',
   ChecklistOverdue: 'Task overdue',
   MessageFailed: 'Message not delivered',
+  MessageCheck: 'Check if a message arrived',
   LateReply: 'Reply after the request closed',
   ScheduleLow: 'Few classes planned ahead',
   TimeChangeNotConfirmed: 'Time change not confirmed',

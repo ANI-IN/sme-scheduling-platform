@@ -59,9 +59,11 @@ insert into public.message (domain_id, audience, template_id, channel, unique_ke
                             body_text, attempts, claimed_at)
 values (:'dom', 'Team', 'T9', 'Email', 'dis13-stuck', 'Sending', :'ops', 'ops@example.com', 'Hello', 1, now() - interval '20 minutes');
 select public.claim_outbound_messages(1);
-select is((select status from public.message where unique_key = 'dis13-stuck'), 'Failed',
+-- Decision 341: "Check needed" instead of Failed, and no automatic email copy for a team member either.
+select is((select status from public.message where unique_key = 'dis13-stuck') || ' / ' ||
+          (select count(*) from public.message where unique_key like 'dis13-stuck%'), 'CheckNeeded / 1',
   'DIS-13 a message the automation took but never answered for is not sent again');
-select ok((select last_error from public.message where unique_key = 'dis13-stuck') like '%may or may not have arrived%',
+select ok((select last_error from public.message where unique_key = 'dis13-stuck') like 'Not known whether it arrived%',
   'DIS-13 and it says to check whether it arrived');
 
 -- =============================================================== OUT-3: a confirmed class week is never paused

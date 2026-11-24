@@ -169,6 +169,7 @@ export const MSG_STATUS: Record<string, string> = {
   Sending: 'Sending',
   Sent: 'Sent',
   Failed: 'Not delivered',
+  CheckNeeded: 'Check needed',
   Received: 'Received',
   Cancelled: 'Not sent',
 };
@@ -292,6 +293,11 @@ export function legendGroups(): LegendGroup[] {
         { label: MSG_STATUS.Sending!, tone: 'neutral', text: 'The message is being sent now.' },
         { label: MSG_STATUS.Sent!, tone: 'success', text: 'The message was sent.' },
         { label: MSG_STATUS.Failed!, tone: 'danger', text: 'The message could not be delivered.' },
+        {
+          label: MSG_STATUS.CheckNeeded!,
+          tone: 'warning',
+          text: 'Not known whether it arrived, so it is not sent again by itself until someone checks.',
+        },
         {
           label: MSG_STATUS.Received!,
           tone: 'neutral',

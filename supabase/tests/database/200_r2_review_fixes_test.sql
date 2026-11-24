@@ -98,7 +98,10 @@ select ok(not exists (select 1 from public.message where unique_key = 'rf-noaler
 insert into public.message (domain_id, audience, template_id, channel, unique_key, status, claimed_at, attempts, body_text, to_address)
 values (:'dom', 'Team', 'T4', 'Email', 'rf-stuck', 'Sending', now() - interval '20 minutes', 3, 'x', 'a@example.com');
 select public.claim_outbound_messages(1);
-select is((select status from public.message where unique_key = 'rf-stuck'), 'Failed', 'DIS-13 a message stuck after three tries is marked failed, not sent again');
+-- Decision 341: it now waits for the team's check ("Check needed") instead of reading Failed; still never sent again.
+select is((select status from public.message where unique_key = 'rf-stuck') || ' / ' ||
+          (select count(*) from public.message where unique_key like 'rf-stuck%'), 'CheckNeeded / 1',
+  'DIS-13 a message stuck after three tries waits for a check, not sent again');
 
 -- DIS-5: a help reply always goes out (channel or direct message, plus email).
 update public.instructor set discord_user_id = null, version = version where id = :'i3';
