@@ -134,7 +134,10 @@ if (status === 0) {
       ['--project=desktop-light', '--workers=1', '--reporter=dot', '-g', 'page /'],
       'warmup',
     );
-    status = playwright([...pages.map((p) => `--project=${p}`), '--workers=4'], 'pages');
+    // E2E_PAGE_WORKERS: fewer at once on a busy machine (24 November: with four, each worker's first page could
+    // wait over 8 seconds for the test database).
+    const workers = process.env.E2E_PAGE_WORKERS ?? '4';
+    status = playwright([...pages.map((p) => `--project=${p}`), `--workers=${workers}`], 'pages');
     const rest = pagesOnly
       ? 0
       : playwright(
