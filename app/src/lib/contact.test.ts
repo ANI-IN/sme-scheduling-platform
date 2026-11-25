@@ -13,7 +13,12 @@ describe('what Contact instructor says (review finding R37)', () => {
   it('says when one copy was blocked, and why', () => {
     const r = contactResult('Maya', [
       { channel: 'Discord', status: 'Pending', blocked: false, last_error: null },
-      { channel: 'Email', status: 'Cancelled', blocked: true, last_error: 'Not sent: during the beta.' },
+      {
+        channel: 'Email',
+        status: 'Cancelled',
+        blocked: true,
+        last_error: 'Not sent: during the beta.',
+      },
     ]);
     expect(r.ok).toBe(false);
     expect(r.text).toBe(

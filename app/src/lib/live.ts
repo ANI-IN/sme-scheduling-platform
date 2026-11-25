@@ -10,7 +10,6 @@ import { useEffect } from 'react';
 import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 import { supabase } from './supabase';
 
-
 /** The tables in the supabase_realtime publication (migration 20261123000034_live_updates.sql). */
 export const LIVE_TABLES = [
   'module_week',

@@ -21,9 +21,7 @@ export function contactResult(name: string, copies: ContactCopy[]): { ok: boolea
     going.length
       ? `Message to ${name} is on its way by ${list(going.map((c) => word(c.channel)))}.`
       : `Nothing was sent to ${name}.`,
-    ...stopped.map((c) =>
-      `The ${word(c.channel)} copy was not sent. ${c.last_error ?? ''}`.trim(),
-    ),
+    ...stopped.map((c) => `The ${word(c.channel)} copy was not sent. ${c.last_error ?? ''}`.trim()),
   ];
   return { ok: stopped.length === 0, text: parts.join(' ') };
 }

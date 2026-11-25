@@ -29,7 +29,8 @@ import { BreakAndHolidayNotices } from './setup/breakParts';
 import { ProposalGroup } from './proposalParts';
 import { SharedClassGroup } from './sharedParts';
 import { DrawerGroup } from '@/components/DrawerGroup';
-import { Notice,
+import {
+  Notice,
   Badge,
   Button,
   Checkbox,
@@ -135,8 +136,9 @@ export function ClassDrawer({
   // Review R11: only the newest message to whoever is booked or being asked now, and never a closing notice.
   const current =
     booking?.instructor_id ??
-    week.request.find((r) => r.kind === 'Outreach' && ['Queued', 'Sent', 'Reminded'].includes(r.status))
-      ?.instructor_id ??
+    week.request.find(
+      (r) => r.kind === 'Outreach' && ['Queued', 'Sent', 'Reminded'].includes(r.status),
+    )?.instructor_id ??
     null;
   const lastInstructorMsg = resendCandidate(timeline.data?.messages ?? [], current);
 
@@ -527,7 +529,10 @@ export function ClassDrawer({
                       }))
                     )
                       return;
-                    await run(() => rpc('resend_message', { p_message_id: m.id }), 'Message sent again');
+                    await run(
+                      () => rpc('resend_message', { p_message_id: m.id }),
+                      'Message sent again',
+                    );
                   }}
                 >
                   Send last message again
@@ -929,7 +934,10 @@ function ClassEditor({
     setBase({ version: c.version, t: storedT, d: storedD });
     if (!typedT) setT(storedT);
     if (!typedD) setD(storedD);
-    if ((typedT && JSON.stringify(t) !== JSON.stringify(storedT)) || (typedD && JSON.stringify(d) !== JSON.stringify(storedD)))
+    if (
+      (typedT && JSON.stringify(t) !== JSON.stringify(storedT)) ||
+      (typedD && JSON.stringify(d) !== JSON.stringify(storedD))
+    )
       setChangedElsewhere(true);
   }
   const timeChanged =
@@ -970,8 +978,8 @@ function ClassEditor({
         <div className="mb-2">
           <Notice tone="warning">
             <p>
-              Someone else saved this class while you were typing. Your changes are still here, and saving
-              puts them in place of theirs.
+              Someone else saved this class while you were typing. Your changes are still here, and
+              saving puts them in place of theirs.
             </p>
             <Button
               size="sm"

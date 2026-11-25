@@ -459,7 +459,7 @@ begin
     team_member_id, module_week_id, request_id, help_request_id, attention_item_id, recipient_label, to_address,
     discord_channel_id, discord_dm_user_id, mention_user_ids, subject, body_text, body_html, buttons, is_test)
   select domain_id, audience, template_id, channel,
-         coalesce(unique_key, id::text) || ':resend:' || extract(epoch from clock_timestamp())::bigint,
+         coalesce(unique_key, id::text) || ':resend:' || (extract(epoch from clock_timestamp()) * 1000000)::bigint,
          case when v_send > v_now then 'Scheduled' else 'Pending' end, v_send, instructor_id, team_member_id, module_week_id, request_id, help_request_id, attention_item_id,
          recipient_label, v_to, v_chan, v_dm, v_mentions, subject, v_text, v_html,
          buttons, is_test

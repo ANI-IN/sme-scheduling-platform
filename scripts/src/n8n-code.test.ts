@@ -5,7 +5,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 type Json = Record<string, unknown>;
-type Node = { name: string; type: string; parameters: Record<string, string>; retryOnFail?: boolean };
+type Node = {
+  name: string;
+  type: string;
+  parameters: Record<string, string>;
+  retryOnFail?: boolean;
+};
 type Flow = {
   nodes: Node[];
   connections: Record<string, { main: ({ node: string }[] | null)[] }>;
@@ -50,9 +55,17 @@ test('a Discord answer carries the claim and Discord’s retry time; a refused l
   assert.equal(limited!.p_retry_after, 3);
   assert.equal(limited!.p_claimed_at, 't1');
   assert.equal(limited!.p_permanent, false);
-  const [login] = run('Discord result', [{ statusCode: 401, body: { message: 'Unauthorized' } }], prep);
+  const [login] = run(
+    'Discord result',
+    [{ statusCode: 401, body: { message: 'Unauthorized' } }],
+    prep,
+  );
   assert.equal(login!.p_permanent, false);
-  const [gone] = run('Discord result', [{ statusCode: 404, body: { message: 'Unknown Channel' } }], prep);
+  const [gone] = run(
+    'Discord result',
+    [{ statusCode: 404, body: { message: 'Unknown Channel' } }],
+    prep,
+  );
   assert.equal(gone!.p_permanent, true);
 });
 
@@ -65,9 +78,16 @@ test('an expired Gmail login is temporary (R16)', () => {
 });
 
 test('a reply carries its channel, and a message with no readable text is recorded (R8, R15)', () => {
-  const watch = { 'Get watchlist': [{ channel_id: 'c9', discord_user_id: 'u1', last_message_id: '1' }] };
+  const watch = {
+    'Get watchlist': [{ channel_id: 'c9', discord_user_id: 'u1', last_message_id: '1' }],
+  };
   const body = [
-    { id: '5', author: { id: 'u1' }, content: 'Can we start later?', timestamp: new Date().toISOString() },
+    {
+      id: '5',
+      author: { id: 'u1' },
+      content: 'Can we start later?',
+      timestamp: new Date().toISOString(),
+    },
     { id: '6', author: { id: 'u1' }, content: '', timestamp: new Date().toISOString() },
     { id: '7', author: { id: 'other' }, content: 'hi', timestamp: new Date().toISOString() },
   ];
@@ -79,7 +99,14 @@ test('a reply carries its channel, and a message with no readable text is record
 
 test('channels that cannot be read are reported once (R15)', () => {
   const watch = { 'Get watchlist': [{ channel_id: 'a' }, { channel_id: 'b' }] };
-  const out = run('Pick read problems', [{ statusCode: 403, body: {} }, { statusCode: 200, body: [] }], watch);
+  const out = run(
+    'Pick read problems',
+    [
+      { statusCode: 403, body: {} },
+      { statusCode: 200, body: [] },
+    ],
+    watch,
+  );
   assert.equal(out.length, 1);
   assert.match(String(out[0]!.error), /channel a: 403/);
   assert.equal(run('Pick read problems', [{ statusCode: 200, body: [] }], watch).length, 0);
@@ -108,7 +135,8 @@ test('automatic replies are marked, ordinary replies are not (R19)', () => {
 });
 
 test('postmaster bounces are read and labelling failures are logged (R18)', () => {
-  const q = (node(wf4, 'Get system replies').parameters as unknown as { filters: { q: string } }).filters.q;
+  const q = (node(wf4, 'Get system replies').parameters as unknown as { filters: { q: string } })
+    .filters.q;
   assert.match(q, /from:postmaster/);
   assert.equal(wf4.connections['Label as processed']!.main[1]![0]!.node, 'Log reading problem');
 });

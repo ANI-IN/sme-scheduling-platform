@@ -46,7 +46,9 @@ async function openWeekFromClasses(page: Page, module: string, week: string) {
   return dlg;
 }
 
-test('R9: arrow keys change no status, and Draft asks first, naming what happens', async ({ page }) => {
+test('R9: arrow keys change no status, and Draft asks first, naming what happens', async ({
+  page,
+}) => {
   const before = await statusOf('Backend');
   const dlg = await openDomain(page, 'Backend');
   const status = dlg.getByRole('combobox', { name: 'Status' });
@@ -139,7 +141,9 @@ test('R37: Contact instructor says what was really queued', async ({ page }) => 
   await ready(page);
   await dlg.getByLabel('Message to Test Instructor A').fill('E2E hello');
   await dlg.getByRole('button', { name: 'Send message' }).click();
-  await expect(page.getByText(/(Message to Test Instructor A is on its way|was not sent)/)).toBeVisible();
+  await expect(
+    page.getByText(/(Message to Test Instructor A is on its way|was not sent)/),
+  ).toBeVisible();
 });
 
 test('R40: every class week checkbox says which week it picks', async ({ page }) => {
