@@ -11,7 +11,7 @@
         -400
       ],
       "parameters": {
-        "content": "## WF5 Error handler\nSet as the **Error workflow** of WF1–WF4 (each workflow → Settings → Error workflow).\n\n1. `log_system_error` records the failure in History and queues an admin alert.\n2. Pokes WF4 so the alert is sent now (lower branch, runs after the log).\n3. Fallback: if the database call fails, the error is posted straight to the admin Discord channel (`app_config.admin_discord_channel_id`).\n\n**Edit only the Config node.**",
+        "content": "## WF5 Error handler\nSet as the **Error workflow** of WF1–WF4 (each workflow → Settings → Error workflow).\n\n1. `log_system_error` records the failure in History and queues an admin alert.\n2. The database calls WF4 for the queued alert.\n3. Fallback: if the database call fails, the error is posted straight to the admin Discord channel (`app_config.admin_discord_channel_id`).\n\n**Edit only the Config node.**",
         "height": 340,
         "width": 900,
         "color": 5
@@ -147,36 +147,6 @@
       },
       "onError": "continueRegularOutput",
       "executeOnce": true
-    },
-    {
-      "id": "f1937001-6ffa-459e-be60-7e4b307a3ef5",
-      "name": "Poke WF4",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        660,
-        300
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Config').first().json.pokeUrl }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": false,
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "onError": "continueRegularOutput",
-      "executeOnce": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "name": "Poke Secret Sandbox"
-        }
-      }
     }
   ],
   "connections": {
@@ -207,11 +177,6 @@
         [
           {
             "node": "Log system error",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Poke WF4",
             "type": "main",
             "index": 0
           }

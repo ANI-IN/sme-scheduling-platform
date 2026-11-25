@@ -81,13 +81,13 @@ module or instructor names.
 | WF1 Hourly engine    | Not published since 23 November 2026: the database clock runs the same check (runs only if someone runs it by hand)         | Runs `engine_tick_all`, the automatic check for every domain. The database clock runs the same check itself every hour                                                                                        |
 | WF2 Response handler | Webhook, when an instructor opens an answer link                                                                            | Shows the answer page (`response_page`) and records the answer only when the button on the page is pressed (`submit_response_page`)                                                                           |
 | WF3 Daily jobs       | Every day at 09:00 IST                                                                                                      | Runs `daily_jobs` (the daily system summary) and saves the nightly backup to Google Drive, keeping the newest 30                                                                                              |
-| WF4 Action runner    | Webhook (a poke from the database, within seconds of any queued message or Discord check) and a safety run every 15 minutes | The only place messages are sent: delivers queued Discord and Gmail messages, runs app actions and the Discord checks people asked for, and reads typed replies (see [Gmail through n8n](#gmail-through-n8n)) |
+| WF4 Action runner    | Webhook (a poke from the database, within seconds of any queued message or Discord check) and a safety run every hour | The only place messages are sent: delivers queued Discord and Gmail messages, runs app actions and the Discord checks people asked for, and reads typed replies (see [Gmail through n8n](#gmail-through-n8n)) |
 | WF5 Error handler    | When another workflow fails                                                                                                 | Records the failure in Activity history and alerts the admin channel                                                                                                                                          |
 | WF6 Discord checks   | Not published                                                                                                               | Off, kept as a spare. WF4 does the Discord checks                                                                                                                                                             |
 
 n8n runs on the owner's n8n Cloud Pro plan: 10,000 executions a month, shared with the other workflows in the same n8n
 account. Since 23 November 2026 the database clock does WF1's work (WF1 is not published) and WF4 runs on pokes plus a
-safety run every 15 minutes. WF2, WF3 and WF5 do not change. There is one workflow set: edit the base files in `n8n/`, run
+safety run every hour. WF2, WF3 and WF5 no longer call WF4 (the database does). There is one workflow set: edit the base files in `n8n/`, run
 `npm run n8n-export -w scripts`, then import or update the live workflow from `n8n/sandbox/` (n8n/README.md).
 
 ### Web app
@@ -368,7 +368,8 @@ and read the last file that defines it; docs/DECISIONS.md explains why each rule
 - `sme-clock` runs every 2 minutes and calls WF4 only when there is work: a message waiting to be sent, a queued app
   action or Discord check, or an open conversation (something sent to an instructor in the last 3 days) whose replies
   were last read 10 minutes ago or more. At most one call a minute.
-- Reply reading slows to every 20 minutes above 8,000 n8n runs this month and stops on its own above 9,300 (every WF4
+- From 5,000 n8n runs in the month replies are read every 30 minutes, from 6,500 every hour, and from 8,000 not on
+  their own; calls to n8n are then spaced out too (every WF4
   run still reads replies, and messages still go out).
 - `sme-engine-hourly` runs the automatic check inside the database at minute 30 of every hour.
 - The poke key is kept in Supabase Vault (`n8n_poke_key`), never in a file or in the app. The database pokes WF4
@@ -376,7 +377,7 @@ and read the last file that defines it; docs/DECISIONS.md explains why each rule
 - `sme-run-log-purge` keeps the clock's run log to the last 7 days, every night at 21:15 UTC (decision 333).
 - Typed replies show in the app within about 10 minutes.
 - The clock has been on since 22 November 2026, 17:36 UTC. Since 23 November 2026, 12:48 UTC (owner), WF1 is
-  unpublished (the database's hourly job does its work) and WF4 runs on pokes plus a safety run every 15 minutes.
+  unpublished (the database's hourly job does its work) and WF4 runs on pokes plus a safety run every hour.
 - `npm run clock -w scripts -- status` shows the clock, its jobs, whether the poke key is in Vault (yes or no only) and
   the n8n runs this month. `off` switches it off at once; then turn the schedule triggers of WF1 and WF4 back on and
   publish both again.

@@ -10,7 +10,8 @@ import { check, poke, rpc } from '@/lib/rpc';
 import { refresh } from '@/lib/live';
 import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
-import { useMe, useTeam, type TeamMember } from '@/lib/data';
+import { useBetaLock, useMe, useTeam, type TeamMember } from '@/lib/data';
+import { BETA_LOCK_NOTE } from '@/lib/betaLock';
 import { isEmail } from '@/lib/validation';
 import { cleanUsername, usernameProblem } from '@/lib/discord';
 import { DiscordStatus } from '@/components/Discord';
@@ -152,6 +153,7 @@ export default function Team() {
 
 function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose: () => void }) {
   const isAdmin = !!useMe()?.is_admin;
+  const locked = useBetaLock();
   const qc = useQueryClient();
   const [f, setF] = useState({
     name: member?.name ?? '',
@@ -326,11 +328,16 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
         </Field>
         <Field
           label="Discord username (optional)"
-          hint="For example maya.k, without @. Used to tag this person and send them direct messages. Without it they get email."
+          hint={
+            locked
+              ? BETA_LOCK_NOTE
+              : 'For example maya.k, without @. Used to tag this person and send them direct messages. Without it they get email.'
+          }
           error={v.show('discord_username')}
         >
           <Input
             value={f.discord_username}
+            disabled={locked}
             onBlur={v.touch('discord_username')}
             onChange={(e) => setF({ ...f, discord_username: e.target.value })}
             autoComplete="off"

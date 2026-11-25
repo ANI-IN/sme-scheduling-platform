@@ -253,10 +253,11 @@ step; this is the short version.
 - **The database clock** (Release 3, M1, decision 281) was switched on at 17:36 UTC on 22 November 2026. `pg_cron`
   runs the automatic check inside the database (job `sme-engine-hourly`, at minute 30 of every hour). The job
   `sme-clock` runs every 2 minutes and pokes WF4 only when there is work, and about every 10 minutes to read replies
-  while a conversation is open (every 20 minutes above 8,000 n8n runs in the month, and none above 9,300). Typed
+  while a conversation is open (every 30 minutes from 5,000 n8n runs in the month, every hour from 6,500, and none
+  from 8,000). Typed
   replies show in the app within about 10 minutes.
 - **Since 23 November 2026:** WF1 is not published (it runs only if someone runs it), and WF4 runs on pokes plus a
-  safety run every 15 minutes.
+  safety run every hour.
 - **Unchanged:** WF2 Response handler (the answer pages, a webhook), WF3 Daily jobs (every day at 09:00 IST) and WF5
   (the error workflow).
 - **If the clock is switched off** (`npm run clock -w scripts -- off`), turn the schedule triggers of WF1 and WF4 back

@@ -56,7 +56,8 @@ If you checked their details another way, for example on a call, press **Mark as
 
 ## Test instructors
 
-Tick **Test instructor** for a record that is only for trying things out. Test instructors are never booked in a live domain. Several test instructors can share one Discord username and use plus email addresses, for example name+1@company.com, so one person can play several instructors. While the beta setting is on under Settings, Admin, only test instructors and signed in colleagues get messages.
+Tick **Test instructor** for a record that is only for trying things out. While the beta setting is on, only an admin
+changes it, and an instructor's emails and Discord account. Test instructors are never booked in a live domain. Several test instructors can share one Discord username and use plus email addresses, for example name+1@company.com, so one person can play several instructors. While the beta setting is on under Settings, Admin, only test instructors and signed in colleagues get messages.
 
 Tick **Show test instructors** on the Instructors page to see them.
 

@@ -11,7 +11,7 @@
         -440
       ],
       "parameters": {
-        "content": "## WF1 Hourly engine\n1. `engine_tick_all(null)` runs every check for every domain (all decisions are in the database).\nWF4 delivers what it queued within 6 minutes.\n\nTyped replies (Gmail and Discord) are read by WF4 every 6 minutes (decision 270).\n\n**Edit only the Config node.**",
+        "content": "## WF1 Hourly engine\n1. `engine_tick_all(null)` runs every check for every domain (all decisions are in the database).\nWF4 delivers what it queued within seconds (the database calls it).\n\nTyped replies (Gmail and Discord) are read by WF4 whenever it runs (decision 270).\n\n**Edit only the Config node.**",
         "height": 380,
         "width": 700,
         "color": 5

@@ -11,7 +11,7 @@
         -420
       ],
       "parameters": {
-        "content": "## WF2 Response handler\nServes the confirm pages behind every instructor button. The database renders the HTML.\n\n- **GET** `/webhook/respond?t=<token>` → `response_page` (shows the page, records nothing).\n- **POST** `/webhook/respond` (the form on that page) → `submit_response_page` (records the answer) → pokes WF4 so follow-up messages go out now.\n- If the database cannot be reached, a friendly error page is shown and the execution is marked failed (WF5 alerts the admin).\n\nSave the production URL in the database: `app_config.response_base_url` = `https://<your-n8n>/webhook/respond`.\n\n**Edit only the Config node.**",
+        "content": "## WF2 Response handler\nServes the confirm pages behind every instructor button. The database renders the HTML.\n\n- **GET** `/webhook/respond?t=<token>` → `response_page` (shows the page, records nothing).\n- **POST** `/webhook/respond` (the form on that page) → `submit_response_page` (records the answer) → the database calls WF4, so follow-up messages go out now.\n- If the database cannot be reached, a friendly error page is shown and the execution is marked failed (WF5 alerts the admin).\n\nSave the production URL in the database: `app_config.response_base_url` = `https://<your-n8n>/webhook/respond`.\n\n**Edit only the Config node.**",
         "height": 360,
         "width": 760,
         "color": 5
@@ -285,37 +285,6 @@
       }
     },
     {
-      "id": "22cd2b0c-5f87-4cb7-86ed-4cb37b959ff5",
-      "name": "Poke WF4",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1100,
-        260
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Config').first().json.pokeUrl }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": false,
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "onError": "continueRegularOutput",
-      "executeOnce": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_ME",
-          "name": "Poke secret"
-        }
-      }
-    },
-    {
       "id": "e28be6bb-378e-46a0-91ad-94217ed1e9f4",
       "name": "Respond with error page",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -480,13 +449,7 @@
     },
     "Respond after submit": {
       "main": [
-        [
-          {
-            "node": "Poke WF4",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Respond with error page": {

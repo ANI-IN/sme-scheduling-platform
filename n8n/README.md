@@ -21,7 +21,7 @@ those two schedule triggers off. Until that is done in n8n, the "before" column 
 | `WF1-hourly-engine.json` | WF1 Hourly engine | Schedule trigger "Every hour" (minute 0) | Every hour at minute 0. The database clock also runs the same check at minute 30 | Unpublished, with its schedule trigger off (n8n cannot publish a workflow without a trigger): WF1 runs only when someone runs it by hand. The database's own hourly job runs the automatic check | Runs `engine_tick_all`, the automatic check for every domain. WF4 sends what it queues. WF1 does not poke WF4 and does not read replies |
 | `WF2-response-handler.json` | WF2 Response handler | Webhook `GET` and `POST` `/webhook/sandbox-respond` | Whenever an instructor opens an answer link or presses the button on the page | Unchanged | Shows the answer page (`response_page`, records nothing), records the answer when the button on the page is pressed (`submit_response_page`), then pokes WF4 so the next messages go out at once |
 | `WF3-daily-jobs.json` | WF3 Daily jobs | Schedule trigger "Every day 09:00" (Asia/Kolkata) | Every day at 09:00 IST | Unchanged | Runs `daily_jobs` (the daily system summary for the admin alert channel), pokes WF4 to send it, and saves the backup `sme-backup-YYYY-MM-DD.json` (`export_snapshot`) to Google Drive, keeping the newest 30 |
-| `WF4-action-runner.json` | WF4 Action runner | Webhook `POST /webhook/sandbox-sme-poke` (a poke) and schedule trigger "Every 15 minutes" | On every poke, and every 6 minutes | On every poke (the database pokes within seconds for every queued message and Discord check, and its clock every 2 minutes for other work; also the app, WF2, WF3 and WF5), plus a safety run every 15 minutes | Runs app actions (`next_actions`, `complete_action`), delivers every queued Discord and Gmail message (`claim_outbound_messages`, `report_message_result`), runs the Discord checks people asked for (`next_discord_lookups`, `record_discord_result`) and reads typed replies by email and Discord. The only place messages are sent (decision 270) |
+| `WF4-action-runner.json` | WF4 Action runner | Webhook `POST /webhook/sandbox-sme-poke` (a poke from the database) and schedule trigger "Every hour" | On every poke, and every hour | On every poke (the database pokes within seconds for every queued message and Discord check, and its clock every 2 minutes for other work), plus a safety run every hour | Runs app actions (`next_actions`, `complete_action`), delivers every queued Discord and Gmail message (`claim_outbound_messages`, `report_message_result`), runs the Discord checks people asked for (`next_discord_lookups`, `record_discord_result`) and reads typed replies by email and Discord. The only place messages are sent (decision 270) |
 | `WF5-error-handler.json` | WF5 Error handler | n8n error trigger | When another workflow fails | Unchanged | The error workflow of WF1 to WF4. See [Error handling](#error-handling-wf5) |
 | `WF6-discord-checks.json` | WF6 Discord checks | Schedule trigger "Every minute" | **Not published** | Unchanged: not published | WF4 does these checks now (decision 270). Kept as a spare: publish it only if WF4 cannot do them. It lists the servers the bot is in, checks a domain's server and its channels, and finds people by Discord username. It never creates servers or channels |
 
@@ -61,11 +61,12 @@ Reading replies follows the n8n runs the app counted this month (UTC):
 
 | n8n runs this month | Replies read while a conversation is open |
 |---|---|
-| Under 8,000 | About every 10 minutes |
-| 8,000 to 9,299 | About every 20 minutes |
-| 9,300 and more | The clock no longer pokes for replies. Replies are still read whenever WF4 runs for other work, and messages still go out |
+| Under 5,000 | About every 10 minutes |
+| 5,000 to 6,499 | About every 30 minutes; immediate calls at most one a minute |
+| 6,500 to 7,999 | About every hour; calls at most one every 5 minutes |
+| 8,000 and more | The clock no longer pokes for replies and calls at most every 10 minutes. Replies are still read whenever WF4 runs, and messages still go out |
 
-When the count reaches 8,000, Activity history records "n8n budget: replies read less often" once that month.
+When the count reaches 5,000, Activity history records "n8n budget: replies read less often" once that month.
 
 The clock needs the WF4 poke address in the database and the poke key in Supabase Vault (secret `n8n_poke_key`, the
 same value as the `Poke Secret Sandbox` credential). The app's buttons, WF2, WF3 and WF5 also poke WF4, so their
@@ -219,7 +220,7 @@ Inside the workflows:
 | The button on an answer page does nothing | The answer page link is the test URL, or WF2 is not published | Use `/webhook/sandbox-respond` in `RESPONSE_BASE_URL`, run configure again, and publish WF2 |
 | A workflow failed | Any error | The admin alert channel and Activity history have the error from WF5. Open the execution in n8n to see which node failed |
 | A node shows a red credential warning after an import | The credential was not matched by name | Choose the credential with the same name from the list |
-| The monthly count is close to 10,000 | Too many runs, from these or other workflows in the account | Check Usage in the app and on the n8n dashboard. Reply reading slows down by itself above 8,000. Make sure WF6 is unpublished and the schedule triggers of WF1 and WF4 are off while the clock runs |
+| The monthly count is close to 10,000 | Too many runs, from these or other workflows in the account | Check Usage in the app and on the n8n dashboard. Reply reading and calls slow down by themselves from 5,000. Make sure WF6 is unpublished and the schedule triggers of WF1 and WF4 are off while the clock runs |
 
 ## Good to know
 
@@ -227,7 +228,7 @@ Inside the workflows:
   row back. 4xx errors (except 429) are permanent (for example Discord "Missing Access" or "Unknown Channel", or an
   invalid email address); everything else is temporary. The database tries temporary failures again (up to 3 attempts)
   and raises tasks. More than 25 waiting go at the next run. A message stuck in "Sending" (for example after n8n
-  restarted during a send) is queued again by the database after 15 minutes.
+  restarted during a send) becomes "Check needed" after 15 minutes: the team chooses Send again or It arrived (decision 341).
 - **Discord rate limits.** WF4 waits 1 second after each Discord send and reads channels 2 per second.
 - **Branch order.** All workflows use execution order v1: branches run top to bottom, one after another. WF4 relies on
   it (it marks actions Done only after delivery), so keep the layout if you move nodes.

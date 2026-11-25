@@ -9,7 +9,14 @@ import { refresh } from '@/lib/live';
 import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
 import { instructorStatusLabel } from '@/lib/labels';
-import { useBlockedMessages, useDomains, useInstructors, type Instructor } from '@/lib/data';
+import {
+  useBetaLock,
+  useBlockedMessages,
+  useDomains,
+  useInstructors,
+  type Instructor,
+} from '@/lib/data';
+import { BETA_LOCK_NOTE } from '@/lib/betaLock';
 import { BlockedMessages } from '@/components/BlockedMessages';
 import { InstructorChannel } from '@/components/InstructorChannel';
 import { useDomain } from '@/lib/domain';
@@ -373,6 +380,9 @@ export function InstructorDrawer({
     instructor?.instructor_email.filter((e) => !e.is_primary).map((e) => e.email) ?? [],
   );
   const [saving, setSaving] = useState(false);
+  // Decision 347: during the beta only an admin changes emails, the Discord account and Test instructor.
+  const locked = useBetaLock();
+  const emailsLocked = locked && !!instructor;
   const [err, setErr] = useState<unknown>(null);
   const [deact, setDeact] = useState<{ booking_id: string; label: string }[] | null>(null);
   const [decisions, setDecisions] = useState<Record<string, 'keep' | 'release'>>({});
@@ -689,6 +699,7 @@ export function InstructorDrawer({
           >
             <Input
               value={f.primary_email}
+              disabled={emailsLocked}
               onBlur={v.touch('primary_email')}
               onChange={(e) => setF({ ...f, primary_email: e.target.value })}
             />
@@ -705,6 +716,7 @@ export function InstructorDrawer({
                 <div className="flex gap-2">
                   <Input
                     value={e}
+                    disabled={emailsLocked}
                     aria-label={`Other email ${idx + 1}`}
                     onBlur={v.touch(`extra${idx}`)}
                     aria-invalid={!!v.show(`extra${idx}`)}
@@ -716,6 +728,7 @@ export function InstructorDrawer({
                     variant="ghost"
                     size="icon"
                     aria-label="Remove this email"
+                    disabled={emailsLocked}
                     onClick={() => setExtras(extras.filter((_, j) => j !== idx))}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -726,9 +739,12 @@ export function InstructorDrawer({
                 )}
               </div>
             ))}
-            <Button size="sm" variant="secondary" onClick={() => setExtras([...extras, ''])}>
-              Add another email
-            </Button>
+            {!emailsLocked && (
+              <Button size="sm" variant="secondary" onClick={() => setExtras([...extras, ''])}>
+                Add another email
+              </Button>
+            )}
+            {locked && <p className="text-xs text-muted-foreground">{BETA_LOCK_NOTE}</p>}
           </div>
           <Field label="Phone" hint="Only for the team, for example to call in an emergency.">
             <Input
@@ -777,6 +793,7 @@ export function InstructorDrawer({
             label="Test instructor"
             hint="For trying things out. Test instructors are never booked in a live domain."
             checked={f.is_test}
+            disabled={locked}
             onChange={(c) => setF({ ...f, is_test: c })}
           />
         </Group>
@@ -792,6 +809,7 @@ export function InstructorDrawer({
           >
             <Input
               value={f.discord_username}
+              disabled={locked}
               onBlur={v.touch('discord_username')}
               onChange={(e) => setF({ ...f, discord_username: e.target.value })}
               autoComplete="off"
@@ -803,7 +821,7 @@ export function InstructorDrawer({
                 status={instructor.discord_status}
                 problem={instructor.discord_problem}
               />
-              {holder && (
+              {holder && !locked && (
                 <Button
                   size="sm"
                   variant="outline"

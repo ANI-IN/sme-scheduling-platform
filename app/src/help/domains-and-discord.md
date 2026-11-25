@@ -87,4 +87,4 @@ The testing channel and testing email are set on [Testing](/settings/testing), w
 
 ## Archive or delete a domain
 
-**Archive** hides the domain and stops its automation. Press **Restore** to use it again. **Delete permanently** removes the domain and everything in it for good. It first shows exactly what goes with it. When other data goes with it, you type its name to confirm.
+**Archive** hides the domain and stops its automation. Press **Restore** to use it again. **Delete permanently**, for admins, removes the domain and everything in it for good. It first shows exactly what goes with it. When other data goes with it, you type its name to confirm.

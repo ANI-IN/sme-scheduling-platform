@@ -44,7 +44,7 @@ You can also pause from the bottom of **Settings, Automation**, or from **Settin
 | No daily system summary this morning | n8n is down, WF3 is not published, or no admin alert channel is chosen | Open n8n, **Executions**. Check WF3 is published and its Config node. Choose the admin alert channel on **Settings, Connections**. |
 | The automatic check on Connections is old | The database clock is off, or the Supabase project is paused | The clock runs the automatic check every hour (job `sme-engine-hourly`). Run `npm run clock -w scripts -- status`. If the clock is off, switch it on, or turn WF1's schedule trigger back on in n8n and publish WF1 as a stopgap. A free Supabase project pauses after a week without use: restore it in the Supabase dashboard. |
 | Messages stay waiting to send | Messages are paused, the clock cannot poke WF4, WF4 is not published, or the Supabase key in n8n is wrong | Check for the red paused bar first. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go. Run WF4 by hand in n8n and check its **Executions**. Check the n8n credential `Supabase Sandbox` (the internal name of the Production Supabase key). |
-| Messages take more than a minute to leave | The database could not poke WF4 (n8n down or the poke key in Vault wrong) | Messages still go out at WF4's safety run every 15 minutes. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go. Since decision 334 the app never calls n8n itself; the Vercel variables VITE_N8N_POKE_URL and VITE_N8N_POKE_KEY are not used. |
+| Messages take more than a minute to leave | The database could not poke WF4 (n8n down or the poke key in Vault wrong) | Messages still go out at WF4's safety run every hour. Run `npm run clock -w scripts -- status`: the last result says why a poke did not go. Since decision 334 the app never calls n8n itself; the Vercel variables VITE_N8N_POKE_URL and VITE_N8N_POKE_KEY are not used. |
 | A task "Check if a message arrived" | n8n took the message 15 minutes ago and never reported back (n8n stopped mid run, or a time out) | Nothing is sent again by itself (decision 341). Look for it in the channel or mailbox, then press **It arrived, mark as sent** or **Send again**. Several at once: check WF4's **Executions** in n8n for a failed or stopped run. |
 | A typed reply does not show in Needs your attention | No conversation is open, reply reading slowed down, or the reply went elsewhere | WF4 reads replies about every 10 minutes while the app sent that instructor something in the last 3 days (every 20 minutes above 8,000 n8n runs in the month, and only when WF4 runs for other work above 9,300). Email replies count only when sent to the +scheduling reply address; Discord replies only in the instructor's own channel. Run WF4 by hand in n8n to read at once. |
 | A task says a Discord message was not delivered | The bot cannot post in the instructor's channel, or the channel was deleted | The task says exactly what to fix. Give the bot's role access to the channel, or choose a new channel for the instructor on **Setup, Instructors**. The email was still sent. |
@@ -109,13 +109,13 @@ The clock's run log keeps the last 7 days: job `sme-run-log-purge` deletes older
 
 The clock has been on since 22 November 2026, 17:36 UTC (decision 281). `pg_cron` in the database runs the automatic
 check itself (job `sme-engine-hourly`, at minute 30 of every hour), and the job `sme-clock` (every 2 minutes) pokes
-WF4 only when there is work, and about every 10 minutes to read replies while a conversation is open (every 20
-minutes above 8,000 n8n runs in the month, none above 9,300). Typed replies show in the app within about 10 minutes.
+WF4 only when there is work, and about every 10 minutes to read replies while a conversation is open (every 30
+minutes from 5,000 n8n runs in the month, every hour from 6,500, none from 8,000). Typed replies show in the app within about 10 minutes.
 
 - **Since 23 November 2026, 12:48 UTC** (the owner, after the urgent fixes went live): WF1 is unpublished, with its
   schedule trigger off, because the database's own hourly job does its work. WF4 runs on pokes (the database pokes it
   within seconds for every queued message and Discord check, its clock every 2 minutes for other work) plus a safety
-  run every 15 minutes. WF2 (the answer pages), WF3 (daily at 09:00 IST) and WF5 (the error workflow) do not change.
+  run every hour. WF2 (the answer pages), WF3 (daily at 09:00 IST) and WF5 (the error workflow) do not change.
   After importing the base files again, switch WF1's trigger off and leave WF1 unpublished: the base file still has it.
 
 See the clock's state, the scheduled jobs, whether the poke key is in Vault (yes or no only), the last poke and n8n

@@ -39,6 +39,11 @@ Under **Who may receive messages**, choose who email and Discord messages may re
 - **Test instructors and signed in colleagues** is the beta setting. Real instructors are never contacted, direct messages go only to colleagues who have signed in, and messages may only tag them. Blocked messages are listed in Activity history.
 - **Anyone** lets messages reach real instructors again. Do this only when the beta is over.
 
+While the beta setting is on, only an admin ticks **Test instructor**, changes an instructor's emails or Discord
+account, or a team member's Discord account. Everyone on the team keeps every other edit.
+
+Only an admin deletes a domain, cohort, module or team member.
+
 Test instructors are explained in [Instructors and the instructor order](/help/instructors).
 
 ## Add an admin

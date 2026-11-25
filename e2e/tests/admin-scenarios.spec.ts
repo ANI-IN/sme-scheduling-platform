@@ -292,3 +292,45 @@ test('a blocked message shows on the instructor with the reason, and goes out af
   );
   expect(h!.n).toBeGreaterThan(0);
 });
+
+test('during the beta, someone who is not an admin cannot tick Test instructor or change emails and Discord', async ({
+  page,
+}) => {
+  await sql(
+    `update public.app_config set message_recipients = 'Test instructors and signed in colleagues', version = version
+      where id = 1`,
+  );
+  await sql(`update public.team_member set is_admin = false, version = version where email = $1`, [
+    ME,
+  ]);
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.getByLabel('Show test instructors').check();
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor F' }).first().click();
+  const dlg = page.getByRole('dialog');
+  await ready(page);
+  await expect(dlg.getByRole('checkbox', { name: /Test instructor/ })).toBeDisabled();
+  await expect(dlg.getByLabel('Email', { exact: true })).toBeDisabled();
+  await expect(dlg.getByLabel('Discord username')).toBeDisabled();
+  await expect(dlg.getByRole('button', { name: 'Add another email' })).toHaveCount(0);
+  await expect(
+    dlg.getByText('During the beta, only an admin changes Test instructor', { exact: false }),
+  ).toBeVisible();
+  // Every other detail still saves.
+  await expect(dlg.getByLabel('Phone')).toBeEnabled();
+  await a11y(page, 'instructor locked during the beta', '[role="dialog"]');
+  await noDashes(page, 'instructor locked during the beta');
+
+  // An admin changes them as before.
+  await sql(`update public.team_member set is_admin = true, version = version where email = $1`, [
+    ME,
+  ]);
+  await page.reload();
+  await ready(page);
+  await page.getByLabel('Show test instructors').check();
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor F' }).first().click();
+  await expect(
+    page.getByRole('dialog').getByRole('checkbox', { name: /Test instructor/ }),
+  ).toBeEnabled();
+  await expect(page.getByRole('dialog').getByLabel('Discord username')).toBeEnabled();
+});

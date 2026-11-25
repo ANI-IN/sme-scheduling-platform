@@ -17,7 +17,8 @@ You can also pause from the **Pause all messages** section at the bottom of [Aut
 While messages are paused:
 
 - No instructor gets any message, in any domain.
-- Requests do not move on to the next instructor.
+- Requests do not move on to the next instructor. When messages are turned back on, the time paused is added to the
+  answer time of every open request.
 - Team alerts still go out, so you keep seeing problems.
 - A red bar shows on every page.
 

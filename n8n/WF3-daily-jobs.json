@@ -11,7 +11,7 @@
         -400
       ],
       "parameters": {
-        "content": "## WF3 Daily jobs (09:00 Asia/Kolkata)\n1. `daily_jobs(null)` queues the daily heartbeat (digests run inside the hourly engine, time-gated).\n2. Pokes WF4 to send it.\n3. Nightly backup: `export_snapshot()` → `sme-backup-YYYY-MM-DD.json` → Google Drive folder.\n4. Only the newest 30 backups are kept: older ones go to the Drive bin.\n\nEvery step continues on error so one failure does not skip the others. The last node fails the execution if anything went wrong, so WF5 alerts the admin.\n\n**Edit the Config node, and the Drive folder ID in \"Upload to Google Drive\" and \"List backups\".**",
+        "content": "## WF3 Daily jobs (09:00 Asia/Kolkata)\n1. `daily_jobs(null)` queues the daily heartbeat (digests run inside the hourly engine, time-gated).\n2. The database calls WF4 to send it.\n3. Nightly backup: `export_snapshot()` → `sme-backup-YYYY-MM-DD.json` → Google Drive folder.\n4. Only the newest 30 backups are kept: older ones go to the Drive bin.\n\nEvery step continues on error so one failure does not skip the others. The last node fails the execution if anything went wrong, so WF5 alerts the admin.\n\n**Edit the Config node, and the Drive folder ID in \"Upload to Google Drive\" and \"List backups\".**",
         "height": 340,
         "width": 900,
         "color": 5
@@ -89,37 +89,6 @@
         }
       },
       "onError": "continueRegularOutput"
-    },
-    {
-      "id": "17cbe22a-7dcd-4764-b950-e5e90e8103a9",
-      "name": "Poke WF4",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        660,
-        0
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $('Config').first().json.pokeUrl }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": false,
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "onError": "continueRegularOutput",
-      "executeOnce": true,
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_ME",
-          "name": "Poke secret"
-        }
-      }
     },
     {
       "id": "bd78328b-a252-4129-b9ce-f15f8a247c93",
@@ -361,17 +330,6 @@
       ]
     },
     "Run daily jobs": {
-      "main": [
-        [
-          {
-            "node": "Poke WF4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Poke WF4": {
       "main": [
         [
           {

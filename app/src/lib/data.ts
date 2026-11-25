@@ -1,5 +1,6 @@
 // Shared queries. Every screen reads the latest data from the database; realtime events
 // invalidate these caches so changes from n8n or teammates show up immediately.
+import { betaLocked } from '@/lib/betaLock';
 import { useQuery } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { currentBlocked } from './blocked';
@@ -207,6 +208,13 @@ export const useSystem = () =>
       return { state: check(s), config: check(c) };
     },
   });
+
+/** Whether this person may not change Test instructor, instructor emails or Discord accounts (decision 347). */
+export function useBetaLock() {
+  const me = useMe();
+  const sys = useSystem();
+  return betaLocked(sys.data?.config.message_recipients, !!me?.is_admin);
+}
 
 export function useMe() {
   const { session } = useAuth();
