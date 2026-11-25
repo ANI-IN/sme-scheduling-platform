@@ -49,16 +49,16 @@ update public.clock_state set last_reply_read_at = now() - interval '11 minutes'
 select is(private.clock_work(), 'reading replies', '14. replies read 11 minutes ago: read them again (every 10 minutes)');
 
 -- 15 to 18: the brakes.
-insert into public.n8n_usage (month, workflow, runs) values (date_trunc('month', now() at time zone 'UTC')::date, 'WF4', 8500);
-select is(private.clock_work(), null, '15. above 8,000 runs this month, 11 minutes is not enough');
-update public.clock_state set last_reply_read_at = now() - interval '21 minutes' where id = 1;
-select is(private.clock_work(), 'reading replies', '16. above 8,000 runs, replies are read every 20 minutes');
-update public.n8n_usage set runs = 9400;
+insert into public.n8n_usage (month, workflow, runs) values (date_trunc('month', now() at time zone 'UTC')::date, 'WF4', 5500);
+select is(private.clock_work(), null, '15. above 5,000 runs this month, 11 minutes is not enough');
+update public.clock_state set last_reply_read_at = now() - interval '31 minutes' where id = 1;
+select is(private.clock_work(), 'reading replies', '16. above 5,000 runs, replies are read every 30 minutes');
+update public.n8n_usage set runs = 8500;
 update public.clock_state set last_reply_read_at = now() - interval '2 hours' where id = 1;
-select is(private.clock_work(), null, '17. above 9,300 runs, no run only to read replies');
+select is(private.clock_work(), null, '17. above 8,000 runs, no run only to read replies');
 insert into public.message (audience, template_id, channel, status, recipient_label, to_address, subject, body_text)
 values ('Team', 'T_CLOCK2', 'Email', 'Pending', 'Ops', 'ops@example.com', 'Clock test', 'Clock test');
-select is(private.clock_work(), 'messages to send', '18. above 9,300 runs, messages still go out (and replies are read then)');
+select is(private.clock_work(), 'messages to send', '18. above 8,000 runs, messages still go out (and replies are read then)');
 
 -- 19 to 21: calling n8n, the one minute limit and the monthly alert.
 select is(private.clock_tick() ->> 'reason', 'messages to send', '19. with work the job tries to call n8n');
@@ -66,6 +66,8 @@ select ok((select last_result from public.clock_state where id = 1) in ('no Vaul
   '20. without the poke key in Vault nothing is sent, and the reason is kept');
 select is((select count(*)::int from public.history_event where action = 'n8n budget: replies read less often'), 1,
   '21. one alert in Activity history when the brakes start');
+-- Decision 348: the one minute limit is the rule under 6,500 runs (more spacing above that).
+update public.n8n_usage set runs = 100;
 update public.clock_state set last_poke_at = now() - interval '30 seconds' where id = 1;
 -- (22) A call less than a minute ago: wait.
 

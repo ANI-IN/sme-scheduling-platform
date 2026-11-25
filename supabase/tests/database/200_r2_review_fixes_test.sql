@@ -80,6 +80,7 @@ select is((select string_agg(channel, ',') from public.message where unique_key 
 update public.team_member set discord_user_id = tests.rand_discord(), version = version where id = :'owner';
 select private.queue_team_message('T4', :'dom', 'people', null, array[:'owner'::uuid], 'Alert', 'Something', 'rf-dm', now());
 select id as dm_id from public.message where unique_key like 'rf-dm:%' \gset
+select tests.taken(:'dm_id');
 select public.report_message_result(:'dm_id', false, null, 'Discord 403: 50007', true);
 select is((select count(*)::int from public.message where unique_key like 'rf-dm:%:fallback%' and channel = 'Email'), 1,
   'DIS-10 a team member whose direct message failed gets the same message by email');

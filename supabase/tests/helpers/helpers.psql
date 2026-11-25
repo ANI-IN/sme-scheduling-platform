@@ -235,6 +235,13 @@ begin
 end $$;
 
 -- Run the hourly check at p_at and keep that as "now" for app actions that follow in the test.
+-- n8n took this message (as claim_outbound_messages would); only then does its answer count (decision 348).
+create or replace function tests.taken(p_id uuid)
+returns void language sql as $$
+  update public.message set status = 'Sending', claimed_at = now(), attempts = attempts + 1
+   where id = p_id and status in ('Pending', 'Scheduled');
+$$;
+
 create or replace function tests.tick(p_domain uuid, p_at timestamptz)
 returns jsonb language plpgsql as $$
 begin

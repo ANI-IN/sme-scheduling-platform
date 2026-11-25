@@ -75,7 +75,9 @@ select ok(private.server_allowed('999000000000049001', :'dom') and private.serve
 -- A deleted channel: the post fails for good, the email copy already went, and one clear task says so.
 select id as m1 from public.message where module_week_id = :'mw' and instructor_id = :'i1' and channel = 'Discord'
    and discord_channel_id = '999000000000049102' order by created_at limit 1 \gset
+select tests.taken(:'m1');
 select public.report_message_result(:'m1', false, null, 'Unknown Channel (10003)', true);
+select tests.taken(:'m1');
 select public.report_message_result(:'m1', false, null, 'Unknown Channel (10003)', true);
 select is((select count(*)::int from public.attention_item a where a.type = 'MessageFailed' and a.domain_id = :'dom'
             and a.dedupe_key = 'msgfail:' || :'m1'), 1, '12. one task, even when the failure is reported twice');

@@ -41,6 +41,7 @@ select public.record_inbound_message('Discord', (select discord_user_id from pub
 select public.reply_to_instructor((select id from public.attention_item where type = 'TypedReply' and module_week_id = :'mw'), 'Yes, we record every class.');
 select is(tests.msgs(:'mw', 'M14'), 2, 'Reply from Needs Attention is sent to the instructor (M14)');
 select is((select status from public.attention_item where type = 'TypedReply' and module_week_id = :'mw'), 'Acknowledged', 'and the item is acknowledged');
+select tests.taken((select id from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email'));
 select public.report_message_result((select id from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email'), true, 'gmail-x');
 select public.resend_message((select id from public.message where module_week_id = :'mw' and template_id = 'M4' and channel = 'Email'));
 select is(tests.msgs(:'mw', 'M4'), 3, 'resend creates a new outbox row (new unique key)');

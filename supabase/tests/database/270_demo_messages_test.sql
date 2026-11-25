@@ -40,6 +40,7 @@ select ok((select bool_and(x ->> 'body' not like '%{materials}%') from jsonb_eac
 
 -- The channel post fails for good: the team is told in plain words, the admin channel gets the technical error.
 update public.app_config set admin_discord_channel_id = '777000000000000099' where id = 1;
+select tests.taken(:'chan_id');
 select public.report_message_result(:'chan_id', false, null, '400 Invalid Form Body (Discord code 50035)', true);
 select is((select title from public.attention_item where message_id = :'chan_id'),
   'The confirmation could not be posted in Maya Rao''s Discord channel.',

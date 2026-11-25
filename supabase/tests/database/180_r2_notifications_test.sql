@@ -97,6 +97,7 @@ select is((select discord_channel_id from tests.m(:'mw', 'M4', :'i2') where disc
 
 -- =============================================================== 12 to 14. failures say exactly what to fix
 select id as dm_msg from public.message where module_week_id = :'mw2' and template_id = 'M4' and channel = 'Discord' \gset
+select tests.taken(:'dm_msg');
 select public.report_message_result(:'dm_msg', false, null, 'Discord 403: {"code": 50007, "message": "Cannot send messages to this user"}', true);
 select ok((select detail from public.attention_item where dedupe_key = 'msgfail:' || :'dm_msg') like '%does not accept direct messages from the server%choose a channel%',
   '12. a refused direct message creates a task that says what to do');
@@ -108,16 +109,27 @@ select is((select max(n)::int from (select count(*) n from public.message m join
   '12. one message per operations person about the failure, never two');
 select id as t14_mail from public.message m where m.template_id = 'T14' and m.channel = 'Email'
    and m.attention_item_id = (select id from public.attention_item where dedupe_key = 'msgfail:' || :'dm_msg') limit 1 \gset
+select tests.taken(:'t14_mail');
 select public.report_message_result(:'t14_mail', false, null, 'invalid_grant', true);
 select is((select count(*)::int from public.attention_item where dedupe_key = 'msgfail:' || :'t14_mail'), 0,
   '12. when that email fails too, it is only logged: no new task, so failures never go round in circles');
 select ok(exists (select 1 from public.history_event where category = 'Discord' and action like 'M4 failed to NT Instr1 via Discord direct message'),
   '12. the failure is in Activity history under Discord');
 select id as ch_msg from public.message where module_week_id = :'mw' and template_id = 'M6' and channel = 'Discord' \gset
+-- The change above cancelled it; here n8n had taken it before that (decision 348 ignores other answers), so
+-- the send guard is not asked again.
+alter table public.message disable trigger message_environment_guard;
+update public.message set status = 'Sending', claimed_at = now() where id = :'ch_msg';
+alter table public.message enable trigger message_environment_guard;
 select public.report_message_result(:'ch_msg', false, null, 'Discord 404: {"code": 10003, "message": "Unknown Channel"}', true);
 select ok((select detail from public.attention_item where dedupe_key = 'msgfail:' || :'ch_msg') like '%#nt-instr1 no longer exists. Choose a new channel%',
   '13. a deleted channel: the task names it and says to choose a new one');
 select id as ok_msg from public.message where module_week_id = :'mw' and template_id = 'M14' and channel = 'Discord' \gset
+-- The change above cancelled it; here n8n had taken it before that (decision 348 ignores other answers), so
+-- the send guard is not asked again.
+alter table public.message disable trigger message_environment_guard;
+update public.message set status = 'Sending', claimed_at = now() where id = :'ok_msg';
+alter table public.message enable trigger message_environment_guard;
 select public.report_message_result(:'ok_msg', true, 'discord-1');
 select ok(exists (select 1 from public.history_event where category = 'Discord' and action = 'M14 sent to NT Instr1 via Discord (#nt-instr1)'),
   '14. every Discord send is in Activity history with the channel');

@@ -95,9 +95,13 @@ select public.record_bounce('fl.instr1@example.org', 'bounce-1', 'Mailbox not fo
 select is(tests.open_items(:'dom', 'MessageFailed'), 1, 'email bounce → attention item');
 select ok((select email_bounced_at from public.instructor where id = :'i1') is not null, 'instructor flagged until fixed');
 create temp table d as select id from public.message where module_week_id = :'mw' and template_id = 'M1' and channel = 'Discord';
+select tests.taken((select id from d));
 select public.report_message_result((select id from d), false, null, 'Missing Access');
+select tests.taken((select id from d));
 select public.report_message_result((select id from d), false, null, 'Missing Access');
-update public.message set attempts = 3 where id = (select id from d);
+-- Decision 348: three retries now (about 1, 5 and 15 minutes), so the fourth failure is the last.
+select tests.taken((select id from d));
+update public.message set attempts = 4 where id = (select id from d);
 select is((public.report_message_result((select id from d), false, null, 'Missing Access')) ->> 'status', 'Failed', 'after retries the message is marked Failed');
 select ok((select discord_failed_at from public.instructor where id = :'i1') is not null, 'Discord failure flagged on the instructor');
 select is((select count(*)::int from public.attention_item where dedupe_key = 'msgfail:' || (select id from d)), 1, 'failure becomes an attention item');
