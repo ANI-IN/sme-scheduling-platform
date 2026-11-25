@@ -310,7 +310,7 @@ test('during the beta, someone who is not an admin cannot tick Test instructor o
   const dlg = page.getByRole('dialog');
   await ready(page);
   await expect(dlg.getByRole('checkbox', { name: /Test instructor/ })).toBeDisabled();
-  await expect(dlg.getByLabel('Email', { exact: true })).toBeDisabled();
+  await expect(dlg.getByRole('textbox', { name: /^Email/ })).toBeDisabled();
   await expect(dlg.getByLabel('Discord username')).toBeDisabled();
   await expect(dlg.getByRole('button', { name: 'Add another email' })).toHaveCount(0);
   await expect(
