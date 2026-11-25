@@ -2,6 +2,9 @@
 //
 //   npm run backup -w scripts -- --label before-m0
 //
+// Only one backup runs at a time (a lock file in the backup folder, and no pg_dump already working in the
+// container); --help and unknown options start nothing.
+//
 // 1. Refuses anything but the live project abcdefghijklmnopqrst.
 // 2. Dumps the whole database (every schema, structure and data) with pg_dump 17 from the local Supabase container
 //    to C:\Users\you\Backups\sme-scheduling\ (or BACKUP_DIR), outside the repository, with the date in its name.
@@ -11,31 +14,89 @@
 //
 // The connection string is passed to Docker through the environment and is never printed.
 import { spawnSync } from 'node:child_process';
-import { closeSync, mkdirSync, openSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import pg from 'pg';
+import { busyReason, parseArgs, USAGE, type Lock } from './backup-lib.ts';
 
 const LIVE_REF = 'abcdefghijklmnopqrst';
 const CONTAINER = 'supabase_db_sme-scheduling';
 const LOCAL_URL = 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
 const DIR = process.env.BACKUP_DIR ?? 'C:\\Users\\you\\Backups\\sme-scheduling';
 
+const args = parseArgs(process.argv.slice(2));
+if ('help' in args) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if ('error' in args) {
+  console.error(`${args.error}\n\n${USAGE}`);
+  process.exit(1);
+}
+const { label } = args;
 const live = process.env.DATABASE_URL ?? '';
 if (!live.includes(LIVE_REF)) {
   console.error(`Refusing: DATABASE_URL is not the live project ${LIVE_REF}.`);
   process.exit(1);
 }
-const argLabel = process.argv.indexOf('--label');
-const label = (argLabel > 0 ? process.argv[argLabel + 1] : 'manual') ?? 'manual';
-if (!/^[a-z0-9-]+$/.test(label)) {
-  console.error('The label may contain only lower case letters, digits and "-".');
+
+// One backup at a time.
+mkdirSync(DIR, { recursive: true });
+const LOCK = join(DIR, '.backup.lock');
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+const readLock = (): Lock | null => {
+  try {
+    return JSON.parse(readFileSync(LOCK, 'utf8')) as Lock;
+  } catch {
+    return null;
+  }
+};
+const dumpsInContainer = () => {
+  const r = spawnSync(
+    'docker',
+    ['exec', CONTAINER, 'sh', '-c', "ps -eo pid,args | grep '[p]g_dump' || true"],
+    { encoding: 'utf8' },
+  );
+  return r.status === 0 ? r.stdout.split('\n').filter(Boolean) : [];
+};
+const refuse = (why: string): never => {
+  console.error(why);
   process.exit(1);
+};
+const held = busyReason(readLock(), alive, []);
+if (held) refuse(held);
+const other = busyReason(null, alive, dumpsInContainer());
+if (other) refuse(other);
+rmSync(LOCK, { force: true }); // left by a run that is gone
+try {
+  writeFileSync(LOCK, JSON.stringify({ pid: process.pid, started: new Date().toISOString() }), {
+    flag: 'wx',
+  });
+} catch {
+  refuse('A backup is already running (another one started this moment). Wait for it to finish.');
 }
+process.on('exit', () => {
+  if (readLock()?.pid === process.pid) rmSync(LOCK, { force: true });
+});
 
 const now = new Date();
 const pad = (n: number) => String(n).padStart(2, '0');
 const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
-mkdirSync(DIR, { recursive: true });
 const file = join(DIR, `sme-scheduling-${stamp}-${label}.dump`);
 
 /**
