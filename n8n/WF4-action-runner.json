@@ -115,8 +115,6 @@
       },
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
-      "retryOnFail": true,
-      "maxTries": 3,
       "waitBetweenTries": 2000
     },
     {
@@ -252,7 +250,7 @@
         100
       ],
       "parameters": {
-        "jsCode": "// One item per claimed message row. Drops the empty placeholder item (nothing claimed) and error items.\nreturn $input.all().filter(i => i.json && i.json.id && i.json.channel);"
+        "jsCode": "// One item per claimed message row. Drops the empty placeholder item (nothing claimed) and error items.\nreturn $input.all().filter(i => i.json && i.json.id && i.json.channel && i.json.status === 'Sending');"
       }
     },
     {
@@ -407,7 +405,7 @@
         -200
       ],
       "parameters": {
-        "jsCode": "function describeFailure(r) {\n  // r is either { error } (network failure / thrown error) or { statusCode, body } (full HTTP response)\n  if (r.error) {\n    const e = typeof r.error === 'object' ? r.error : { message: String(r.error) };\n    const msg = String(e.message || e.description || JSON.stringify(e));\n    const status = Number(e.httpCode || e.status || e.statusCode || (msg.match(/\\b([45]\\d\\d)\\b/) || [])[1] || 0);\n    return { text: ((status ? status + ' ' : '') + msg).slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n  }\n  const status = Number(r.statusCode || 0);\n  const b = r.body && typeof r.body === 'object' ? r.body : {};\n  let text = status + ' ' + (b.message || r.statusMessage || (typeof r.body === 'string' ? r.body.slice(0, 300) : ''));\n  if (b.code) text += ' (Discord code ' + b.code + ')';\n  if (b.errors) text += ' ' + JSON.stringify(b.errors).slice(0, 500);\n  if (status === 429 && b.retry_after) text += ' (rate limited, retry after ' + b.retry_after + 's)';\n  return { text: text.trim().slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n}\n\nconst retryAfter = (r) => { const s = r && r.statusCode === 429 && r.body && Number(r.body.retry_after); return s > 0 ? Math.ceil(s) : null; };\nconst prep = $('Prepare Discord').first().json;\nconst r = $input.first().json;\nif (!r.error && r.statusCode >= 200 && r.statusCode < 300 && r.body && r.body.id) {\n  return [{ json: { ...prep, targetChannelId: r.body.id, ready: true } }];\n}\nconst f = describeFailure(r);\nreturn [{ json: {\n  ready: false,\n  p_message_id: prep.message_id, p_ok: false, p_external_id: null,\n  p_error: 'Could not open DM channel: ' + f.text, p_permanent: f.permanent,\n  p_retry_after: retryAfter(r), p_claimed_at: prep.claimed_at,\n} }];"
+        "jsCode": "function describeFailure(r) {\n  // r is either { error } (network failure / thrown error) or { statusCode, body } (full HTTP response)\n  if (r.error) {\n    const e = typeof r.error === 'object' ? r.error : { message: String(r.error) };\n    const msg = String(e.message || e.description || JSON.stringify(e));\n    const status = Number(e.httpCode || e.status || e.statusCode || (msg.match(/\\b([45]\\d\\d)\\b/) || [])[1] || 0);\n    return { text: ((status ? status + ' ' : '') + msg).slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 && status !== 401 };\n  }\n  const status = Number(r.statusCode || 0);\n  const b = r.body && typeof r.body === 'object' ? r.body : {};\n  let text = status + ' ' + (b.message || r.statusMessage || (typeof r.body === 'string' ? r.body.slice(0, 300) : ''));\n  if (b.code) text += ' (Discord code ' + b.code + ')';\n  if (b.errors) text += ' ' + JSON.stringify(b.errors).slice(0, 500);\n  if (status === 429 && b.retry_after) text += ' (rate limited, retry after ' + b.retry_after + 's)';\n  return { text: text.trim().slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 && status !== 401 && b.code !== 40001 };\n}\n\nconst retryAfter = (r) => { const s = r && r.statusCode === 429 && r.body && Number(r.body.retry_after); return s > 0 ? Math.ceil(s) : null; };\nconst prep = $('Prepare Discord').first().json;\nconst r = $input.first().json;\nif (!r.error && r.statusCode >= 200 && r.statusCode < 300 && r.body && r.body.id) {\n  return [{ json: { ...prep, targetChannelId: r.body.id, ready: true } }];\n}\nconst f = describeFailure(r);\nreturn [{ json: {\n  ready: false,\n  p_message_id: prep.message_id, p_ok: false, p_external_id: null,\n  p_error: 'Could not open DM channel: ' + f.text, p_permanent: f.permanent,\n  p_retry_after: retryAfter(r), p_claimed_at: prep.claimed_at,\n} }];"
       }
     },
     {
@@ -487,7 +485,7 @@
         -100
       ],
       "parameters": {
-        "jsCode": "function describeFailure(r) {\n  // r is either { error } (network failure / thrown error) or { statusCode, body } (full HTTP response)\n  if (r.error) {\n    const e = typeof r.error === 'object' ? r.error : { message: String(r.error) };\n    const msg = String(e.message || e.description || JSON.stringify(e));\n    const status = Number(e.httpCode || e.status || e.statusCode || (msg.match(/\\b([45]\\d\\d)\\b/) || [])[1] || 0);\n    return { text: ((status ? status + ' ' : '') + msg).slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n  }\n  const status = Number(r.statusCode || 0);\n  const b = r.body && typeof r.body === 'object' ? r.body : {};\n  let text = status + ' ' + (b.message || r.statusMessage || (typeof r.body === 'string' ? r.body.slice(0, 300) : ''));\n  if (b.code) text += ' (Discord code ' + b.code + ')';\n  if (b.errors) text += ' ' + JSON.stringify(b.errors).slice(0, 500);\n  if (status === 429 && b.retry_after) text += ' (rate limited, retry after ' + b.retry_after + 's)';\n  return { text: text.trim().slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 };\n}\n\nconst retryAfter = (r) => { const s = r && r.statusCode === 429 && r.body && Number(r.body.retry_after); return s > 0 ? Math.ceil(s) : null; };\nconst prep = $('Prepare Discord').first().json;\nconst r = $input.first().json;\nif (!prep.targetChannelId && !prep.dmUserId) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null,\n    p_error: 'No Discord channel or user on this message', p_permanent: true, p_claimed_at: prep.claimed_at } }];\n}\nif (!r.error && r.statusCode >= 200 && r.statusCode < 300) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: true, p_external_id: (r.body && r.body.id) || null,\n    p_error: null, p_permanent: false, p_claimed_at: prep.claimed_at } }];\n}\nconst f = describeFailure(r);\nreturn [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null, p_error: f.text, p_permanent: f.permanent,\n  p_retry_after: retryAfter(r), p_claimed_at: prep.claimed_at } }];"
+        "jsCode": "function describeFailure(r) {\n  // r is either { error } (network failure / thrown error) or { statusCode, body } (full HTTP response)\n  if (r.error) {\n    const e = typeof r.error === 'object' ? r.error : { message: String(r.error) };\n    const msg = String(e.message || e.description || JSON.stringify(e));\n    const status = Number(e.httpCode || e.status || e.statusCode || (msg.match(/\\b([45]\\d\\d)\\b/) || [])[1] || 0);\n    return { text: ((status ? status + ' ' : '') + msg).slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 && status !== 401 };\n  }\n  const status = Number(r.statusCode || 0);\n  const b = r.body && typeof r.body === 'object' ? r.body : {};\n  let text = status + ' ' + (b.message || r.statusMessage || (typeof r.body === 'string' ? r.body.slice(0, 300) : ''));\n  if (b.code) text += ' (Discord code ' + b.code + ')';\n  if (b.errors) text += ' ' + JSON.stringify(b.errors).slice(0, 500);\n  if (status === 429 && b.retry_after) text += ' (rate limited, retry after ' + b.retry_after + 's)';\n  return { text: text.trim().slice(0, 1000), permanent: status >= 400 && status < 500 && status !== 429 && status !== 401 && b.code !== 40001 };\n}\n\nconst retryAfter = (r) => { const s = r && r.statusCode === 429 && r.body && Number(r.body.retry_after); return s > 0 ? Math.ceil(s) : null; };\nconst prep = $('Prepare Discord').first().json;\nconst r = $input.first().json;\nif (!prep.targetChannelId && !prep.dmUserId) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null,\n    p_error: 'No Discord channel or user on this message', p_permanent: true, p_claimed_at: prep.claimed_at } }];\n}\nif (!r.error && r.statusCode >= 200 && r.statusCode < 300) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: true, p_external_id: (r.body && r.body.id) || null,\n    p_error: null, p_permanent: false, p_claimed_at: prep.claimed_at } }];\n}\nconst f = describeFailure(r);\nreturn [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null, p_error: f.text, p_permanent: f.permanent,\n  p_retry_after: retryAfter(r), p_claimed_at: prep.claimed_at } }];"
       }
     },
     {
@@ -574,7 +572,7 @@
         340
       ],
       "parameters": {
-        "jsCode": "const prep = $('Prepare email').first().json;\nconst r = $input.first().json;\nif (!r.error && r.id) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: true, p_external_id: r.id, p_error: null, p_permanent: false, p_claimed_at: prep.claimed_at } }];\n}\nconst e = r.error && typeof r.error === 'object' ? r.error : { message: r.error ? String(r.error) : 'Gmail returned no message id' };\nconst text = [e.message, e.description].filter(Boolean).join(' — ').slice(0, 1000) || 'Gmail send failed';\nconst temporary = /429|rate|quota|limit|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|5\\d\\d|backend error|unavailable/i.test(text);\nconst permanent = !temporary && (!prep.to || /invalid|bad request|\\b400\\b|recipient address/i.test(text));\nreturn [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null, p_error: text, p_permanent: permanent, p_claimed_at: prep.claimed_at } }];"
+        "jsCode": "const prep = $('Prepare email').first().json;\nconst r = $input.first().json;\nif (!r.error && r.id) {\n  return [{ json: { p_message_id: prep.message_id, p_ok: true, p_external_id: r.id, p_error: null, p_permanent: false, p_claimed_at: prep.claimed_at } }];\n}\nconst e = r.error && typeof r.error === 'object' ? r.error : { message: r.error ? String(r.error) : 'Gmail returned no message id' };\nconst text = [e.message, e.description].filter(Boolean).join(' — ').slice(0, 1000) || 'Gmail send failed';\nconst temporary = /invalid_grant|invalid_client|unauthorized|\\b401\\b|429|rate|quota|limit|timeout|timed out|ECONN|ENOTFOUND|EAI_AGAIN|5\\d\\d|backend error|unavailable/i.test(text);\nconst permanent = !temporary && (!prep.to || /invalid|bad request|\\b400\\b|recipient address/i.test(text));\nreturn [{ json: { p_message_id: prep.message_id, p_ok: false, p_external_id: null, p_error: text, p_permanent: permanent, p_claimed_at: prep.claimed_at } }];"
       }
     },
     {
@@ -741,8 +739,6 @@
       },
       "alwaysOutputData": true,
       "onError": "continueRegularOutput",
-      "retryOnFail": true,
-      "maxTries": 3,
       "waitBetweenTries": 2000
     },
     {
@@ -883,7 +879,7 @@
         "limit": 50,
         "simple": false,
         "filters": {
-          "q": "newer_than:3d -label:sme-scheduling-processed {to:scheduling-mailbox+scheduling@yourcompany.com deliveredto:scheduling-mailbox+scheduling@yourcompany.com (from:mailer-daemon \"scheduling-mailbox+scheduling@yourcompany.com\")}"
+          "q": "newer_than:3d -label:sme-scheduling-processed {to:scheduling-mailbox+scheduling@yourcompany.com deliveredto:scheduling-mailbox+scheduling@yourcompany.com (from:mailer-daemon \"scheduling-mailbox+scheduling@yourcompany.com\") (from:postmaster \"scheduling-mailbox+scheduling@yourcompany.com\")}"
         },
         "options": {}
       },
@@ -905,7 +901,7 @@
         1900
       ],
       "parameters": {
-        "jsCode": "// Parse each Gmail message into one database call. Parsing only; the database decides what it means.\n// Only mail about this system is handled: replies sent to the +scheduling Reply-To address, and bounces\n// of emails this system sent (they quote that address). Everything else in the shared inbox is skipped.\nconst SYS = 'scheduling-mailbox+scheduling@yourcompany.com';\nfunction hdr(m, name) {\n  const h = m.headers; const want = name.toLowerCase(); let v;\n  if (Array.isArray(h)) {\n    const f = h.find(x => String(x.name || x.key || '').toLowerCase() === want);\n    v = f && (f.value || f.line);\n  } else if (h && typeof h === 'object') {\n    for (const k of Object.keys(h)) if (k.toLowerCase() === want) v = h[k];\n  }\n  if (v == null) return '';\n  v = typeof v === 'object' ? (v.text || v.value || JSON.stringify(v)) : String(v);\n  return v.replace(new RegExp('^' + want + ':\\\\s*', 'i'), '').trim();\n}\nfunction stripQuoted(t) {\n  const lines = String(t || '').replace(/\\r\\n/g, '\\n').split('\\n');\n  const out = [];\n  for (let i = 0; i < lines.length; i++) {\n    const l = lines[i];\n    if (/^\\s*>/.test(l)) break;\n    if (/^-{2,}\\s*Original Message\\s*-{2,}/i.test(l)) break;\n    if (/^On\\s.+/.test(l) && /wrote:\\s*$/.test(l + ' ' + (lines[i + 1] || ''))) break;\n    out.push(l);\n  }\n  return out.join('\\n').trim() || String(t || '').trim();\n}\nfunction failedRecipient(m, text) {\n  const x = hdr(m, 'x-failed-recipients');\n  if (x) return x.split(',')[0].trim();\n  const pats = [\n    /Final-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /Original-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /delivered to\\s+<?([^\\s<>]+@[^\\s<>]+)/i,\n  ];\n  for (const p of pats) { const r = text.match(p); if (r) return r[1].replace(/[>.,;:]+$/, ''); }\n  const to = String((m.to && m.to.text) || hdr(m, 'to')).toLowerCase();\n  const skip = /mailer-daemon|postmaster|no-?reply|@google\\.com$|@googlemail\\.com$|^scheduling-mailbox/i;\n  const all = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g) || [];\n  return all.find(a => !skip.test(a) && !to.includes(a.toLowerCase())) || '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const m = item.json || {};\n  if (!m.id) continue;\n  const from = String((m.from && (m.from.text || (m.from.value && m.from.value[0] && m.from.value[0].address))) || hdr(m, 'from') || m.From || '');\n  const subject = String(m.subject || hdr(m, 'subject') || m.Subject || '');\n  const text = String(m.text || (m.html ? String(m.html).replace(/<[^>]+>/g, ' ') : '') || m.snippet || '');\n  const received = m.date ? new Date(m.date) : null;\n  const isBounce = /mailer-daemon|postmaster/i.test(from)\n    || /delivery status notification|undeliverable|undelivered mail|mail delivery (failed|failure|subsystem)/i.test(subject);\n  const addressedTo = (JSON.stringify(m.to || '') + ' ' + JSON.stringify(m.cc || '') + ' ' + hdr(m, 'delivered-to') + ' ' + hdr(m, 'to')).toLowerCase();\n  if (isBounce ? !text.toLowerCase().includes(SYS) : !addressedTo.includes(SYS)) continue;\n  if (isBounce) {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_bounce', args: {\n      p_email: failedRecipient(m, text),\n      p_external_id: m.id,\n      p_detail: (subject + ': ' + text.replace(/\\s+/g, ' ')).slice(0, 500),\n      // SEC 9 (decision 311): the database counts a bounce only in the thread of an email it sent to that address.\n      p_thread_id: m.threadId || null,\n      p_report: /multipart\\/report/i.test(hdr(m, 'content-type')) && /delivery-status/i.test(hdr(m, 'content-type')),\n    } } });\n  } else {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Email',\n      p_from: from,\n      p_subject: subject || null,\n      p_body: stripQuoted(text).slice(0, 5000),\n      p_external_id: m.id,\n      p_received_at: received && !isNaN(received) ? received.toISOString() : null,\n      p_summary: null,\n      // Finding 38 (decision 345): in a Testing domain the reply is matched by the thread the app's email started.\n      p_thread_id: m.threadId || null,\n    } } });\n  }\n}\nreturn out;"
+        "jsCode": "// Parse each Gmail message into one database call. Parsing only; the database decides what it means.\n// Only mail about this system is handled: replies sent to the +scheduling Reply-To address, and bounces\n// of emails this system sent (they quote that address). Everything else in the shared inbox is skipped.\nconst SYS = 'scheduling-mailbox+scheduling@yourcompany.com';\nfunction hdr(m, name) {\n  const h = m.headers; const want = name.toLowerCase(); let v;\n  if (Array.isArray(h)) {\n    const f = h.find(x => String(x.name || x.key || '').toLowerCase() === want);\n    v = f && (f.value || f.line);\n  } else if (h && typeof h === 'object') {\n    for (const k of Object.keys(h)) if (k.toLowerCase() === want) v = h[k];\n  }\n  if (v == null) return '';\n  v = typeof v === 'object' ? (v.text || v.value || JSON.stringify(v)) : String(v);\n  return v.replace(new RegExp('^' + want + ':\\\\s*', 'i'), '').trim();\n}\nfunction stripQuoted(t) {\n  const lines = String(t || '').replace(/\\r\\n/g, '\\n').split('\\n');\n  const out = [];\n  for (let i = 0; i < lines.length; i++) {\n    const l = lines[i];\n    if (/^\\s*>/.test(l)) break;\n    if (/^-{2,}\\s*Original Message\\s*-{2,}/i.test(l)) break;\n    if (/^On\\s.+/.test(l) && /wrote:\\s*$/.test(l + ' ' + (lines[i + 1] || ''))) break;\n    out.push(l);\n  }\n  return out.join('\\n').trim() || String(t || '').trim();\n}\nfunction failedRecipient(m, text) {\n  const x = hdr(m, 'x-failed-recipients');\n  if (x) return x.split(',')[0].trim();\n  const pats = [\n    /Final-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /Original-Recipient:\\s*rfc822;\\s*<?([^\\s<>;]+@[^\\s<>;]+)/i,\n    /delivered to\\s+<?([^\\s<>]+@[^\\s<>]+)/i,\n  ];\n  for (const p of pats) { const r = text.match(p); if (r) return r[1].replace(/[>.,;:]+$/, ''); }\n  const to = String((m.to && m.to.text) || hdr(m, 'to')).toLowerCase();\n  const skip = /mailer-daemon|postmaster|no-?reply|@google\\.com$|@googlemail\\.com$|^scheduling-mailbox/i;\n  const all = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g) || [];\n  return all.find(a => !skip.test(a) && !to.includes(a.toLowerCase())) || '';\n}\n\nconst out = [];\nfor (const item of $input.all()) {\n  const m = item.json || {};\n  if (!m.id) continue;\n  const from = String((m.from && (m.from.text || (m.from.value && m.from.value[0] && m.from.value[0].address))) || hdr(m, 'from') || m.From || '');\n  const subject = String(m.subject || hdr(m, 'subject') || m.Subject || '');\n  const text = String(m.text || (m.html ? String(m.html).replace(/<[^>]+>/g, ' ') : '') || m.snippet || '');\n  const received = m.date ? new Date(m.date) : null;\n  const isBounce = /mailer-daemon|postmaster/i.test(from)\n    || /delivery status notification|undeliverable|undelivered mail|mail delivery (failed|failure|subsystem)/i.test(subject);\n  const addressedTo = (JSON.stringify(m.to || '') + ' ' + JSON.stringify(m.cc || '') + ' ' + hdr(m, 'delivered-to') + ' ' + hdr(m, 'to')).toLowerCase();\n  if (isBounce ? !text.toLowerCase().includes(SYS) : !addressedTo.includes(SYS)) continue;\n  if (isBounce) {\n    out.push({ json: { gmail_id: m.id, rpc: 'record_bounce', args: {\n      p_email: failedRecipient(m, text),\n      p_external_id: m.id,\n      p_detail: (subject + ': ' + text.replace(/\\s+/g, ' ')).slice(0, 500),\n      // SEC 9 (decision 311): the database counts a bounce only in the thread of an email it sent to that address.\n      p_thread_id: m.threadId || null,\n      p_report: /multipart\\/report/i.test(hdr(m, 'content-type')) && /delivery-status/i.test(hdr(m, 'content-type')),\n    } } });\n  } else {\n    // Review R19: out of office, bulk and other automatic mail is kept and logged, never a task.\n    const auto = hdr(m, 'auto-submitted').toLowerCase();\n    const automatic = (auto !== '' && auto !== 'no')\n      || /^(bulk|junk|auto_reply)/i.test(hdr(m, 'precedence'))\n      || hdr(m, 'x-autoreply') !== '' || hdr(m, 'x-autorespond') !== ''\n      || /^(automatic reply|auto ?reply|out of( the)? office)\\b/i.test(subject.trim());\n    out.push({ json: { gmail_id: m.id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Email',\n      p_from: from,\n      p_subject: subject || null,\n      p_body: stripQuoted(text).slice(0, 5000),\n      p_external_id: m.id,\n      p_received_at: received && !isNaN(received) ? received.toISOString() : null,\n      p_summary: null,\n      // Finding 38 (decision 345): in a Testing domain the reply is matched by the thread the app's email started.\n      p_thread_id: m.threadId || null,\n      p_automatic: automatic,\n    } } });\n  }\n}\nreturn out;"
       }
     },
     {
@@ -969,7 +965,7 @@
           "name": "Gmail"
         }
       },
-      "onError": "continueRegularOutput"
+      "onError": "continueErrorOutput"
     },
     {
       "id": "8de44dbe-c306-45da-8204-4b2f3979f9fa",
@@ -1112,7 +1108,7 @@
         2380
       ],
       "parameters": {
-        "jsCode": "// Keep only messages written by the instructor who owns the channel, oldest first.\nconst watch = $('Get watchlist').all();\nconst cutoff = Date.now() - 3 * 24 * 3600 * 1000;\nconst byId = (a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0);\nconst out = [];\n$input.all().forEach((item, idx) => {\n  const w = (watch[(item.pairedItem && item.pairedItem.item) ?? idx] || {}).json || {};\n  const r = item.json || {};\n  if (!w.channel_id || r.error || r.statusCode !== 200 || !Array.isArray(r.body)) return;\n  for (const m of r.body.slice().sort(byId)) {\n    if (!m.author || String(m.author.id) !== String(w.discord_user_id)) continue;\n    if (!w.last_message_id && Date.parse(m.timestamp) < cutoff) continue;\n    const parts = [m.content || ''];\n    for (const a of m.attachments || []) parts.push('[attachment] ' + a.url);\n    const body = parts.join('\\n').trim();\n    if (!body) continue;\n    out.push({ json: { channel_id: w.channel_id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Discord',\n      p_from: String(m.author.id),\n      p_subject: null,\n      p_body: body.slice(0, 5000),\n      p_external_id: String(m.id),\n      p_received_at: m.timestamp || null,\n      p_summary: null,\n    } } });\n  }\n});\nreturn out;"
+        "jsCode": "// Keep only messages written by the instructor who owns the channel, oldest first.\nconst watch = $('Get watchlist').all();\nconst cutoff = Date.now() - 3 * 24 * 3600 * 1000;\nconst byId = (a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0);\nconst out = [];\n$input.all().forEach((item, idx) => {\n  const w = (watch[(item.pairedItem && item.pairedItem.item) ?? idx] || {}).json || {};\n  const r = item.json || {};\n  if (!w.channel_id || r.error || r.statusCode !== 200 || !Array.isArray(r.body)) return;\n  for (const m of r.body.slice().sort(byId)) {\n    if (!m.author || String(m.author.id) !== String(w.discord_user_id)) continue;\n    if (!w.last_message_id && Date.parse(m.timestamp) < cutoff) continue;\n    const parts = [m.content || ''];\n    for (const a of m.attachments || []) parts.push('[attachment] ' + a.url);\n    // Review R15: never dropped silently (for example if the bot may not read message text).\n    const body = parts.join('\\n').trim() || '[A message with no readable text. Open the channel in Discord to read it.]';\n    out.push({ json: { channel_id: w.channel_id, rpc: 'record_inbound_message', args: {\n      p_channel: 'Discord',\n      p_from: String(m.author.id),\n      p_subject: null,\n      p_body: body.slice(0, 5000),\n      p_external_id: String(m.id),\n      p_received_at: m.timestamp || null,\n      p_summary: null,\n      // Review R8: the channel it was posted in decides whose reply it is.\n      p_channel_id: w.channel_id,\n    } } });\n  }\n});\nreturn out;"
       }
     },
     {
@@ -1203,6 +1199,19 @@
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Review R15: a channel the bot cannot read is logged (once a run) instead of being skipped silently.\nconst watch = $('Get watchlist').all();\nconst bad = [];\n$input.all().forEach((item, idx) => {\n  const w = (watch[(item.pairedItem && item.pairedItem.item) ?? idx] || {}).json || {};\n  const r = item.json || {};\n  if (!w.channel_id || (r.statusCode === 200 && Array.isArray(r.body))) return;\n  bad.push('channel ' + w.channel_id + ': ' + (r.statusCode || (r.error && r.error.message) || 'no answer'));\n});\nreturn bad.length ? [{ json: { error: 'Discord channels could not be read (' + bad.length + '): ' + bad.slice(0, 5).join('; ') } }] : [];"
+      },
+      "id": "6f0b1b57-2d3a-4b6a-9a35-8a1f6d0c1e15",
+      "name": "Pick read problems",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        2780
+      ]
     }
   ],
   "connections": {
@@ -1625,6 +1634,11 @@
             "node": "Pick new cursors",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Pick read problems",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1674,6 +1688,29 @@
         [
           {
             "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick read problems": {
+      "main": [
+        [
+          {
+            "node": "Log reading problem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label as processed": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Log reading problem",
             "type": "main",
             "index": 0
           }
