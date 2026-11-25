@@ -1,4 +1,4 @@
-import { inThisWeek } from '@/lib/week';
+import { inThisWeek, weekStartPT } from '@/lib/week';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -93,6 +93,7 @@ export default function Home() {
   };
 
   // This week by the one rule of every page: the class weeks of this Sunday in Pacific time (decision 349).
+  const weekStart = weekStartPT(now);
   const upcoming = (weeks.data ?? []).filter(
     (w) =>
       !['Completed', 'Cancelled'].includes(w.status) &&
