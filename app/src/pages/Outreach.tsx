@@ -883,7 +883,7 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
                 Start asking
               </Button>
               <Button variant="secondary" onClick={() => submit('Sequential')}>
-                Start asking in the instructor order
+                Ask in the instructor order now
               </Button>
             </div>
           </div>
