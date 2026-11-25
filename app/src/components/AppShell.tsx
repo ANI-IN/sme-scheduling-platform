@@ -316,7 +316,8 @@ function DomainSwitcher({ collapsed }: { collapsed: boolean }) {
           {domains.map((d) => (
             <DM.Item
               key={d.id}
-              onSelect={() => setDomainId(d.id)}
+              // Review R10: unsaved edits belong to this domain, so ask before leaving them.
+              onSelect={() => (d.id === domain?.id || confirmLeave()) && setDomainId(d.id)}
               className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted"
             >
               <Check

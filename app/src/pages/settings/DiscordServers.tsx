@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { check, rpc } from '@/lib/rpc';
+import { check, fetchAll, rpc } from '@/lib/rpc';
 import { useDomains, useMe, useSystem } from '@/lib/data';
 import { ago } from '@/lib/time';
 import { botInviteUrl } from '@/lib/discord';
@@ -59,6 +59,31 @@ export const accessLabel: Record<
 const accessOf = (a: string) =>
   accessLabel[a] ?? { label: 'Waiting for approval', tone: 'warning' as const };
 
+/** The servers the bot is in; looked at again every few seconds while one is being checked. */
+function useServerList() {
+  return useQuery({
+    queryKey: ['discord_server'],
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((s) => s.status === 'Checking') ? 5000 : false,
+    queryFn: async () => check(await supabase.from('discord_server').select('*').order('name')),
+  });
+}
+
+/** How many channels each server has (all pages: a big bot lists more than 1,000). */
+function useChannelCounts() {
+  return useQuery({
+    queryKey: ['discord_channel', 'counts'],
+    queryFn: async () => {
+      const rows = await fetchAll((from, to) =>
+        supabase.from('discord_channel').select('server_id').order('id').range(from, to),
+      );
+      const m = new Map<string, number>();
+      for (const r of rows) m.set(r.server_id, (m.get(r.server_id) ?? 0) + 1);
+      return m;
+    },
+  });
+}
+
 /**
  * Discord servers: each domain uses an existing server. The bot is invited with an invite link,
  * then the app lists the servers the bot is in and the channels it can see. Nothing is created in
@@ -73,19 +98,8 @@ export function DiscordServers() {
   const isAdmin = !!useMe()?.is_admin;
   const serverDomains = useServerDomains();
   const invite = botInviteUrl();
-  const servers = useQuery({
-    queryKey: ['discord_server'],
-    queryFn: async () => check(await supabase.from('discord_server').select('*').order('name')),
-  });
-  const counts = useQuery({
-    queryKey: ['discord_channel', 'counts'],
-    queryFn: async () => {
-      const rows = check(await supabase.from('discord_channel').select('server_id'));
-      const m = new Map<string, number>();
-      for (const r of rows) m.set(r.server_id, (m.get(r.server_id) ?? 0) + 1);
-      return m;
-    },
-  });
+  const servers = useServerList();
+  const counts = useChannelCounts();
   const checking = (domains.data ?? []).some((d) => d.discord_status === 'Checking');
   // While a check is running, look again every few seconds.
   useQuery({
@@ -309,21 +323,8 @@ function ServerList() {
   const [approving, setApproving] = useState<{ id: string; name: string } | null>(null);
   const [q, setQ] = useState('');
   const [showArchived, setShowArchived] = useState(false);
-  const servers = useQuery({
-    queryKey: ['discord_server'],
-    refetchInterval: (query) =>
-      (query.state.data ?? []).some((s) => s.status === 'Checking') ? 5000 : false,
-    queryFn: async () => check(await supabase.from('discord_server').select('*').order('name')),
-  });
-  const counts = useQuery({
-    queryKey: ['discord_channel', 'counts'],
-    queryFn: async () => {
-      const rows = check(await supabase.from('discord_channel').select('server_id'));
-      const m = new Map<string, number>();
-      for (const r of rows) m.set(r.server_id, (m.get(r.server_id) ?? 0) + 1);
-      return m;
-    },
-  });
+  const servers = useServerList();
+  const counts = useChannelCounts();
   // Natural order: "Program server 2" before "Program server 10".
   const all = [...(servers.data ?? [])].sort((a, b) =>
     a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),

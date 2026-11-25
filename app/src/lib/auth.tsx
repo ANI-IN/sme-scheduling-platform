@@ -1,3 +1,4 @@
+import { SIGN_IN_FAILED, signInMessage, withRetry } from '@/lib/signIn';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
@@ -52,13 +53,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [rejected, setRejected] = useState<string | null>(() => {
     // Supabase returns the sign in hook's refusal in the address after the Google redirect.
     const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
-    return params.get('error_description');
+    return signInMessage(params.get('error_description'));
   });
 
   const loadAccount = useCallback(async (signedIn: boolean) => {
-    const { data, error } = await supabase.rpc('my_account', { p_signed_in: signedIn });
-    if (error) throw error;
-    return data as unknown as Account;
+    return withRetry(async () => {
+      const { data, error } = await supabase.rpc('my_account', { p_signed_in: signedIn });
+      if (error) throw error;
+      return data as unknown as Account;
+    });
   }, []);
 
   useEffect(() => {
@@ -109,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     rejected,
     async signInWithGoogle() {
       setRejected(null);
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin,
@@ -119,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         },
       });
+      if (error) setRejected(SIGN_IN_FAILED);
     },
     async signOut() {
       await supabase.auth.signOut();

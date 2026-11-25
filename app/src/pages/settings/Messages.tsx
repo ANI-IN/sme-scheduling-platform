@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { poke, rpc } from '@/lib/rpc';
+import { rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useUnsavedChanges } from '@/lib/unsaved';
 import { useConfirm } from '@/components/Confirm';
@@ -100,7 +100,7 @@ export default function Messages() {
             ))}
           </ul>
           {current ? (
-            <Editor key={current.template_id} domainId={domain.id} t={current} />
+            <Editor key={`${domain.id}:${current.template_id}`} domainId={domain.id} t={current} />
           ) : (
             <Empty title="Choose a message">
               Pick a message on the left to read or change its text.
@@ -246,7 +246,6 @@ function Editor({ domainId, t }: { domainId: string; t: Template }) {
                 p_subject: subject,
                 p_body: body,
               });
-              void poke();
             }, 'Test message sent to the alert channel')
           }
         >

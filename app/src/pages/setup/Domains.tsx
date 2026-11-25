@@ -1,3 +1,4 @@
+import { changesStatusKey, statusConfirm, type StatusEffects } from '@/lib/domainStatus';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -328,18 +329,16 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
       setStatusErr(e);
       return;
     }
-    const leavingTest = domain.status === 'Test' && status !== 'Test';
-    if (status === 'Live' || leavingTest) {
-      const ok = await confirm({
-        title: status === 'Live' ? `Go live with ${domain.name}?` : `Stop testing ${domain.name}?`,
-        body:
-          status === 'Live'
-            ? 'Real instructors will be contacted from the next automatic check.'
-            : `${domain.name} will be ${statusLabel[status]?.toLowerCase()}. Messages stop going to the testing channel.`,
-        danger: status === 'Live',
-        confirmLabel: status === 'Live' ? 'Go live' : `Set to ${statusLabel[status]}`,
-      });
-      if (!ok) return;
+    try {
+      const fx = (await rpc('domain_status_effects', {
+        p_domain_id: domain.id,
+        p_status: status,
+      })) as unknown as StatusEffects;
+      const ask = statusConfirm(domain.name, domain.status, status, fx);
+      if (ask && !(await confirm(ask))) return;
+    } catch (e) {
+      setStatusErr(e);
+      return;
     }
     try {
       await rpc('set_domain_status', { p_domain_id: domain.id, p_status: status });
@@ -398,6 +397,7 @@ function DomainDrawer({ domain, onClose }: { domain: Domain; onClose: () => void
           <Select
             value={domain.status}
             onChange={(e) => void setStatus(e.target.value)}
+            onKeyDown={(e) => changesStatusKey(e) && e.preventDefault()}
             className="w-56"
             aria-label="Status"
           >

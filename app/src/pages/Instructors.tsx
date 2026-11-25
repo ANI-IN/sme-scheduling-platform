@@ -1,10 +1,11 @@
+import { contactResult } from '@/lib/contact';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { MailCheck, Plus, Send, Trash2, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { refresh } from '@/lib/live';
 import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
@@ -594,7 +595,6 @@ export function InstructorDrawer({
     setErr(null);
     try {
       await fn();
-      void poke();
       toast.success(ok);
       refresh(qc, 'instructor', 'request');
     } catch (e) {
@@ -617,7 +617,6 @@ export function InstructorDrawer({
       setDeact(res.bookings);
       return;
     }
-    void poke();
     toast.success(
       `${instructor.full_name} is now ${status === 'Inactive' ? 'not in use' : 'archived'}`,
     );
@@ -1194,8 +1193,22 @@ function ContactInstructor({ id, name }: { id: string; name: string }) {
           onClick={async () => {
             setErr(null);
             try {
-              await rpc('contact_instructor', { p_instructor_id: id, p_text: text });
-              toast.success(`Message sent to ${name} by Discord and email`);
+              const r = (await rpc('contact_instructor', {
+                p_instructor_id: id,
+                p_text: text,
+              })) as unknown as { messages: number };
+              const copies = check(
+                await supabase
+                  .from('message')
+                  .select('channel, status, blocked, last_error')
+                  .eq('instructor_id', id)
+                  .eq('template_id', 'M23')
+                  .order('created_at', { ascending: false })
+                  .limit(r.messages || 1),
+              );
+              const said = contactResult(name, r.messages ? copies : []);
+              if (said.ok) toast.success(said.text);
+              else toast.warning(said.text);
               setText('');
             } catch (e) {
               setErr(e);

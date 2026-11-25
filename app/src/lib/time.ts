@@ -4,7 +4,7 @@ export const PT = 'America/Los_Angeles';
 
 const toDt = (iso: string, zone: string) => DateTime.fromISO(iso, { zone: 'utc' }).setZone(zone);
 
-/** "Sun Jan 31, 9:00 AM PST" — class times are always Pacific (PST/PDT by date). */
+/** "Sun Jan 31, 9:00 AM PST": a time shown in US Pacific. India classes also show India time (lib/region.ts). */
 export function fmtPT(iso: string | null | undefined): string {
   if (!iso) return 'Not set';
   return toDt(iso, PT).toFormat('ccc LLL d, h:mm a ZZZZ');

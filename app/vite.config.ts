@@ -9,6 +9,6 @@ export default defineConfig({
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
   server: { port: 5173 },
-  // supabase-js + React in the main chunk is ~550 kB; pages are already lazy-loaded.
+  // supabase-js and React are in the main chunk; pages are loaded when first opened.
   build: { chunkSizeWarningLimit: 900 },
 });

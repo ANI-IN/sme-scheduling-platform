@@ -1,3 +1,4 @@
+import { inThisWeek } from '@/lib/week';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +8,6 @@ import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
 import { LIVE_CHECK_MS, useCohorts, useInstructors, useWeeks } from '@/lib/data';
-import { PT } from '@/lib/time';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { WEEK_STATUS, weekState, weeksById } from '@/lib/status';
 import {
@@ -92,27 +92,21 @@ export default function Home() {
     doneToday: taskRows.filter((r) => r.status === 'Done').length,
   };
 
-  // This week in Pacific time, Sunday to Saturday.
-  const ptNow = now.setZone(PT);
-  const weekStart = ptNow.minus({ days: ptNow.weekday % 7 }).startOf('day');
-  const weekEnd = weekStart.plus({ days: 7 });
+  // This week by the one rule of every page: the class weeks of this Sunday in Pacific time (decision 349).
   const upcoming = (weeks.data ?? []).filter(
     (w) =>
       !['Completed', 'Cancelled'].includes(w.status) &&
       (w.last_class_end_at ?? '') > now.toUTC().toISO()!,
   );
   const thisWeek = (weeks.data ?? [])
+    .filter((w) => inThisWeek(w.week_start_date, now))
     .flatMap((w) => w.class_session.filter((c) => c.status !== 'Cancelled').map((c) => ({ w, c })))
-    .filter(({ c }) => {
-      const t = DateTime.fromISO(c.starts_at);
-      return t >= weekStart && t < weekEnd;
-    })
     .sort((a, b) => a.c.starts_at.localeCompare(b.c.starts_at));
   const looking = upcoming.filter(
     (w) =>
       !w.booking.some((b) => b.status === 'Active') &&
       w.first_class_at &&
-      DateTime.fromISO(w.first_class_at) < now.plus({ days: 31 }),
+      DateTime.fromISO(w.first_class_at) < now.plus({ days: 30 }),
   );
   const asking = upcoming.filter((w) =>
     w.request.some((r) => r.kind === 'Outreach' && OPEN.includes(r.status)),

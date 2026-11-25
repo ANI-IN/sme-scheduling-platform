@@ -293,7 +293,8 @@ function SchedulePage() {
           row.original.first ? (
             <input
               type="checkbox"
-              aria-label="Select this class week"
+              // Review R40: each checkbox says which class week it picks.
+              aria-label={`Select ${row.original.week.module?.name ?? 'class week'}, ${row.original.week.cohort ?? 'no cohort'}, week of ${DateTime.fromISO(row.original.week.week_start_date).toFormat('LLL d')}`}
               checked={selected.has(row.original.week.id)}
               onChange={(e) => {
                 const next = new Set(selected);

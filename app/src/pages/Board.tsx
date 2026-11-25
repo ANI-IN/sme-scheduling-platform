@@ -2,6 +2,7 @@
 // instructor, or as a list. Each cell shows its main status (colour, icon and word together), its instructor and its
 // exception badges; Needs a decision counts every problem and filters by it. A cell opens the class drawer, which
 // holds every action. All data and every check come from the database (schedule_board).
+import { weekStartPT } from '@/lib/week';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
@@ -181,7 +182,7 @@ function BoardPage() {
   const auth = useAuth();
   const [prefs, setPrefs] = usePrefs(`board:${auth.account?.member?.email ?? 'me'}`);
   // The board opens at this week, so no empty past weeks come first; Earlier shows the weeks before.
-  const [start, setStart] = useState(() => sunday(DateTime.now()));
+  const [start, setStart] = useState(() => weekStartPT());
   const [decision, setDecision] = useState<string | null>(null);
   const [openWeek, setOpenWeek] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -293,7 +294,7 @@ function BoardPage() {
     () => Array.from({ length: prefs.weeks }, (_, i) => start.plus({ weeks: i })),
     [start, prefs.weeks],
   );
-  const thisWeek = sunday(DateTime.now()).toISODate();
+  const thisWeek = weekStartPT().toISODate();
   // Only the class week opened, not every class week of the domain (decision 342).
   const openRow = useWeek(openWeek);
   const open = openRow.data ?? undefined;
@@ -384,7 +385,7 @@ function BoardPage() {
     );
     if (c.past)
       return (
-        <div className="rounded-md border border-border bg-muted/40 p-2 text-left text-sm opacity-80">
+        <div className="rounded-md border border-border bg-muted/40 p-2 text-left text-sm">
           {body}
         </div>
       );
@@ -536,7 +537,7 @@ function BoardPage() {
           >
             Earlier
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setStart(sunday(DateTime.now()))}>
+          <Button size="sm" variant="outline" onClick={() => setStart(weekStartPT())}>
             This week
           </Button>
           <Button

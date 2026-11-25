@@ -244,6 +244,13 @@ export default function Automation() {
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  // Review R10: a draft is never carried into another domain.
+  const [draftDomain, setDraftDomain] = useState(domain?.id);
+  if (draftDomain !== domain?.id) {
+    setDraftDomain(domain?.id);
+    setDraft({});
+    setReason('');
+  }
   const [err, setErr] = useState<unknown>(null);
   // Switches save as soon as they change (C15). Until the list loads again they show what was just saved.
   const [justSaved, setJustSaved] = useState<Record<string, unknown>>({});

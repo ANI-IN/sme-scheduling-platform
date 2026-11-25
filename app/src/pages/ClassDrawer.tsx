@@ -1,3 +1,4 @@
+import { resendCandidate } from '@/lib/resend';
 import { useState } from 'react';
 import { DateTime } from 'luxon';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,7 +29,7 @@ import { BreakAndHolidayNotices } from './setup/breakParts';
 import { ProposalGroup } from './proposalParts';
 import { SharedClassGroup } from './sharedParts';
 import { DrawerGroup } from '@/components/DrawerGroup';
-import {
+import { Notice,
   Badge,
   Button,
   Checkbox,
@@ -131,9 +132,13 @@ export function ClassDrawer({
       return { events: check(h), messages: check(m) };
     },
   });
-  const lastInstructorMsg = timeline.data?.messages.find(
-    (m) => m.audience === 'Instructor' && m.direction === 'Outbound',
-  );
+  // Review R11: only the newest message to whoever is booked or being asked now, and never a closing notice.
+  const current =
+    booking?.instructor_id ??
+    week.request.find((r) => r.kind === 'Outreach' && ['Queued', 'Sent', 'Reminded'].includes(r.status))
+      ?.instructor_id ??
+    null;
+  const lastInstructorMsg = resendCandidate(timeline.data?.messages ?? [], current);
 
   const [assignTo, setAssignTo] = useState('');
   // Search in a long list of instructors (owner, 24 November 2026).
@@ -252,7 +257,7 @@ export function ClassDrawer({
         >
           <BreakAndHolidayNotices weekId={week.id} />
           {classes.map((c) => (
-            <ClassEditor key={`${c.id}:${c.version}`} c={c} run={run} />
+            <ClassEditor key={c.id} c={c} run={run} />
           ))}
         </DrawerGroup>
 
@@ -353,7 +358,7 @@ export function ClassDrawer({
                   size="sm"
                   disabled={!assignTo}
                   loading={busy}
-                  onClick={() => void assignOrRecord('assign_manually')}
+                  onClick={() => assignOrRecord('assign_manually')}
                 >
                   Assign and confirm instructor
                 </Button>
@@ -361,7 +366,7 @@ export function ClassDrawer({
                   size="sm"
                   variant="secondary"
                   disabled={!assignTo}
-                  onClick={() => void assignOrRecord('record_offline_confirmation')}
+                  onClick={() => assignOrRecord('record_offline_confirmation')}
                 >
                   Record a phone or chat confirmation
                 </Button>
@@ -512,12 +517,18 @@ export function ClassDrawer({
                       ? `${messageTitle(lastInstructorMsg.template_id)} to ${lastInstructorMsg.recipient_label} by ${lastInstructorMsg.channel}`
                       : 'No message sent yet'
                   }
-                  onClick={() =>
-                    run(
-                      () => rpc('resend_message', { p_message_id: lastInstructorMsg!.id }),
-                      'Message sent again',
+                  onClick={async () => {
+                    const m = lastInstructorMsg!;
+                    if (
+                      !(await confirm({
+                        title: `Send "${messageTitle(m.template_id)}" to ${m.recipient_label} again?`,
+                        body: `By ${m.channel}, to the address or channel they have now.`,
+                        confirmLabel: 'Send again',
+                      }))
                     )
-                  }
+                      return;
+                    await run(() => rpc('resend_message', { p_message_id: m.id }), 'Message sent again');
+                  }}
                 >
                   Send last message again
                 </Button>
@@ -906,6 +917,21 @@ function ClassEditor({
     warnings: CheckWarning[];
   } | null>(null);
   const [d, setD] = useState({ title: c.title, notes: c.notes ?? '', problem: c.problem_flag });
+  // Review R23: someone else saving this class never wipes what is being typed. Untouched parts follow the new
+  // version; typed ones are kept, with a notice.
+  const storedT = { date: s.date, start: s.time, end: e.time, region };
+  const storedD = { title: c.title, notes: c.notes ?? '', problem: c.problem_flag };
+  const [base, setBase] = useState({ version: c.version, t: storedT, d: storedD });
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
+  if (c.version !== base.version) {
+    const typedT = JSON.stringify(t) !== JSON.stringify(base.t);
+    const typedD = JSON.stringify(d) !== JSON.stringify(base.d);
+    setBase({ version: c.version, t: storedT, d: storedD });
+    if (!typedT) setT(storedT);
+    if (!typedD) setD(storedD);
+    if ((typedT && JSON.stringify(t) !== JSON.stringify(storedT)) || (typedD && JSON.stringify(d) !== JSON.stringify(storedD)))
+      setChangedElsewhere(true);
+  }
   const timeChanged =
     t.date !== s.date || t.start !== s.time || t.end !== e.time || t.region !== region;
   async function changeTime(
@@ -940,6 +966,29 @@ function ClassEditor({
           void changeTime(args, why);
         }}
       />
+      {changedElsewhere && (
+        <div className="mb-2">
+          <Notice tone="warning">
+            <p>
+              Someone else saved this class while you were typing. Your changes are still here, and saving
+              puts them in place of theirs.
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              onClick={() => {
+                setT(storedT);
+                setD(storedD);
+                setFold(null);
+                setChangedElsewhere(false);
+              }}
+            >
+              Use their version
+            </Button>
+          </Notice>
+        </div>
+      )}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge>{c.class_type}</Badge>
         <RegionBadge region={c.region} />

@@ -1,3 +1,4 @@
+import { statusConfirm, type StatusEffects } from '@/lib/domainStatus';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -11,7 +12,7 @@ import {
   RotateCcw,
   XCircle,
 } from 'lucide-react';
-import { poke, rpc } from '@/lib/rpc';
+import { rpc } from '@/lib/rpc';
 import { useDomain } from '@/lib/domain';
 import { useSettingsMap, useWeeks, type Domain } from '@/lib/data';
 import { fmtLocal, fmtPT, PT } from '@/lib/time';
@@ -101,7 +102,6 @@ function TestingBody({ domain }: { domain: Domain }) {
     try {
       const r = await fn();
       if (r && typeof r === 'object' && !Array.isArray(r)) setResult(r as Record<string, unknown>);
-      void poke();
       if (ok) toast.success(ok);
       refreshAll(qc);
     } catch (e) {
@@ -163,12 +163,20 @@ function TestingBody({ domain }: { domain: Domain }) {
               the practice clock.
             </p>
             <Button
-              onClick={() =>
-                run(
+              onClick={async () => {
+                if (domain.status === 'Live') {
+                  const fx = (await rpc('domain_status_effects', {
+                    p_domain_id: domain.id,
+                    p_status: 'Test',
+                  })) as unknown as StatusEffects;
+                  const ask = statusConfirm(domain.name, 'Live', 'Test', fx);
+                  if (ask && !(await confirm(ask))) return;
+                }
+                await run(
                   () => rpc('set_domain_status', { p_domain_id: domain.id, p_status: 'Test' }),
                   'Testing is on',
-                )
-              }
+                );
+              }}
             >
               Turn on testing
             </Button>

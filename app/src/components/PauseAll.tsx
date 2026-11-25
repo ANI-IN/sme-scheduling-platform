@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { poke, rpc } from '@/lib/rpc';
+import { rpc } from '@/lib/rpc';
 import { useMe, useSystem } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
 import { useConfirm } from '@/components/Confirm';
@@ -30,7 +30,6 @@ export function usePauseAll() {
     setErr(null);
     try {
       await rpc('set_kill_switch', { p_outreach_enabled: !on });
-      void poke();
       toast.success(on ? 'All messages are paused' : 'Messages are on again');
       refreshAll(qc);
     } catch (e) {

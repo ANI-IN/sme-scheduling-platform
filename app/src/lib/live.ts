@@ -9,7 +9,7 @@
 import { useEffect } from 'react';
 import { useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
 import { supabase } from './supabase';
-import { poke } from './rpc';
+
 
 /** The tables in the supabase_realtime publication (migration 20261123000034_live_updates.sql). */
 export const LIVE_TABLES = [
@@ -132,13 +132,11 @@ export function refreshClasses(qc: QueryClient): void {
 }
 
 /**
- * Ask n8n to deliver queued messages now, without waiting for it. When it answers, the lists its work changes load
- * again (Realtime usually shows them sooner).
+ * After a change that queues messages (the database calls n8n by itself): load the lists it changes again, without
+ * waiting. Realtime shows what n8n does next.
  */
 export function deliverNow(qc: QueryClient): void {
-  void poke().then(() =>
-    refresh(qc, 'message', 'request', 'module_week', 'attention_item', 'history_event'),
-  );
+  void refresh(qc, 'message', 'request', 'module_week', 'attention_item', 'history_event');
 }
 
 /** Previews worked out before a confirmation: they stay as the person saw them. */

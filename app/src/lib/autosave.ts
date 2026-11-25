@@ -5,6 +5,7 @@
 // The form follows the stored data while it has no unsaved edits, so a change by the automation or a teammate shows
 // up by itself. A table with a row version (optimistic concurrency) passes it in: a save with unsaved edits made on
 // top of an older version is refused by the database, and the reason shows next to the form in plain words.
+import { toast } from 'sonner';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -74,6 +75,7 @@ export function useAutosave<T>({
   const busy = useRef(false);
   const again = useRef(false);
   const failed = useRef<string | null>(null);
+  const closing = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const run = useCallback(async (): Promise<void> => {
@@ -101,7 +103,10 @@ export function useAutosave<T>({
       setStatus({ state: 'saved', error: null });
     } catch (e) {
       failed.current = l.valueKey;
-      setStatus({ state: 'error', error: e instanceof Error ? e.message : String(e) });
+      const why = e instanceof Error ? e.message : String(e);
+      // Review R35: a save that fails as the form closes is said out loud, not lost silently.
+      if (closing.current) toast.error(`Your last change was not saved. ${why}`);
+      setStatus({ state: 'error', error: why });
     } finally {
       busy.current = false;
       // A change made while saving is saved right after.
@@ -131,13 +136,14 @@ export function useAutosave<T>({
   }, [valueKey, dirty, valid, enabled, delay, run]);
 
   // Closing the form does not lose an edit that was still waiting.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    closing.current = false;
+    return () => {
+      closing.current = true;
       const l = latest.current;
       if (l.enabled && l.valid && l.dirty && l.valueKey !== failed.current) void run();
-    },
-    [run],
-  );
+    };
+  }, [run]);
 
   return {
     status,

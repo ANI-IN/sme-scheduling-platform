@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckCircle2, CircleAlert, PlugZap } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { supabase } from '@/lib/supabase';
 import { useMe, useSystem, useTeam } from '@/lib/data';
 import { fmtLocal } from '@/lib/time';
@@ -84,7 +84,6 @@ function SendTest({ channel }: { channel: 'Discord' | 'Email' }) {
               ? 'Test sent to the admin alert channel. It arrives within a minute.'
               : 'Test email sent to your own address. It arrives within a minute.',
           );
-          void poke().then(() => refresh(qc, 'message'));
           refresh(qc, 'message');
         } catch (e) {
           toast.error(e instanceof Error ? e.message : String(e));

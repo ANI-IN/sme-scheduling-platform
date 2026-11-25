@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useConfirm } from '@/components/Confirm';
 import { DeleteButton } from '@/components/Lifecycle';
 import { supabase } from '@/lib/supabase';
-import { check, poke, rpc } from '@/lib/rpc';
+import { check, rpc } from '@/lib/rpc';
 import { refresh } from '@/lib/live';
 import { useAutosave } from '@/lib/autosave';
 import { SaveState } from '@/components/SaveState';
@@ -298,7 +298,6 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
               onClick={async () => {
                 try {
                   await rpc('send_test_alert', { p_team_member_id: member.id });
-                  void poke();
                   toast.success('Test alert sent');
                 } catch (e) {
                   setErr(e);
@@ -357,7 +356,6 @@ function MemberDrawer({ member, onClose }: { member: TeamMember | null; onClose:
               onClick={async () => {
                 try {
                   await rpc('check_discord', { p_kind: 'team', p_id: member.id });
-                  void poke();
                   toast.success(
                     'Checking Discord, usually a few seconds. The result shows here by itself.',
                   );

@@ -86,12 +86,3 @@ export async function fetchByIds<T>(
     groups.push(ids.slice(i, i + IDS_PER_REQUEST));
   return (await Promise.all(groups.map(async (g) => check(await part(g))))).flat();
 }
-
-/**
- * Kept so callers need no change, but it does nothing any more (decision 334). The database pokes n8n by itself within
- * a few seconds whenever a message is queued or a Discord check is asked for (decision 329), so the app no longer
- * calls n8n, and the poke key is no longer part of the app.
- */
-export function poke(): Promise<void> {
-  return Promise.resolve();
-}

@@ -1783,6 +1783,9 @@ isOneToOne: false
 "domain_status_problems":
 { Args: { "p_domain_id": string,"p_status": string }; Returns: Json
                            },
+"domain_status_effects":
+{ Args: { "p_domain_id": string,"p_status": string }; Returns: Json
+                           },
 "release_discord_account":
 { Args: { "p_instructor_id": string }; Returns: Json
                            },

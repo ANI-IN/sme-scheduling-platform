@@ -879,11 +879,11 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
             </div>
             <ErrorText error={err} />
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button disabled={order.length === 0} onClick={() => void submit('Manual')}>
+              <Button disabled={order.length === 0} onClick={() => submit('Manual')}>
                 Start asking
               </Button>
-              <Button variant="secondary" onClick={() => void submit('Sequential')}>
-                Use the instructor order instead
+              <Button variant="secondary" onClick={() => submit('Sequential')}>
+                Start asking in the instructor order
               </Button>
             </div>
           </div>
@@ -901,11 +901,21 @@ function ManualPanel({ week, onClose }: { week: WeekRow; onClose: () => void }) 
         <div className="flex justify-end gap-2">
           <Button
             variant="secondary"
-            onClick={() => (setDecision(null), void submit(decision!.mode, 'keep'))}
+            onClick={() => {
+              const mode = decision!.mode;
+              setDecision(null);
+              return submit(mode, 'keep');
+            }}
           >
             Keep waiting
           </Button>
-          <Button onClick={() => (setDecision(null), void submit(decision!.mode, 'withdraw'))}>
+          <Button
+            onClick={() => {
+              const mode = decision!.mode;
+              setDecision(null);
+              return submit(mode, 'withdraw');
+            }}
+          >
             Withdraw and start the new list
           </Button>
         </div>
