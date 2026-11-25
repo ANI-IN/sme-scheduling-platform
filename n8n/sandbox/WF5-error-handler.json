@@ -38,7 +38,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\n// The poke key is not here: it lives only in the \"Poke secret\" credential (decision 316).\nconst supabaseUrl = 'https://abcdefghijklmnopqrst.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst adminChannelId = 'YOUR-ADMIN-CHANNEL-ID';               // Discord admin channel, used when the database is unreachable\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  adminChannelId,\n} }];"
+        "jsCode": "// EDIT THESE VALUES (one place per workflow). No other node needs changing.\n// The poke key is not here: it lives only in the \"Poke secret\" credential (decision 316).\nconst supabaseUrl = 'https://abcdefghijklmnopqrst.supabase.co';      // Supabase project URL\nconst pokeUrl = 'https://your-instance.app.n8n.cloud/webhook/sandbox-sme-poke';          // WF4 \"Action runner\" production webhook URL\nconst adminChannelId = '1200000000000000013';               // Discord admin channel, used when the database is unreachable\n\nreturn [{ json: {\n  supabaseUrl: supabaseUrl.replace(/\\/+$/, ''),\n  pokeUrl,\n  adminChannelId,\n} }];"
       }
     },
     {

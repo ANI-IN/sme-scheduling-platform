@@ -114,12 +114,12 @@ Every workflow starts with a **Config** Code node. It is the only node you chang
 | Setting | Workflows | What it is |
 |---|---|---|
 | `supabaseUrl` | WF1 to WF6 | The Supabase project address |
-| `pokeUrl` | WF1 to WF5 | WF4's poke webhook (production URL) |
+| `pokeUrl` | WF1 to WF5 | WF4's poke webhook (production URL; no workflow calls it since 25 November 2026, the database does) |
+| `adminChannelId` | WF5 | The admin Discord channel, used when the database cannot be reached |
 
-The export fills in both, so nothing in a Config node needs setting by hand. The poke key is in no Config node: the
-**Poke WF4** nodes of WF2, WF3 and WF5 send it from the `Poke Secret Sandbox` credential (Header Auth, name
-`x-poke-key`), the same credential WF4's poke webhook checks (decision 316). Never write its value in a file, a doc or
-a chat.
+The export fills them in, so nothing in a Config node needs setting by hand. The poke key is in no Config node: the
+database sends it from Vault, and WF4's poke webhook checks it with the `Poke Secret Sandbox` credential (Header Auth,
+name `x-poke-key`, decision 316). Never write its value in a file, a doc or a chat.
 
 The export also fills in two values outside the Config node: the backup folder (WF3, **Upload to Google Drive** and
 **List backups**) and the Gmail label ID of "SME Scheduling/Processed" (WF4, **Label as processed**). The +scheduling

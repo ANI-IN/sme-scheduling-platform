@@ -24,6 +24,8 @@ const ENVS = [
     backupFolderId: 'your-drive-folder-id',
     // The Gmail label "SME Scheduling/Processed" in the Sandbox mailbox (WF1 labels the replies it read).
     processedLabelId: 'Label_1',
+    // #admin-alerts: where WF5 posts when the database cannot be reached (review finding R17).
+    adminChannelId: '1200000000000000013',
   },
 ] as const;
 
@@ -94,6 +96,7 @@ for (const env of ENVS) {
       if (typeof p.jsCode === 'string') {
         p.jsCode = p.jsCode
           .replace('https://YOUR-PROJECT.supabase.co', env.supabaseUrl)
+          .replace('YOUR-ADMIN-CHANNEL-ID', env.adminChannelId)
           .replace(
             'https://YOUR-N8N/webhook/sme-poke',
             `${env.n8nUrl}/webhook/${env.pathPrefix}sme-poke`,
