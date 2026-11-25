@@ -106,6 +106,9 @@ test('replacing an instructor: release from the class drawer, the next one is as
        join public.module m on m.id = mw.module_id join public.instructor i on i.id = b.instructor_id
       where b.status = 'Active' and mw.first_class_at > now() + interval '3 days'
         and exists (select 1 from public.module_ranking k where k.module_id = mw.module_id and k.instructor_id <> b.instructor_id)
+        -- Not the week with the help request: releasing it closes the request a later scenario answers. Which week
+        -- comes first depends on today's date.
+        and not exists (select 1 from public.help_request h where h.module_week_id = mw.id)
       order by mw.first_class_at limit 1`,
   );
   await page.goto('/classes');
