@@ -83,7 +83,7 @@ own channel and by email, signed with your name, and is kept in Activity history
 
 ### A domain
 
-1. **Setup, Domains**, **Add domain**. It starts as **Draft**: nothing is sent.
+1. **Setup, Domains**, **Create domain**. It starts as **Draft**: nothing is sent.
 2. In its panel: the **Discord server** (an admin approves it for the domain right there), the **Alert channel**,
    the team, cohorts and holidays.
 3. To try it: under **Testing**, choose a testing channel and a testing email, then set the status to **Testing**.
@@ -93,7 +93,7 @@ own channel and by email, signed with your name, and is kept in Activity history
 
 ### A Discord server and channels
 
-1. Invite the bot to the server (an admin; see the in app guide **Domains and Discord**).
+1. Invite the bot to the server (an admin; see the in app guide **Domains and the Discord server**).
 2. **Setup, Domains**, the domain, **Discord server**: choose it, and an admin presses **Approve for this domain**.
 3. New channels appear by themselves within a couple of minutes.
 
@@ -104,7 +104,7 @@ Pacific by default), owners, and the instructor order.
 
 ## Messages to instructors
 
-- They go as soon as they are ready, at any hour. An admin can turn on **Quiet hours for instructors** for a domain
+- They go as soon as they are ready, at any hour. The team can turn on **Quiet hours for instructors** for a domain
   on Settings, Automation, More options; then they wait for the instructor's morning.
 - Every time in a message is shown in US Pacific and India time.
 - Instructors answer with the buttons, the answer page, or by replying in their channel or by email.

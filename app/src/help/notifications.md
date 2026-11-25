@@ -59,7 +59,7 @@ You can switch any of them off, or set a number to 0. Turning reminders off neve
 
 Messages to instructors go as soon as they are ready, at any hour, wherever the instructor lives. The operations team decides who teaches, so the app does not hold messages for anyone's night.
 
-An admin can turn on **Quiet hours for instructors** for one domain, on [Automation](/settings/automation) under **More options**, **Quiet hours**. It is off for every domain until someone turns it on. When it is on:
+The team can turn on **Quiet hours for instructors** for one domain, on [Automation](/settings/automation) under **More options**, **Quiet hours**. It is off for every domain until someone turns it on. When it is on:
 
 - No message goes to an instructor from 9:00 PM to 8:00 AM by default, in the instructor's own time zone when it is set on their record, otherwise in the time zone of their class.
 - Very close to the class (the last 3 days by default), the quiet time is shorter: from 10:00 PM to 7:00 AM.

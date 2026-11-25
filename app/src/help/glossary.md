@@ -55,7 +55,7 @@ keywords: glossary, words, meaning, definition, terms, status
 - **Primary instructor:** the first instructor asked for a module.
 - **Program break:** the same break for every cohort of a domain, shown as one row.
 - **PST, PDT, IST:** US Pacific winter time, US Pacific summer time, and India time.
-- **Quiet hours:** night hours when a domain holds messages to instructors. Off unless an admin turns them on for the domain; then they follow the instructor's own time zone, or the class's.
+- **Quiet hours:** night hours when a domain holds messages to instructors. Off unless someone on the team turns them on for the domain; then they follow the instructor's own time zone, or the class's.
 - **Region:** US or India. It decides the time zone of a cohort's classes.
 - **Reminder before class:** a message to a confirmed instructor before the class.
 - **Setup check:** the check that a module has everything it needs before instructors are asked.

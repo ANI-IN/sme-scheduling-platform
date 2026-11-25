@@ -39,7 +39,7 @@ To move several class weeks of different cohorts, select them on the Schedule bo
 ## More options
 
 - **Pause requests** stops asking for this class week. **Resume requests** starts again.
-- **Send last message again** resends the last message to the instructor, for example after you fixed a channel.
+- **Send last message again** sends the last message to whoever is booked or being asked, after asking you to confirm, to the address and channel they have now, for example after you fixed a channel.
 - **Start asking now** asks before the usual day.
 - **Add a class to this week** adds a class taught by the same instructor.
 - **The same instructor teaches every class of this week**: turn it off to find a different instructor for each class. This works while nobody is confirmed or being asked.

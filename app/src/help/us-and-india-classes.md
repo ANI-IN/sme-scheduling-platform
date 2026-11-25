@@ -21,7 +21,7 @@ A **time zone** is the local clock time of a place. The app saves every class at
 - The **US** or **India** badge next to a class shows its region.
 - On [Upcoming classes](/classes), use the **Region** filter (1) to see only US or only India classes, and the **Status** filter (2) to see only classes with the statuses you tick. Each class shows its time in its own time zone (3). The Schedule board has the same **Region** filter.
 - On [Instructor requests](/requests), each class week shows its cohort, region and first class time, with **Module**, **Cohort** and **Region** filters.
-- Messages to instructors show every time twice: in the class's own time zone, then the other one in brackets, for example 9:00 AM to 1:00 PM PST (10:30 PM to 2:30 AM IST).
+- Messages to instructors show every time in both zones: the class's own first, then the other, for example Sun, Jan 31 · 9:00 AM PST / 10:30 PM IST (with the other date only when it differs). Each class line in a list puts the other zone in brackets.
 
 ## Choose the region of a cohort
 

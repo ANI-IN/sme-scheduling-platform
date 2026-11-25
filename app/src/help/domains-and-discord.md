@@ -71,7 +71,7 @@ Type part of a name to search, then tick one or more people: the list stays open
 
 The **Status** at the top of the panel decides what is sent:
 
-- **Draft:** being set up. Nothing is sent.
+- **Draft:** being set up. Nothing is sent. Moving a domain back to Draft also withdraws its open requests and cancels messages waiting to be sent; the app asks first and says how many.
 - **Testing:** messages go only to the testing channel and testing email.
 - **Live:** real instructors are asked and reminded.
 - **Paused:** no messages to instructors. Requests wait until it is turned back on.
