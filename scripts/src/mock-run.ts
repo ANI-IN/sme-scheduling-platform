@@ -374,8 +374,11 @@ async function main() {
   c = new pg.Client({ connectionString: url });
   await c.connect();
   try {
+    // A development copy: the made up instructors can be messaged, so each request reaches the person who answers it
+    // (a request that cannot be sent no longer moves on by itself, decision 348).
     await c.query(`update public.app_config set app_base_url = 'http://localhost:5173',
-                   response_base_url = 'http://localhost:5678/webhook/respond' where id = 1`);
+                   response_base_url = 'http://localhost:5678/webhook/respond', environment = 'Development',
+                   environment_set_at = now() where id = 1`);
     await timeline();
     if (RACE) await race();
   } finally {
