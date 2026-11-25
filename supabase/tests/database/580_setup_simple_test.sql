@@ -101,10 +101,10 @@ select is((select count(*)::int from public.message where template_id = 'M22' an
 select public.set_recipient_rules('{}', 'Test instructors and signed in colleagues');
 select tests.make_instructor('SS Real') as i3 \gset
 select is(public.send_welcome_message(:'i3', :'dom'),
-  'blocked: Not sent: during the beta, messages go only to test instructors, signed in colleagues and people on the beta list. Add SS Real''s email to the beta list on Settings, Admin, or mark them as a test instructor, then press Send again.',
+  'blocked: Not sent: during the beta, messages go only to test instructors, signed in colleagues and people on the beta list. Ask an admin to add SS Real''s email to the beta list on Settings, Admin, then press Send again.',
   '27. the beta rules apply to the welcome');
 select is((select note from public.history_event where action = 'Welcome message to SS Real blocked'),
-  'Not sent: during the beta, messages go only to test instructors, signed in colleagues and people on the beta list. Add SS Real''s email to the beta list on Settings, Admin, or mark them as a test instructor, then press Send again.',
+  'Not sent: during the beta, messages go only to test instructors, signed in colleagues and people on the beta list. Ask an admin to add SS Real''s email to the beta list on Settings, Admin, then press Send again.',
   '28. Activity history says it was blocked, and why');
 update public.instructor set is_test = true, version = version where id = :'i3';
 select is(public.send_welcome_message(:'i3', :'dom'), 'sent', '29. once the reason is gone it is sent');

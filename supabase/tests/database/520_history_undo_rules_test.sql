@@ -52,6 +52,9 @@ select is((select actor_kind from public.history_event where entity_id = :'extra
   '10. a team member creates a module');
 select ok(not public.undoable((select h from public.history_event h where entity_id = :'extra'::uuid and action = 'module added')),
   '11. creating a module is never offered for undo, even to the team member who did it');
+-- Decision 347: the team no longer deletes modules directly; the grant is put back here only so this test still
+-- checks what history says about a removal made by a team member.
+select tests.as_postgres(); grant delete on public.module to authenticated; select tests.login_member('hu.ops@example.com');
 delete from public.module where id = :'extra';
 select ok(not public.undoable((select h from public.history_event h where entity_id = :'extra'::uuid and action = 'module removed')),
   '12. nor is removing one');

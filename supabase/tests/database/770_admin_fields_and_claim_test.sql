@@ -17,6 +17,10 @@ on conflict ((lower(email))) do update set access_removed_at = now();
 select id as admin_id from public.team_member where email = 'af.admin@example.com' \gset
 select id as removed_id from public.team_member where email = 'af.removed@example.com' \gset
 
+-- Decision 347 takes away direct team member deletes altogether; the grant is put back here only so check 3 still
+-- tests the admin guard itself.
+grant delete on public.team_member to authenticated;
+
 -- =============================================================== R1, as a team member who is not an admin
 select tests.login_member(:'ops_email');
 select throws_ok(format($$ update public.team_member set is_admin = true where id = %L $$, :'ops'),
