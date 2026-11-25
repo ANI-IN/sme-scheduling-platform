@@ -8,7 +8,7 @@ describe('what Contact instructor says (review finding R37)', () => {
         { channel: 'Discord', status: 'Pending', blocked: false, last_error: null },
         { channel: 'Email', status: 'Pending', blocked: false, last_error: null },
       ]),
-    ).toEqual({ ok: true, text: 'Message to Maya is on its way by Discord and email.' });
+    ).toEqual({ ok: true, text: 'Message sent to Maya by Discord and email.' });
   });
   it('says when one copy was blocked, and why', () => {
     const r = contactResult('Maya', [
@@ -22,7 +22,7 @@ describe('what Contact instructor says (review finding R37)', () => {
     ]);
     expect(r.ok).toBe(false);
     expect(r.text).toBe(
-      'Message to Maya is on its way by Discord. The email copy was not sent. Not sent: during the beta.',
+      'Message sent to Maya by Discord. The email copy was not sent. Not sent: during the beta.',
     );
   });
   it('says when nothing could be sent', () => {

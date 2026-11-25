@@ -16,10 +16,13 @@ export function contactResult(name: string, copies: ContactCopy[]): { ok: boolea
       text: `Nothing was sent to ${name}: there is no Discord channel or email to send to.`,
     };
   const stopped = copies.filter((c) => c.status === 'Cancelled' || c.blocked);
-  const going = copies.filter((c) => !stopped.includes(c));
+  // Discord first, as the page says it.
+  const going = copies
+    .filter((c) => !stopped.includes(c))
+    .sort((a, b) => a.channel.localeCompare(b.channel));
   const parts = [
     going.length
-      ? `Message to ${name} is on its way by ${list(going.map((c) => word(c.channel)))}.`
+      ? `Message sent to ${name} by ${list(going.map((c) => word(c.channel)))}.`
       : `Nothing was sent to ${name}.`,
     ...stopped.map((c) => `The ${word(c.channel)} copy was not sent. ${c.last_error ?? ''}`.trim()),
   ];

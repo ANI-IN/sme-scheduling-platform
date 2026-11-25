@@ -141,9 +141,7 @@ test('R37: Contact instructor says what was really queued', async ({ page }) => 
   await ready(page);
   await dlg.getByLabel('Message to Test Instructor A').fill('E2E hello');
   await dlg.getByRole('button', { name: 'Send message' }).click();
-  await expect(
-    page.getByText(/(Message to Test Instructor A is on its way|was not sent)/),
-  ).toBeVisible();
+  await expect(page.getByText(/(Message sent to Test Instructor A by|was not sent)/)).toBeVisible();
 });
 
 test('R40: every class week checkbox says which week it picks', async ({ page }) => {
