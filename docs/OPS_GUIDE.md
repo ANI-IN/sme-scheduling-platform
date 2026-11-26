@@ -91,6 +91,10 @@ own channel and by email, signed with your name, and is kept in Activity history
 4. To go live: the panel says exactly what is still missing, with **Show me** or **Fix this** next to each item. When
    nothing is missing, choose **Live**.
 
+### Removing the server from a domain
+
+**Settings, Connections**, **Server of each domain**, **Remove server** (admins; not on a Live domain). Archived domains are cleared in one go with **Remove the server from all archived domains**, which lists them first.
+
 ### A Discord server and channels
 
 1. Invite the bot to the server (an admin; see the in app guide **Domains and the Discord server**).

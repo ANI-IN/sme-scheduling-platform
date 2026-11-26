@@ -33,6 +33,14 @@ A server's status is **No server chosen**, **Not checked yet**, **Checking**, **
 
 If no server is listed, the panel says so. Add the bot to your Discord server with **Open the invite link**, then an admin approves the server.
 
+## Remove the server from a domain (admins)
+
+1. Open [Connections](/settings/connections). Under **Discord servers**, find **Server of each domain**.
+2. Press **Remove server** next to the domain, then confirm. A **Live** domain keeps its server: set it to Draft or Paused first.
+3. The domain sends no Discord messages until a server is chosen again. Email still goes out. The change is saved in Activity history.
+
+Archived domains are hidden from that table and from the **For** list of each server. Turn on **Show archived** to see them. They never count as using a server. **Remove the server from all archived domains** lists them first, then removes their server and its approval in one go.
+
 ## Approve a waiting server (admins)
 
 When the bot joins a new server, the server waits for an admin. Until it is approved, the bot does nothing there.

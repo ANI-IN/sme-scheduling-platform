@@ -623,3 +623,26 @@ describe('Undo only where it is safe (item 11)', () => {
     expect(offersUndo({ ...edit, action: 'Undo: holiday changed', undo_of: 3 })).toBe(false);
   });
 });
+
+describe('Removing the Discord server of a domain', () => {
+  const removed: HistoryLike = {
+    ...base,
+    category: 'Discord',
+    action: 'Discord server removed from domain',
+    entity_table: 'domain',
+    entity_label: 'QA checks',
+    before: { server: 'Main server', chosen: true, approval_removed: true },
+    after: { server: null },
+  };
+
+  it('says who removed which server from which domain, with no raw fields', () => {
+    expect(describeHistory(removed, book)).toEqual({
+      sentence: 'Sienna removed the Discord server Main server from QA checks',
+      changes: [],
+    });
+  });
+
+  it('is not offered for undo', () => {
+    expect(offersUndo(removed)).toBe(false);
+  });
+});

@@ -490,6 +490,13 @@ export function describeHistory(e: HistoryLike, book: NameBook): Described {
   if (e.action === 'Ranking saved') return rankingChange(e, actor, book);
   const standard = standardEvent(e, actor, book);
   if (standard) return standard;
+  if (e.action === 'Discord server removed from domain') {
+    const server = (e.before as { server?: string } | null)?.server ?? '';
+    return {
+      sentence: `${actor} removed the Discord server ${server} from ${e.entity_label ?? book.name(e.domain_id) ?? 'a domain'}`,
+      changes: [],
+    };
+  }
   if (e.category === 'Setup changes' && e.entity_table) {
     const undo = e.action.startsWith('Undo: ');
     const verb = e.action.replace(/^Undo: /, '');

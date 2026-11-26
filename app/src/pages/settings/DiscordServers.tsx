@@ -7,6 +7,7 @@ import { check, fetchAll, rpc } from '@/lib/rpc';
 import { useDomains, useMe, useSystem } from '@/lib/data';
 import { ago } from '@/lib/time';
 import { botInviteUrl } from '@/lib/discord';
+import { archivedToClear, domainsUsing, shownDomains } from '@/lib/domainServers';
 import { ChannelPicker, ServerStatus } from '@/components/Discord';
 import { refresh } from '@/lib/live';
 import { useRun } from '@/pages/ClassDrawer';
@@ -23,6 +24,7 @@ import {
   Notice,
   Section,
   Select,
+  Switch,
   tableWrap,
   td,
   th,
@@ -100,6 +102,15 @@ export function DiscordServers() {
   const invite = botInviteUrl();
   const servers = useServerList();
   const counts = useChannelCounts();
+  const confirm = useConfirm();
+  // Archived domains stay out of both lists until asked for (decision 350).
+  const [showArchived, setShowArchived] = useState(false);
+  const hasArchived = (domains.data ?? []).some((d) => d.archived_at);
+  const toClear = archivedToClear(
+    domains.data ?? [],
+    serverDomains.data ?? new Map(),
+    servers.data ?? [],
+  );
   const checking = (domains.data ?? []).some((d) => d.discord_status === 'Checking');
   // While a check is running, look again every few seconds.
   useQuery({
@@ -117,6 +128,52 @@ export function DiscordServers() {
     .map((s) => s.refreshed_at)
     .sort()
     .pop();
+
+  const removeServer = async (d: { id: string; name: string; status: string }) => {
+    if (d.status === 'Live') {
+      toast.error('Set the domain to Draft or Paused first.');
+      return;
+    }
+    const ok = await confirm({
+      title: `Remove the Discord server from ${d.name}?`,
+      body: "This domain can't send Discord messages until a server is chosen again.",
+      danger: true,
+      confirmLabel: 'Remove server',
+    });
+    if (!ok) return;
+    await run(
+      () => rpc('remove_domain_server', { p_domain_id: d.id }),
+      `Server removed from ${d.name}`,
+    );
+  };
+
+  const clearArchived = async () => {
+    const list = toClear;
+    const count = `${list.length} archived domain${list.length === 1 ? '' : 's'}`;
+    const ok = await confirm({
+      title: `Remove the server from ${count}?`,
+      body: (
+        <>
+          <p>Each of these loses its server and the approval for it:</p>
+          <ul className="my-2 list-disc pl-5" aria-label="Archived domains to clear">
+            {list.map((d) => (
+              <li key={d.id}>
+                {d.name}: {d.servers}
+              </li>
+            ))}
+          </ul>
+          <p>Domains in use are not changed. Nothing is sent.</p>
+        </>
+      ),
+      danger: true,
+      confirmLabel: `Remove from ${count}`,
+    });
+    if (!ok) return;
+    await run(
+      () => rpc('remove_archived_domain_servers', { p_domain_ids: list.map((d) => d.id) }),
+      `Server removed from ${count}`,
+    );
+  };
 
   return (
     <Section
@@ -183,9 +240,21 @@ export function DiscordServers() {
         </span>
       </div>
 
-      <ServerList />
+      <ServerList showArchivedDomains={showArchived} />
 
-      <h3 className="mb-2 text-sm font-semibold">Server of each domain</h3>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">Server of each domain</h3>
+        <div className="flex flex-wrap items-center gap-4">
+          {hasArchived && (
+            <Switch label="Show archived" checked={showArchived} onChange={setShowArchived} />
+          )}
+          {isAdmin && toClear.length > 0 && (
+            <Button size="sm" variant="outline" onClick={clearArchived}>
+              Remove the server from all archived domains
+            </Button>
+          )}
+        </div>
+      </div>
       <div className={tableWrap}>
         <table className="w-full">
           <thead className={thead}>
@@ -199,9 +268,16 @@ export function DiscordServers() {
             </tr>
           </thead>
           <tbody>
-            {(domains.data ?? []).map((d) => (
+            {shownDomains(domains.data ?? [], showArchived).map((d) => (
               <tr key={d.id} className={trow}>
-                <td className={`${td} font-medium`}>{d.name}</td>
+                <td className={`${td} font-medium`}>
+                  {d.name}
+                  {d.archived_at && (
+                    <div>
+                      <Badge tone="neutral">Archived</Badge>
+                    </div>
+                  )}
+                </td>
                 <td className={td}>
                   <Select
                     aria-label={`Discord server for ${d.name}`}
@@ -218,7 +294,10 @@ export function DiscordServers() {
                       )
                     }
                   >
-                    <option value="">Choose a server</option>
+                    {/* Taking a server away has its own button, which asks first. */}
+                    <option value="" disabled={!!d.discord_server_id}>
+                      Choose a server
+                    </option>
                     {d.discord_server_id &&
                       !(servers.data ?? []).some((s) => s.id === d.discord_server_id) && (
                         <option value={d.discord_server_id}>Server not listed yet</option>
@@ -255,21 +334,28 @@ export function DiscordServers() {
                   <ServerStatus status={d.discord_status} problem={d.discord_problem} />
                 </td>
                 <td className={`${td} text-right`}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!d.discord_server_id}
-                    onClick={() =>
-                      run(async () => {
-                        await rpc('check_discord', { p_kind: 'server', p_id: d.id });
-                        toast.info(
-                          'Checking the server and its channels. This takes up to a minute.',
-                        );
-                      })
-                    }
-                  >
-                    Check
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!d.discord_server_id}
+                      onClick={() =>
+                        run(async () => {
+                          await rpc('check_discord', { p_kind: 'server', p_id: d.id });
+                          toast.info(
+                            'Checking the server and its channels. This takes up to a minute.',
+                          );
+                        })
+                      }
+                    >
+                      Check
+                    </Button>
+                    {isAdmin && d.discord_server_id && (
+                      <Button size="sm" variant="outline" onClick={() => removeServer(d)}>
+                        Remove server<span className="sr-only">: {d.name}</span>
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -314,7 +400,7 @@ export function DiscordServers() {
  * Every server the bot is in, with its own status (decisions 261, 262). The automation checks servers a few
  * at a time and keeps the result for a day, so a bot in 15 or more servers never hits Discord's limits.
  */
-function ServerList() {
+function ServerList({ showArchivedDomains }: { showArchivedDomains: boolean }) {
   const domains = useDomains();
   const { run, err } = useServerRun();
   const isAdmin = !!useMe()?.is_admin;
@@ -337,8 +423,7 @@ function ServerList() {
       (!t || s.name.toLowerCase().includes(t) || s.id.includes(t)),
   );
   const usedBy = (id: string) =>
-    (domains.data ?? [])
-      .filter((d) => d.discord_server_id === id)
+    domainsUsing(domains.data ?? [], id)
       .map((d) => d.name)
       .join(', ');
   const checking = all.filter((s) => s.status === 'Checking').length;
@@ -399,7 +484,7 @@ function ServerList() {
                     {s.access === 'Approved' && (
                       <div className="mt-1 text-xs text-muted-foreground">
                         For{' '}
-                        {(domains.data ?? [])
+                        {shownDomains(domains.data ?? [], showArchivedDomains)
                           .filter((d) => serverDomains.data?.get(s.id)?.has(d.id))
                           .map((d) => d.name)
                           .join(', ') || 'no domain yet'}

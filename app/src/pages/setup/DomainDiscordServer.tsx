@@ -64,7 +64,10 @@ export function DomainDiscordServer({ domain }: { domain: Domain }) {
               }, 'Server saved. Checking it now.')
             }
           >
-            <option value="">Choose a server</option>
+            {/* Taking a server away is on Settings, Connections, for admins. */}
+            <option value="" disabled={!!domain.discord_server_id}>
+              Choose a server
+            </option>
             {domain.discord_server_id &&
               !approvedHere.some((s) => s.id === domain.discord_server_id) && (
                 <option value={domain.discord_server_id}>

@@ -533,14 +533,14 @@ isOneToOne: false
                   ]
                 },"domain": {
                   Row: {
-                    "alert_discord_channel_id": string | null,"archived_at": string | null,"created_at": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_server_id": string | null,"discord_status": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
+                    "alert_discord_channel_id": string | null,"archived_at": string | null,"created_at": string,"discord_checked_at": string | null,"discord_problem": string | null,"discord_removed_at": string | null,"discord_server_id": string | null,"discord_status": string,"id": string,"name": string,"paused_from": string | null,"status": string,"test_clock_at": string | null,"test_discord_channel_id": string | null,"test_email": string | null,"updated_at": string,"updated_by": string | null,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "alert_discord_channel_id"?: string | null,"archived_at"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "alert_discord_channel_id"?: string | null,"archived_at"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_removed_at"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name": string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Update: {
-                    "alert_discord_channel_id"?: string | null,"archived_at"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
+                    "alert_discord_channel_id"?: string | null,"archived_at"?: string | null,"created_at"?: string,"discord_checked_at"?: string | null,"discord_problem"?: string | null,"discord_removed_at"?: string | null,"discord_server_id"?: string | null,"discord_status"?: string,"id"?: string,"name"?: string,"paused_from"?: string | null,"status"?: string,"test_clock_at"?: string | null,"test_discord_channel_id"?: string | null,"test_email"?: string | null,"updated_at"?: string,"updated_by"?: string | null,"version"?: number
                   }
                   Relationships: [
                     
@@ -1815,6 +1815,12 @@ isOneToOne: false
                            },
 "set_discord_server_access":
 { Args: { "p_access": string,"p_domain_ids"?: (string)[],"p_server_id": string }; Returns: Json
+                           },
+"remove_archived_domain_servers":
+{ Args: { "p_domain_ids": (string)[] }; Returns: Json
+                           },
+"remove_domain_server":
+{ Args: { "p_domain_id": string }; Returns: undefined
                            },
 "set_domain_discord_server":
 { Args: { "p_domain_id": string,"p_server_id": string }; Returns: undefined
