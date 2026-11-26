@@ -16,6 +16,7 @@
     "backup": "tsx --env-file=../.env.production src/backup.ts",
     "clock": "tsx --env-file=../.env.production src/clock.ts",
     "admins": "tsx --env-file=../.env.production src/admins.ts",
+    "admins:local": "tsx src/admins.ts",
     "db:test:scratch": "tsx src/db-test-scratch.ts",
     "discord": "tsx src/discord-lookups.ts",
     "discord:production": "tsx --env-file=../.env.production src/discord-lookups.ts",

@@ -1,6 +1,7 @@
-// Admins on the live database (Release 3, M2, decision 276): the setup command that makes the first admin.
+// The setup command that makes the first admin.
 //
-//   npm run admins -w scripts -- list
+//   npm run admins:local -w scripts -- add <email>      the local database
+//   npm run admins -w scripts -- list                   the database in .env.production
 //   npm run admins -w scripts -- add <email>       make a signed in team member an admin
 //   npm run admins -w scripts -- remove <email>    remove admin rights (never the last admin)
 //
@@ -9,7 +10,7 @@
 // change is logged in Activity history as "Setup command". Never prints a connection string.
 import pg from 'pg';
 
-const url = process.env.DATABASE_URL ?? '';
+const url = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
 const [cmd = 'list', email] = process.argv.slice(2);
 if (!['list', 'add', 'remove'].includes(cmd) || (cmd !== 'list' && !email)) {
   console.error('Use: list, add <email> or remove <email>.');

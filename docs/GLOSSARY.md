@@ -90,10 +90,3 @@ The messages the system sends are named by what they do, not by their code:
 request to teach, reminder about the request, confirmation, class time change, reminder before
 class, final reminder before class, cancellation note, help request receipt, reply, contact
 check. The full list is `messageName` in `app/src/lib/plain.ts`.
-
-## Proposed (not done)
-
-Checked on 22 November 2026: the message templates (`private.template_defaults`) contain no dashes. The answer
-pages still have four sentences with a dash ("Already recorded — thank you!" twice, "we'll let the team know —
-they'll be in touch", "Great — thanks!"). Rewording them changes text the database sends, so it stays under
-"Proposed logic changes" in docs/DECISIONS.md (P1).

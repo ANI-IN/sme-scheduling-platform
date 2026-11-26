@@ -2,7 +2,7 @@
 
 For the people who plan classes every day. Plain steps, the words you see on screen, and what to do when something
 needs you. The same guides are in the app: press **Help** in the sidebar, or the **?** next to any page title.
-Pictures of every page are in `docs/screenshots/final/` (see its index).
+The in app guides have pictures of every page.
 
 ## Your daily routine
 
@@ -128,4 +128,4 @@ still go ahead, but you write why. Your reason is saved in **Activity history**,
 
 - Something looks wrong in the app: the admins on the beta list (Settings, Admin shows them).
 - Messages going to the wrong people: an admin, at once (see In an emergency).
-- Technical problems (n8n, Supabase, Vercel): see docs/RUNBOOK.md.
+- Technical problems: see [Troubleshooting](TROUBLESHOOTING.md).
