@@ -28,6 +28,8 @@ test.afterEach(async () => {
 });
 test.afterAll(() => loadDemoData());
 
+/** The hidden ": domain" part of the button name is read with or without a space before the colon. */
+const removeName = (domain: string) => new RegExp(`^Remove server ?: ${domain}$`);
 const serverRow = (page: Page) =>
   page
     .locator('table')
@@ -58,7 +60,9 @@ test('an admin removes the server of a domain, asked first; a Live domain keeps 
   page,
 }) => {
   await open(page);
-  await domainRow(page, 'SR Live').getByRole('button', { name: 'Remove server: SR Live' }).click();
+  await domainRow(page, 'SR Live')
+    .getByRole('button', { name: removeName('SR Live') })
+    .click();
   await expect(page.getByText('Set the domain to Draft or Paused first.')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await serverOf('SR Live')).toBe(SERVER);
@@ -67,7 +71,7 @@ test('an admin removes the server of a domain, asked first; a Live domain keeps 
   const select = domainRow(page, 'SR Draft').getByRole('combobox');
   await expect(select.getByRole('option', { name: 'Choose a server' })).toBeDisabled();
   const remove = domainRow(page, 'SR Draft').getByRole('button', {
-    name: 'Remove server: SR Draft',
+    name: removeName('SR Draft'),
   });
   await remove.click();
   const dlg = page.getByRole('dialog', { name: 'Remove the Discord server from SR Draft?' });
@@ -86,6 +90,11 @@ test('an admin removes the server of a domain, asked first; a Live domain keeps 
 
   await page.goto('/activity');
   await ready(page);
+  // The history opens on the domain chosen in the menu.
+  await page
+    .getByRole('combobox')
+    .filter({ has: page.getByRole('option', { name: 'All domains' }) })
+    .selectOption('all');
   await expect(
     page.getByText(/removed the Discord server Program server 1 from SR Draft/).first(),
   ).toBeVisible();
