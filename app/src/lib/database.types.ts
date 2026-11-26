@@ -1577,7 +1577,7 @@ isOneToOne: false
 { Args: { "p_cohort"?: string,"p_domain_id": string,"p_region"?: string,"p_start_module_id": string,"p_week_starts": (string)[] }; Returns: Json
                            },
 "get_started":
-{ Args: Record<PropertyKey, never>; Returns: Json
+{ Args: { "p_domain_id"?: string }; Returns: Json
                            },
 "help_ack":
 { Args: { "p_help_id": string }; Returns: undefined

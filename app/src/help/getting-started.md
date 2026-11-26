@@ -30,6 +30,8 @@ The app finds your Discord account by itself. If you press **Later**, add it any
 
 The app starts empty. Until the first setup is done, [Home](/) shows **Get started** with seven steps in order. Each step opens the page where you do it, and a finished step is crossed out.
 
+Once you have a domain, the steps for its Discord server, modules, cohort and classes are about the domain chosen at the top of the menu, so a new domain shows the list again. Archived domains never tick a step, and neither do people who are archived or no longer have access.
+
 1. **Add a domain:** a program area such as Backend. See [Domains and the Discord server](/help/domains-and-discord).
 2. **Choose its Discord server:** in the domain's panel on Domains.
 3. **Add team members:** on Team, or ask your colleagues to sign in once.

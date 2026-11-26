@@ -103,3 +103,65 @@ test('a cohort and a team member tick their steps too', async ({ page }) => {
   await ready(page);
   await expect(page.locator('ol').first().getByLabel('Done', { exact: true })).toHaveCount(3);
 });
+
+test('Get started follows the chosen domain; deleted and archived domains tick nothing', async ({
+  page,
+}) => {
+  loadDemoData();
+  await sql(
+    `update public.domain set discord_server_id = (select id from public.discord_server order by id limit 1)
+      where name = 'Backend'`,
+  );
+  await sql(`insert into public.domain (name, status) values ('E2E New', 'Draft')`);
+  const heading = page.getByRole('heading', { name: 'Get started' });
+  const done = page.locator('ol').first().getByLabel('Done', { exact: true });
+  const choose = async (name: string) => {
+    await page.getByRole('button', { name: /^Choose a domain/ }).click();
+    await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click();
+  };
+
+  // Backend has everything, so it shows no list; the new domain starts with its own steps unticked.
+  await page.goto('/');
+  await ready(page);
+  await choose('Backend');
+  await ready(page);
+  await expect(heading).toHaveCount(0);
+  await choose('E2E New');
+  await expect(heading).toBeVisible();
+  await expect(done).toHaveCount(3);
+  for (const label of [
+    'Choose its Discord server',
+    'Add modules',
+    'Create a cohort',
+    'Plan classes',
+  ])
+    await expect(page.getByRole('link', { name: label })).toBeVisible();
+
+  // Delete Backend in the app, archive every other domain: only the steps really done stay ticked.
+  await sql(`update public.domain set archived_at = now() where name <> 'Backend'`);
+  await page.goto('/setup/domains');
+  await ready(page);
+  await page.getByRole('button', { name: 'Backend', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Backend' })
+    .getByRole('button', { name: 'Delete permanently' })
+    // Each cohort in the panel has one too; the domain's is at the end.
+    .last()
+    .click();
+  const confirm = page.getByRole('dialog', { name: 'Delete this domain permanently?' });
+  await confirm.getByLabel('Type Backend to confirm').fill('Backend');
+  await confirm.getByRole('button', { name: 'Delete permanently' }).click();
+  await expect(confirm).toHaveCount(0);
+  await page.goto('/');
+  await ready(page);
+  await expect(heading).toBeVisible();
+  await expect(done).toHaveCount(2);
+  for (const label of [
+    'Add a domain',
+    'Choose its Discord server',
+    'Add modules',
+    'Create a cohort',
+    'Plan classes',
+  ])
+    await expect(page.getByRole('link', { name: label })).toBeVisible();
+});

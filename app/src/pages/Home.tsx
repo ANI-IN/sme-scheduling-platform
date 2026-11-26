@@ -7,7 +7,7 @@ import { CalendarDays, CheckCircle2, Circle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { check, rpc } from '@/lib/rpc';
 import { useDomain, useDomainNow } from '@/lib/domain';
-import { LIVE_CHECK_MS, useCohorts, useInstructors, useWeeks } from '@/lib/data';
+import { LIVE_CHECK_MS, useCohorts, useDomains, useInstructors, useWeeks } from '@/lib/data';
 import { ClassTime, RegionBadge } from '@/components/ClassTime';
 import { WEEK_STATUS, weekState, weeksById } from '@/lib/status';
 import {
@@ -50,10 +50,14 @@ export default function Home() {
       (await rpc('domain_setup_status', { p_domain_id: domain!.id })) as unknown as Step[],
   });
   const missing = (setup.data ?? []).filter((x) => !x.done);
-  // The app starts empty (decision 251): the first steps for the whole app, until every one is done.
+  // The app starts empty (decision 251): the first steps, until every one is done. Once there is a domain, its
+  // steps are about the one chosen in the menu (decision 351).
+  const domainList = useDomains();
   const started = useQuery({
-    queryKey: ['get-started'],
-    queryFn: async () => (await rpc('get_started', {})) as unknown as Step[],
+    queryKey: ['get-started', domain?.id ?? null],
+    enabled: domainList.isSuccess,
+    queryFn: async () =>
+      (await rpc('get_started', domain ? { p_domain_id: domain.id } : {})) as unknown as Step[],
   });
   const firstSteps = started.data ?? [];
   const gettingStarted = firstSteps.some((x) => !x.done);
@@ -143,7 +147,11 @@ export default function Home() {
       {gettingStarted && (
         <Section
           title="Get started"
-          description="The app starts empty. Add these in order; each step opens the page where you do it."
+          description={
+            domain
+              ? `Add these in order. The domain steps are about ${domain.name}; each step opens the page where you do it.`
+              : 'The app starts empty. Add these in order; each step opens the page where you do it.'
+          }
         >
           <StepList steps={firstSteps} />
         </Section>
