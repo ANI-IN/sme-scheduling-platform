@@ -180,7 +180,10 @@ test('R34: pressing Assign twice quickly assigns once', async ({ page }) => {
     if (r.url().includes('/rpc/assign_manually')) calls += 1;
   });
   const dlg = await openWeekFromClasses(page, w.module, w.week);
-  await dlg.getByLabel('Instructor').selectOption(w.instr);
+  await dlg
+    .locator('select')
+    .filter({ has: page.locator('option', { hasText: 'Choose an instructor' }) })
+    .selectOption(w.instr);
   await dlg.getByRole('button', { name: 'Assign and confirm instructor' }).dblclick();
   await expect.poll(() => calls).toBeGreaterThan(0);
   await page.waitForTimeout(1500);
