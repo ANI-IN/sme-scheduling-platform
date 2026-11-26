@@ -1,12 +1,10 @@
-# Files the Vercel command line never uploads (the demo deploy, docs/DEMO_SCRIPT.md).
+# Files the Vercel command line never uploads (docs/DEPLOYMENT.md).
 # Secrets stay on this computer: every .env file except the examples.
 .env
 .env.*
 !.env.example
-!.env.sandbox.example
 app/.env
 app/.env.*
-!app/.env.sandbox.example
 .npmrc
 node_modules
 .test-stack

@@ -1,8 +1,7 @@
 // Writes the environment settings that live in the database, from environment variables.
-// Run once per environment after the migrations (Sandbox and Production each have their own).
+// Run once after the migrations. "Sandbox" is a retired environment name the database still accepts.
 //
 //   npm run configure:production -w scripts   (reads .env.production)
-//   npm run configure:sandbox -w scripts      (also reads .env.production; only to undo the switch of M5)
 //
 // The environment comes from `--env Sandbox|Production|Development` (what the two commands above pass),
 // or else from APP_ENVIRONMENT. Nothing is set on the command line itself, so it works in every shell.

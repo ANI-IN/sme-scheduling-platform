@@ -11,7 +11,6 @@
     "screenshots": "tsx src/screenshots.ts",
     "scan-text": "tsx src/scan-text.ts",
     "demo": "tsx src/demo-data.ts",
-    "review-data": "tsx src/review-data.ts",
     "check-migrations": "tsx src/check-migrations.ts",
     "check-rollbacks": "tsx src/check-rollbacks.ts",
     "backup": "tsx --env-file=../.env.production src/backup.ts",
@@ -23,11 +22,10 @@
     "check-build": "tsx src/check-build.ts",
     "configure": "tsx src/configure.ts",
     "test-list": "tsx src/test-list.ts",
-    "configure:sandbox": "tsx --env-file=../.env.production src/configure.ts --env Sandbox",
     "configure:production": "tsx --env-file=../.env.production src/configure.ts --env Production",
     "help-shots": "tsx src/help-screenshots.ts",
     "n8n-export": "tsx src/n8n-export.ts",
-    "integration:rehearse": "tsx src/test-stack.ts up && tsx src/demo-data.ts load && (tsx src/integration-sandbox.ts --rehearse; s=$?; tsx src/test-stack.ts down; exit $s)",
+    "integration:rehearse": "tsx src/test-stack.ts up && tsx src/demo-data.ts load && (tsx src/integration-rehearsal.ts; s=$?; tsx src/test-stack.ts down; exit $s)",
     "test-stack": "tsx src/test-stack.ts"
   },
   "dependencies": {

@@ -284,11 +284,3 @@ export function useNameBook() {
     settingLabel: (key: string) => labels.get(key),
   };
 }
-
-/** Name lookup helpers */
-export function nameMap<T extends { id: string }>(
-  rows: T[] | undefined,
-  key: keyof T,
-): Map<string, string> {
-  return new Map((rows ?? []).map((r) => [r.id, String(r[key])]));
-}

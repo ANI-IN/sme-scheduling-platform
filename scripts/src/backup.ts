@@ -7,7 +7,7 @@
 //
 // 1. Refuses anything but the live project abcdefghijklmnopqrst.
 // 2. Dumps the whole database (every schema, structure and data) with pg_dump 17 from the local Supabase container
-//    to C:\Users\you\Backups\sme-scheduling\ (or BACKUP_DIR), outside the repository, with the date in its name.
+//    to Backups/sme-scheduling in your home folder (or BACKUP_DIR), outside the repository, with the date in its name.
 // 3. Restores the file into a throwaway database on the local Postgres and compares the row count of every table
 //    with the live database, prints the comparison and saves it next to the backup (.counts.txt).
 // 4. Drops the throwaway database. The live database is only read.
@@ -23,6 +23,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
 import { busyReason, parseArgs, USAGE, type Lock } from './backup-lib.ts';
@@ -30,7 +31,7 @@ import { busyReason, parseArgs, USAGE, type Lock } from './backup-lib.ts';
 const LIVE_REF = 'abcdefghijklmnopqrst';
 const CONTAINER = 'supabase_db_sme-scheduling';
 const LOCAL_URL = 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
-const DIR = process.env.BACKUP_DIR ?? 'C:\\Users\\you\\Backups\\sme-scheduling';
+const DIR = process.env.BACKUP_DIR ?? join(homedir(), 'Backups', 'sme-scheduling');
 
 const args = parseArgs(process.argv.slice(2));
 if ('help' in args) {

@@ -369,7 +369,11 @@ describe('proposed times in plain sentences (decision 302)', () => {
     ).toBe('Sienna kept the time of API Design, not the one Shelly Carver proposed');
     expect(
       describeHistory(
-        { ...team, category: 'Instructor responses', action: 'Shelly Carver proposed another time' },
+        {
+          ...team,
+          category: 'Instructor responses',
+          action: 'Shelly Carver proposed another time',
+        },
         book,
       ).sentence,
     ).toBe('Shelly Carver proposed another time for API Design');

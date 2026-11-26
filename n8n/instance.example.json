@@ -1,0 +1,18 @@
+{
+  "key": "production",
+  "title": "Production",
+  "tag": "Production",
+  "pathPrefix": "",
+  "supabaseUrl": "https://YOUR-PROJECT.supabase.co",
+  "n8nUrl": "https://YOUR-N8N",
+  "backupFolderId": "YOUR-DRIVE-FOLDER-ID",
+  "processedLabelId": "YOUR-GMAIL-LABEL-ID",
+  "adminChannelId": "YOUR-ADMIN-CHANNEL-ID",
+  "credentials": {
+    "Gmail": "Gmail",
+    "Discord Bot": "Discord Bot",
+    "Google Drive Backups": "Google Drive Backups",
+    "Supabase secret key": "Supabase secret key",
+    "Poke secret": "Poke secret"
+  }
+}

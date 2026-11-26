@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { DateTime } from 'luxon';
@@ -733,21 +733,5 @@ function SettingField({
         <span className="text-xs text-muted-foreground">One per line.</span>
       )}
     </Field>
-  );
-}
-
-export function ScopeLink({
-  scope,
-  id,
-  children,
-}: {
-  scope: Scope;
-  id: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link to={`/settings/automation?scope=${scope}&id=${id}`} className="text-link hover:underline">
-      {children}
-    </Link>
   );
 }

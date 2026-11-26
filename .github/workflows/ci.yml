@@ -1,9 +1,20 @@
 name: Checks
 
-# Lint, type check, unit, database and end to end tests on every push.
+# On every push and pull request: format, lint, types, unit tests, build and the database tests (about 10 minutes).
+# The browser tests take hours, so they run only when asked for: Actions, Checks, Run workflow, tick the box.
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      browser_tests:
+        description: Also run every browser test (about 3 hours of Actions minutes)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 concurrency:
   group: checks-${{ github.ref }}
@@ -12,7 +23,7 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 45
     env:
       CI: 'true'
     steps:
@@ -26,23 +37,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Format
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Production build has no development sign in
-        run: npm run check-build -w scripts
+      - name: Format, lint, type check, unit tests, build
+        run: npm run check
 
       - name: Plain wording in user facing text
         run: npm run scan-text -w scripts
@@ -64,21 +60,38 @@ jobs:
       - name: Full engine timeline without accounts
         run: npm run mock -- --race
 
+  browser:
+    if: github.event_name == 'workflow_dispatch' && inputs.browser_tests
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
       - name: Install the test browser
         run: npx playwright install --with-deps chromium
         working-directory: e2e
 
-      - name: End to end tests
+      - name: Browser tests
         run: npm run e2e
 
-      # Runs on the Sandbox starting data the end to end tests leave behind.
       - name: Integration journey rehearsal (n8n, Discord and Gmail stood in for)
         run: npm run integration:rehearse -w scripts
 
-      - name: Keep the end to end results
+      - name: Keep the browser test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-results
           path: e2e/results
-          retention-days: 14
+          retention-days: 7

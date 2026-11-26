@@ -26,19 +26,6 @@ async function fetchPlanned(ids: string[]): Promise<Planned[]> {
 }
 
 /**
- * The planned instructor of each class week, by its ID. Read again with the class weeks (the key starts with
- * module_week, which live updates refresh).
- */
-export function usePlanned(ids: string[]) {
-  const sorted = [...new Set(ids)].sort();
-  return useQuery({
-    queryKey: ['module_week', 'planned', sorted.join()],
-    enabled: sorted.length > 0,
-    queryFn: async () => new Map((await fetchPlanned(sorted)).map((p) => [p.module_week_id, p])),
-  });
-}
-
-/**
  * The planned instructor of every coming class week of a domain nobody is confirmed for (decision 342). The database
  * picks the class weeks, so this loads at once, alongside the page's other lists, not after them.
  */

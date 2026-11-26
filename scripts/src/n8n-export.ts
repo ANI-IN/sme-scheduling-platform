@@ -1,46 +1,43 @@
-// Builds the live n8n workflow set from the base files in n8n/:
-//   n8n/sandbox/*.json  the live workflows: named "[Production] …" since M5; the tag "Sandbox", the credential names
-//                       and the webhook paths keep their old names on purpose, so nothing that already works changes.
-// Edit the base files in n8n/, never the generated ones, then run this. A second, separate set ("n8n/production/",
-// with new credential names and paths) was removed on 23 November 2026: nothing used it, since the old Sandbox
-// became Production in place (decision 315).
+// Builds the workflows to import into your n8n, from the base files in n8n/:
+//   n8n/WF*.json            the source: edit these.
+//   n8n/instance.json       your account values (copy n8n/instance.example.json; not in git).
+//   n8n/generated/*.json    written by this script: import or compare these (not in git).
 //
 //   npm run n8n-export -w scripts
 import { createHash } from 'node:crypto';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const DIR = resolve(import.meta.dirname, '../../n8n');
-// The values of the live set (docs/CONFIGURATION.md). Not secrets: the poke key stays a placeholder.
-const ENVS = [
-  {
-    key: 'sandbox',
-    label: 'Sandbox',
-    // The live workflows since the switch on 22 November (M5): shown as Production, credentials and tags unchanged.
-    title: 'Production',
-    pathPrefix: 'sandbox-',
-    supabaseUrl: 'https://abcdefghijklmnopqrst.supabase.co',
-    n8nUrl: 'https://your-instance.app.n8n.cloud',
-    backupFolderId: 'your-drive-folder-id',
-    // The Gmail label "SME Scheduling/Processed" in the Sandbox mailbox (WF1 labels the replies it read).
-    processedLabelId: 'Label_1',
-    // #admin-alerts: where WF5 posts when the database cannot be reached (review finding R17).
-    adminChannelId: '1200000000000000013',
-  },
-] as const;
+const SETTINGS = join(DIR, 'instance.json');
+if (!existsSync(SETTINGS)) {
+  console.error(
+    'Copy n8n/instance.example.json to n8n/instance.json and fill in your own values first.',
+  );
+  process.exit(2);
+}
 
-/**
- * The exact credential names in n8n (decision 264). Sandbox uses the credentials that already exist:
- * "Gmail Sandbox" (Gmail, Sign in with Google), "Discord Bot Sandbox" (Discord Bot) and "Google Drive Backups"
- * (Google Drive, Sign in with Google).
- */
-const CREDENTIALS: Record<string, Record<'sandbox', string>> = {
-  Gmail: { sandbox: 'Gmail Sandbox' },
-  'Discord Bot': { sandbox: 'Discord Bot Sandbox' },
-  'Google Drive Backups': { sandbox: 'Google Drive Backups' },
-  'Supabase secret key': { sandbox: 'Supabase Sandbox' },
-  'Poke secret': { sandbox: 'Poke Secret Sandbox' },
+type Instance = {
+  /** Used in webhook ids, so exporting twice gives the same files. */
+  key: string;
+  /** Shown in each workflow name, "[title] WF1 ...". */
+  title: string;
+  /** The n8n tag put on each workflow. */
+  tag: string;
+  /** Put in front of every webhook path; may be empty. */
+  pathPrefix: string;
+  supabaseUrl: string;
+  n8nUrl: string;
+  /** The Google Drive folder for the daily backup. */
+  backupFolderId: string;
+  /** The Gmail label ID that marks a reply as read. */
+  processedLabelId: string;
+  /** The Discord channel where WF5 posts when the database cannot be reached. */
+  adminChannelId: string;
+  /** The name of each credential in your n8n, by its name in the base files. */
+  credentials: Record<string, string>;
 };
+const env = JSON.parse(readFileSync(SETTINGS, 'utf8')) as Instance;
 
 /** A stable id per environment, so re-exporting gives the same files. */
 function uuidFor(seed: string): string {
@@ -58,19 +55,19 @@ type Workflow = { name: string; nodes: Node[]; tags?: unknown[]; [k: string]: un
 
 const p0 = (n: Node) => (n.parameters ?? {}) as Record<string, unknown>;
 
-for (const env of ENVS) {
-  const out = join(DIR, env.key);
+const out = join(DIR, 'generated');
+{
   mkdirSync(out, { recursive: true });
   for (const file of readdirSync(DIR).filter((f) => /^WF\d.*\.json$/.test(f))) {
     const wf = JSON.parse(readFileSync(join(DIR, file), 'utf8')) as Workflow;
     wf.name = `[${env.title}] ${wf.name}`;
-    wf.tags = [{ name: env.label }];
+    wf.tags = [{ name: env.tag }];
     for (const n of wf.nodes) {
       for (const c of Object.values(n.credentials ?? {})) {
         delete c.id;
-        const name = CREDENTIALS[c.name]?.[env.key];
+        const name = env.credentials[c.name];
         if (!name)
-          throw new Error(`No ${env.label} name for the credential "${c.name}" in ${file}`);
+          throw new Error(`n8n/instance.json has no name for the credential "${c.name}" (${file})`);
         c.name = name;
       }
       // The backup folder of this environment (Upload to Google Drive, List backups).
@@ -112,5 +109,5 @@ for (const env of ENVS) {
     }
     writeFileSync(join(out, file), JSON.stringify(wf, null, 2) + '\n');
   }
-  console.log(`Wrote n8n/${env.key}/`);
+  console.log('Wrote n8n/generated/');
 }

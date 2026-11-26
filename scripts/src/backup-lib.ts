@@ -1,7 +1,7 @@
 // The parts of the backup script that decide whether to start one (kept apart so they are tested).
 export const USAGE = `Usage: npm run backup -w scripts -- [--label before-release-batch-5]
 
-Backs up the live database to C:\Users\you\Backups\sme-scheduling\ and checks the copy restores.
+Backs up the live database to Backups/sme-scheduling in your home folder (or BACKUP_DIR) and checks the copy restores.
 --label  lower case letters, digits and "-" (default: manual)
 --help   show this and do nothing`;
 

@@ -2,6 +2,15 @@
   "name": "sme-scheduling-platform",
   "private": true,
   "version": "0.1.0",
+  "description": "Plan instructor led classes, ask instructors by Discord and email, and track every class week to Confirmed.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ANI-IN/sme-scheduling-platform.git"
+  },
   "workspaces": [
     "app",
     "scripts",
@@ -26,8 +35,7 @@
     "help:screenshots": "npm run test-stack -w scripts -- up && npm run demo -w scripts -- load && (npm run help-shots -w scripts; s=$?; npm run test-stack -w scripts -- down; exit $s)",
     "e2e": "tsx scripts/src/e2e-run.ts",
     "e2e:scale": "tsx scripts/src/e2e-run.ts --scale --project=scale",
-    "dev": "node node_modules/vite/bin/vite.js app --config app/vite.config.ts --port 5173",
-    "dev:sandbox": "node node_modules/vite/bin/vite.js app --config app/vite.config.ts --mode sandbox --port 5173 --strictPort"
+    "dev": "node node_modules/vite/bin/vite.js app --config app/vite.config.ts --port 5173"
   },
   "devDependencies": {
     "prettier": "^3.3.3",

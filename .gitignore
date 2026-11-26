@@ -15,7 +15,6 @@ coverage/
 
 # Local data snapshot taken before loading screenshot demo data (scripts/src/demo-data.ts)
 .ui-demo-snapshot.sql
-.env.sandbox
 .env.production
 e2e/results/
 .ui-demo-snapshot*.sql
@@ -25,3 +24,15 @@ e2e/results/
 
 # The Vercel project link (npx vercel link) and the token file it writes
 .vercel
+
+# Database backups never belong in the repository.
+*.dump
+backups/
+
+# Your n8n account values and the workflows built from them (npm run n8n-export -w scripts)
+n8n/instance.json
+n8n/generated/
+
+# Pictures made for reviews (npm run screenshots -w scripts); the help pictures in app/public/help are committed.
+docs/screenshots/
+
