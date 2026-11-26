@@ -162,3 +162,52 @@ test('R41: the sign in page shows no text taken from the address', async ({ brow
   await expect(page.getByText('555 0100')).toHaveCount(0);
   await ctx.close();
 });
+
+test('R34: pressing Assign twice quickly assigns once', async ({ page }) => {
+  await loadDemoData();
+  const w = await one<{ module: string; week: string; instr: string }>(
+    `select m.name module, to_char(mw.week_start_date, 'Mon FMDD') week, i.id instr
+       from public.module_week mw join public.module m on m.id = mw.module_id
+       join public.domain d on d.id = mw.domain_id and d.name = 'Backend'
+       join public.module_ranking k on k.module_id = mw.module_id join public.instructor i on i.id = k.instructor_id
+      where not exists (select 1 from public.booking b where b.module_week_id = mw.id and b.status = 'Active')
+        and mw.status not in ('Cancelled', 'Completed') and mw.first_class_at > now() + interval '3 days'
+        and private.eligibility(i.id, mw.id) is null
+      order by mw.first_class_at, k.rank desc limit 1`,
+  );
+  let calls = 0;
+  page.on('request', (r) => {
+    if (r.url().includes('/rpc/assign_manually')) calls += 1;
+  });
+  const dlg = await openWeekFromClasses(page, w.module, w.week);
+  await dlg.getByLabel('Instructor').selectOption(w.instr);
+  await dlg.getByRole('button', { name: 'Assign and confirm instructor' }).dblclick();
+  await expect.poll(() => calls).toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  expect(calls).toBe(1);
+});
+
+test('R35: an edit that cannot be saved as the form closes is said out loud', async ({
+  page,
+  problems,
+}) => {
+  problems.allow.push(/HTTP 400: PATCH .*\/instructor/, /Failed to load resource/);
+  await page.route('**/rest/v1/instructor?*', (route) =>
+    route.request().method() === 'PATCH'
+      ? route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'E2E: not saved' }),
+        })
+      : route.continue(),
+  );
+  await page.goto('/setup/instructors');
+  await ready(page);
+  await page.getByLabel('Show test instructors').check();
+  await page.locator('tbody tr').filter({ hasText: 'Test Instructor A' }).first().click();
+  const dlg = page.getByRole('dialog');
+  await ready(page);
+  await dlg.getByLabel('Notes').fill('E2E note typed just before closing');
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('Your last change was not saved. E2E: not saved')).toBeVisible();
+});
