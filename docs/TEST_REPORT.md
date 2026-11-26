@@ -4,7 +4,32 @@ The results of the last full verification, then every test scenario. How to run 
 
 ## Results
 
-RESULTS
+Last full verification: 26 November 2026, on the copy prepared for this repository (Windows 11, Node 26, Docker Desktop,
+Supabase command line 3.1.0).
+
+| Check | Command | Result |
+|---|---|---|
+| Install from the lockfile | `npm ci` | Passed (373 packages) |
+| Format, lint, types, unit tests, build, production build check | `npm run check` | Passed: 238 app unit tests, 16 script tests |
+| Wording rules | `npm run scan-text -w scripts` | Passed |
+| Colour contrast | `npm run contrast -w scripts` | Passed |
+| Database tests | `npm run db:test` | Passed: 85 files |
+| Migrations on an empty database | `npm run check-migrations -w scripts` | Passed |
+| Rollbacks | `npm run check-rollbacks -w scripts` | Passed: 53 of 53 |
+| Mock journey with race checks | `npm run mock -- --race` | Passed |
+| Message journey rehearsal | `npm run integration:rehearse -w scripts` | Passed |
+| Browser scenarios | `npm run e2e -- --project=scenarios` | Passed: 120 of 120 |
+| Page tests, desktop and phone, light | `npm run e2e -- --project=desktop-light --project=mobile-light` | Passed: 120 of 120 |
+| Help pictures | `npm run help:screenshots` | 32 pictures made from invented data |
+| Workflow export | `npm run n8n-export -w scripts` | Same files as the earlier exporter for the same settings |
+| A fresh clone, following [SETUP.md](SETUP.md) | `db:start`, `dev`, local sign in, `admins:local` | Passed (temporary ports) |
+
+The browser tests ran before the last changes, which touched one setup message, two script settings, comments and
+documentation; the code checks and database tests were run again afterwards.
+
+**Not run on this copy:** the page tests at the other six sizes and themes, the click through projects
+(`crawl-desktop`, `crawl-mobile`) and the speed test (`e2e:scale`). Nothing was tested against the real Discord, Gmail,
+Google Drive, Google sign in, n8n or a hosted database.
 
 ## Every scenario
 
