@@ -1,11 +1,11 @@
-// Backs up the live database and proves the backup is complete (Release 3, docs/PLAN_RELEASE_3.md section 4).
+// Backs up the live database and proves the backup is complete (docs/DEPLOYMENT.md).
 //
 //   npm run backup -w scripts -- --label before-m0
 //
 // Only one backup runs at a time (a lock file in the backup folder, and no pg_dump already working in the
 // container); --help and unknown options start nothing.
 //
-// 1. Refuses anything but the live project abcdefghijklmnopqrst.
+// 1. Refuses anything but your hosted project (SUPABASE_PROJECT_REF).
 // 2. Dumps the whole database (every schema, structure and data) with pg_dump 17 from the local Supabase container
 //    to Backups/sme-scheduling in your home folder (or BACKUP_DIR), outside the repository, with the date in its name.
 // 3. Restores the file into a throwaway database on the local Postgres and compares the row count of every table
@@ -28,7 +28,8 @@ import { join } from 'node:path';
 import pg from 'pg';
 import { busyReason, parseArgs, USAGE, type Lock } from './backup-lib.ts';
 
-const LIVE_REF = 'abcdefghijklmnopqrst';
+/** Your hosted Supabase project ID: the only database this script accepts. */
+const LIVE_REF = process.env.SUPABASE_PROJECT_REF ?? '';
 const CONTAINER = 'supabase_db_sme-scheduling';
 const LOCAL_URL = 'postgresql://postgres:postgres@127.0.0.1:55422/postgres';
 const DIR = process.env.BACKUP_DIR ?? join(homedir(), 'Backups', 'sme-scheduling');
@@ -44,8 +45,12 @@ if ('error' in args) {
 }
 const { label } = args;
 const live = process.env.DATABASE_URL ?? '';
-if (!live.includes(LIVE_REF)) {
-  console.error(`Refusing: DATABASE_URL is not the live project ${LIVE_REF}.`);
+if (!LIVE_REF || !live.includes(LIVE_REF)) {
+  console.error(
+    LIVE_REF
+      ? `Refusing: DATABASE_URL is not the project ${LIVE_REF} (SUPABASE_PROJECT_REF).`
+      : 'Refusing: set SUPABASE_PROJECT_REF to your Supabase project ID.',
+  );
   process.exit(1);
 }
 

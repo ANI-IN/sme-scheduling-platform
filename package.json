@@ -5,7 +5,7 @@
   "description": "Plan instructor led classes, ask instructors by Discord and email, and track every class week to Confirmed.",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22.12"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "repository": {
     "type": "git",

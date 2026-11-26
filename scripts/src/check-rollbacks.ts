@@ -1,4 +1,4 @@
-// Proves that every rollback file really undoes its migration (Release 3, docs/PLAN_RELEASE_3.md section 4).
+// Proves that every rollback file really undoes its migration (docs/DEPLOYMENT.md).
 //
 //   npm run check-rollbacks -w scripts
 //

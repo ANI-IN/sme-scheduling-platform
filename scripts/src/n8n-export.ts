@@ -34,10 +34,18 @@ type Instance = {
   processedLabelId: string;
   /** The Discord channel where WF5 posts when the database cannot be reached. */
   adminChannelId: string;
+  /** The address replies to system emails go to (your mailbox with "+scheduling" before the @). */
+  replyAddress: string;
   /** The name of each credential in your n8n, by its name in the base files. */
   credentials: Record<string, string>;
 };
 const env = JSON.parse(readFileSync(SETTINGS, 'utf8')) as Instance;
+/** The reply address written in the base files; yours replaces it. */
+const REPLY_PLACEHOLDER = 'scheduling-mailbox+scheduling@yourcompany.com';
+if (!env.replyAddress) {
+  console.error('Set "replyAddress" in n8n/instance.json.');
+  process.exit(2);
+}
 
 /** A stable id per environment, so re-exporting gives the same files. */
 function uuidFor(seed: string): string {
@@ -107,7 +115,8 @@ const out = join(DIR, 'generated');
           .replaceAll('/webhook/sme-poke', `/webhook/${env.pathPrefix}sme-poke`);
       }
     }
-    writeFileSync(join(out, file), JSON.stringify(wf, null, 2) + '\n');
+    const text = JSON.stringify(wf, null, 2).replaceAll(REPLY_PLACEHOLDER, env.replyAddress);
+    writeFileSync(join(out, file), text + '\n');
   }
   console.log('Wrote n8n/generated/');
 }

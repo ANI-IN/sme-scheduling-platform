@@ -8,6 +8,7 @@
   "backupFolderId": "YOUR-DRIVE-FOLDER-ID",
   "processedLabelId": "YOUR-GMAIL-LABEL-ID",
   "adminChannelId": "YOUR-ADMIN-CHANNEL-ID",
+  "replyAddress": "scheduling-mailbox+scheduling@yourcompany.com",
   "credentials": {
     "Gmail": "Gmail",
     "Discord Bot": "Discord Bot",

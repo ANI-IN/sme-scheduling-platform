@@ -10,10 +10,15 @@
 // the result. Refuses anything but the live project.
 import pg from 'pg';
 
-const LIVE_REF = 'abcdefghijklmnopqrst';
+/** Your hosted Supabase project ID: the only database this script accepts. */
+const LIVE_REF = process.env.SUPABASE_PROJECT_REF ?? '';
 const url = process.env.DATABASE_URL ?? '';
-if (!url.includes(LIVE_REF)) {
-  console.error(`Refusing: DATABASE_URL is not the live project ${LIVE_REF}.`);
+if (!LIVE_REF || !url.includes(LIVE_REF)) {
+  console.error(
+    LIVE_REF
+      ? `Refusing: DATABASE_URL is not the project ${LIVE_REF} (SUPABASE_PROJECT_REF).`
+      : 'Refusing: set SUPABASE_PROJECT_REF to your Supabase project ID.',
+  );
   process.exit(1);
 }
 const [cmd = 'status', pokeUrl] = process.argv.slice(2);

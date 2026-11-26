@@ -343,7 +343,7 @@ skip_nonce_check = false
 email_optional = false
 
 [auth.external.google]
-# Google sign-in. Set enabled = true and provide credentials via env (see docs/SETUP_GUIDE.md).
+# Google sign-in. Set enabled = true and provide credentials via env (see docs/DEPLOYMENT.md).
 enabled = false
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"

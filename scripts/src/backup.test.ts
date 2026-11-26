@@ -17,6 +17,7 @@ function run(args: string[], dir: string) {
     env: {
       ...process.env,
       DATABASE_URL: 'postgresql://x:x@127.0.0.1:1/abcdefghijklmnopqrst',
+      SUPABASE_PROJECT_REF: 'abcdefghijklmnopqrst',
       BACKUP_DIR: dir,
     },
   });
@@ -73,4 +74,23 @@ test('arguments', () => {
   assert.deepEqual(parseArgs(['--help', '--label', 'x']), { help: true });
   assert.ok('error' in parseArgs(['--label']));
   assert.ok('error' in parseArgs(['--label', 'Bad Label']));
+});
+
+test('a database that is not your project is refused', () => {
+  const dir = folder();
+  const r = spawnSync(process.execPath, ['--import', 'tsx', join(here, 'backup.ts')], {
+    encoding: 'utf8',
+    timeout: 60_000,
+    cwd: join(here, '..'),
+    env: {
+      ...process.env,
+      DATABASE_URL: 'postgresql://x:x@127.0.0.1:1/other',
+      SUPABASE_PROJECT_REF: '',
+      BACKUP_DIR: dir,
+    },
+  });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /SUPABASE_PROJECT_REF/);
+  assert.deepEqual(readdirSync(dir), []);
+  rmSync(dir, { recursive: true, force: true });
 });
